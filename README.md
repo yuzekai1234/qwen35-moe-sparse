@@ -49,7 +49,8 @@ GPUS=1,2 bash scripts/train.sh q35_c1_s2 --max_steps 100 --run_dir runs/try
 - **预算**：不传 `--tokens` 时按预设算力（C1=3e17，C2=1e18）和实际词表、`--seq`、`--batch_tokens` 重新核算，向下取整到完整全局 batch；warmup 默认 1% 步数（至少 10）。
 - **公共设置**：seq 8192、全局 batch 524288 token、AdamW(0.9, 0.95)、wd 0.1、clip 1、bf16、seed 0、cosine 降到 0.1×lr。全局 batch 须整除 `micro_bs × seq × GPU 数`。
 - **续训**：默认 `--resume 1`，重跑原命令从 `ckpt.pt` 续训（FP32 主权重、优化器、token 数、各 rank 随机状态）。改了模型、数据、词表、预算或学习率策略会拒绝续训，请用新 `--run_dir`。相同 GPU 数和 micro batch 可恢复采样流；BF16/FLA 下同种子训练仍有微小数值差异。`--max_steps N` 只把本次运行截止到第 N 步，不改变学习率曲线。
-- **输出** `runs/<预设>/`：`ckpt.pt`、`training_metrics.csv`、`run_config.json`（含模型源码 SHA256）、`summary.json`（`completed_budget` 区分短程与完成）、`flops.json`、BF16 HF 导出 `hf/`。
+- **输出** `runs/<预设>/`：`ckpt.pt`、`training_metrics.csv`、TensorBoard 日志 `tb/`（`--tensorboard 0` 关闭）、`run_config.json`（含模型源码 SHA256）、`summary.json`（`completed_budget` 区分短程与完成）、`flops.json`、BF16 HF 导出 `hf/`。
+- **监控**：`.venv_q35/bin/tensorboard --logdir runs --port 6006`，远程用 `ssh -L 6006:localhost:6006 <服务器>` 转发后打开 `http://localhost:6006`。曲线：`train/{loss,aux,lr,grad_norm,tokens}`（每步）、`perf/{tok_per_s,max_mem_gib}`、`val/loss`（每 `--log_every` / `--eval_every` 步），横轴为优化步。
 
 ## 评测
 

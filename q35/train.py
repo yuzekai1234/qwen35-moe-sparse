@@ -6,8 +6,9 @@
 和实际词表/序列长度重新核算(向下取整到完整全局 batch); --warmup 缺省为 1% 步数(至少 10)。
 默认 --resume 1: 重跑同一命令从 run_dir/ckpt.pt 续训; 改模型/数据/预算/学习率策略时用新的 --run_dir。
 --max_steps N 只把此次运行截止到绝对第 N 步, 不改变原预算的学习率曲线。
-输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, run_config.json,
-summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
+输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, tb/ (TensorBoard, --tensorboard 0 关闭),
+run_config.json, summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
+监控: tensorboard --logdir runs --port 6006
 """
 import argparse
 import contextlib
@@ -30,7 +31,7 @@ from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, model_con
 TRAIN_DEFAULTS = dict(run_dir="", data=str(ROOT / "data/corpus_gzy10k/train.bin"), tokenizer=str(ROOT / "tokenizer/gzy_10k"),
                       seq=8192, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
                       warmup=0, wd=0.1, clip=1.0, seed=0, log_every=10, eval_every=500, eval_tokens=2_000_000,
-                      ckpt_every=200, resume=1, max_steps=0)
+                      ckpt_every=200, resume=1, max_steps=0, tensorboard=1)
 # A resumed run must agree on everything that shapes the model, data stream or LR schedule.
 RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts",
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
@@ -222,6 +223,12 @@ def main(argv=None):
         if ck.get("world", 1) != world:
             log0("World size changed: optimizer/token count restored; sample stream is not bitwise identical")
         log0(f"从 {ckpt_path} 恢复：step {start_step}, tok_seen {tok_seen}"); del ck
+    tb = None
+    if rank == 0 and a.tensorboard:   # purge_step drops events a crashed run logged past the restored checkpoint
+        from torch.utils.tensorboard import SummaryWriter
+        tb = SummaryWriter(f"{a.run_dir}/tb", purge_step=start_step if resuming else None)
+        if not resuming:
+            tb.add_text("run_config", f"```\n{json.dumps(vars(a), indent=1, ensure_ascii=False)}\n```")
 
     def save_ckpt(step):
         state = {"numpy": rng.bit_generator.state, "torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(dev)}
@@ -248,6 +255,9 @@ def main(argv=None):
         opt.step(); opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
         if ddp:
             la = torch.tensor(loss_acc, device=dev); dist.all_reduce(la); loss_acc = la.item() / world
+        if tb:
+            for k, v in (("loss", loss_acc), ("aux", aux_acc), ("lr", lr_at(step)), ("grad_norm", gn), ("tokens", tok_seen)):
+                tb.add_scalar(f"train/{k}", v, step)
         if a.ckpt_every and step > 0 and step % a.ckpt_every == 0: save_ckpt(step)
         if (step % a.log_every == 0 or step == stop_step - 1) and rank == 0:
             now = time.time(); tps = min(a.log_every, step - start_step + 1) * accum * per_micro / max(1e-6, now - t_last); t_last = now
@@ -257,9 +267,15 @@ def main(argv=None):
             print(f"step {step}/{steps} tok {tok_seen/1e6:.0f}M loss {loss_acc:.4f} aux {aux_acc:.3f} lr {lr_at(step):.2e} gn {gn:.2f} "
                   f"{tps:.0f} tok/s {(now-t0)/60:.1f}min mem {torch.cuda.max_memory_allocated(dev)/2**30:.1f}G"
                   + (f" | val {vl:.4f}" if vl != "" else ""), flush=True)
+            if tb:
+                tb.add_scalar("perf/tok_per_s", tps, step)
+                tb.add_scalar("perf/max_mem_gib", torch.cuda.max_memory_allocated(dev) / 2**30, step)
+                if vl != "": tb.add_scalar("val/loss", vl, step)
+                tb.flush()
 
     # Every rank participates; save FP32 master weights before the BF16 export.
     if stop_step > start_step: save_ckpt(stop_step - 1)
+    if tb: tb.close()
     if ddp: dist.barrier()
     if rank == 0:
         model.to(torch.bfloat16).save_pretrained(f"{a.run_dir}/hf"); tok.save_pretrained(f"{a.run_dir}/hf")
