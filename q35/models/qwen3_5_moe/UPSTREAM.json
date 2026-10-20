@@ -1,0 +1,16 @@
+{
+  "transformers_version": "5.19.0",
+  "source": "Installed transformers 5.19.0 on 4090-8; transformers.models.qwen3_5_moe",
+  "license": "Apache-2.0",
+  "upstream_sha256": {
+    "modeling_qwen3_5_moe.py": "2050fe9387309901dc5c7a38951dfd834dc44fa6475211b4833d973d9b68d2e2",
+    "configuration_qwen3_5_moe.py": "3ba07e1edc690144e46d49ee3d98fd36268d87d98fc64dad6f36923e81fe880e"
+  },
+  "local_changes": [
+    "Replace upstream generation banner with editable-copy notice; retain copyright and Apache-2.0 license.",
+    "Resolve Transformers framework imports absolutely and retain local configuration import.",
+    "Use qwen35_moe_sparse for the text config model_type to prevent silent stock AutoModel loading.",
+    "Bypass the framework arbitrary-custom-code initialization guard to preserve the exact built-in seeded initialization traversal; all upstream init helpers remain in use.",
+    "Text-only: remove vision tower, multimodal Qwen3_5MoeModel / ForConditionalGeneration and their configs; text LM code is unchanged."
+  ]
+}

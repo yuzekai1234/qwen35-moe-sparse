@@ -1,0 +1,32 @@
+{
+  "compute": 3e+17,
+  "model": {
+    "layers": 5,
+    "hidden": 96,
+    "heads": 2,
+    "kv_heads": 1,
+    "head_dim": 64,
+    "lin_k_heads": 1,
+    "lin_v_heads": 2,
+    "lin_head_dim": 64,
+    "experts": 64,
+    "topk": 4,
+    "moe_ffn": 96,
+    "shared_ffn": 48
+  },
+  "train": {
+    "lr": 0.004,
+    "micro_bs": 16,
+    "experts_impl": "grouped_mm"
+  },
+  "reference": {
+    "note": "EXAONE 153600 vocab, seq 8192, historical run",
+    "vocab_size": 153600,
+    "tokens": 2947547136,
+    "n_params": 23946128,
+    "n_nonvocab_active": 906128,
+    "flops_per_token": 101774688,
+    "bpb": 1.2703,
+    "evaltime": 2107
+  }
+}

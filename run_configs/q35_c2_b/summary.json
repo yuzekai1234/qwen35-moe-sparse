@@ -1,8 +1,0 @@
-{
- "tokens_trained": 3670540288,
- "train_flops": 1000024489133604864,
- "active_nonvocab": 8445384,
- "total_nonvocab": 88071624,
- "elapsed_s": 33064.189066171646,
- "world": 2
-}
