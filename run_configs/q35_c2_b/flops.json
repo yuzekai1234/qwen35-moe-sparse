@@ -1,0 +1,43 @@
+{
+ "layers": 12,
+ "hidden": 192,
+ "layer_types": [
+  "linear_attention",
+  "linear_attention",
+  "linear_attention",
+  "full_attention",
+  "linear_attention",
+  "linear_attention",
+  "linear_attention",
+  "full_attention",
+  "linear_attention",
+  "linear_attention",
+  "linear_attention",
+  "full_attention"
+ ],
+ "vocab": 153600,
+ "seq": 8192,
+ "experts": 64,
+ "topk": 4,
+ "expert_ffn": 192,
+ "shared_ffn": 96,
+ "attn_heads": 4,
+ "kv_heads": 1,
+ "head_dim": 64,
+ "lin_k_heads": 2,
+ "lin_v_heads": 4,
+ "active_nonvocab_params": 8445384,
+ "total_nonvocab_params": 88071624,
+ "nonvocab_params": 8445384,
+ "embed_params": 29491200,
+ "fwd_flops_per_token": 90815376,
+ "train_flops_per_token": 272446128,
+ "breakdown": {
+  "dense_2Na": 16890768,
+  "gdn_core": 2359296,
+  "attn_score": 12582912,
+  "logits": 58982400
+ },
+ "train_tokens": 3670540288.0,
+ "train_flops": 1.0000244891336049e+18
+}

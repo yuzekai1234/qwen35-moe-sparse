@@ -1,0 +1,36 @@
+{
+ "layers": 5,
+ "hidden": 96,
+ "layer_types": [
+  "linear_attention",
+  "linear_attention",
+  "linear_attention",
+  "full_attention",
+  "linear_attention"
+ ],
+ "vocab": 153600,
+ "seq": 8192,
+ "experts": 64,
+ "topk": 4,
+ "expert_ffn": 96,
+ "shared_ffn": 48,
+ "attn_heads": 2,
+ "kv_heads": 1,
+ "head_dim": 64,
+ "lin_k_heads": 1,
+ "lin_v_heads": 2,
+ "active_nonvocab_params": 906128,
+ "total_nonvocab_params": 9200528,
+ "nonvocab_params": 906128,
+ "embed_params": 14745600,
+ "fwd_flops_per_token": 33924896,
+ "train_flops_per_token": 101774688,
+ "breakdown": {
+  "dense_2Na": 1812256,
+  "gdn_core": 524288,
+  "attn_score": 2097152,
+  "logits": 29491200
+ },
+ "train_tokens": 2947547136.0,
+ "train_flops": 2.999856901316936e+17
+}
