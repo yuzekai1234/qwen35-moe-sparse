@@ -126,6 +126,21 @@ if resuming:
     else:
         rng = np.random.default_rng([a.seed + RANK, start_step])
     if ck.get("world", 1) != WORLD: log0("World size changed: optimizer/token count restored; sample stream is not bitwise identical")
+    if os.environ.get("Q35_VERIFY_RESUME") == "1":
+        def exact_state(x, y):
+            if isinstance(x, torch.Tensor): return isinstance(y, torch.Tensor) and torch.equal(x.cpu(), y.cpu())
+            if isinstance(x, dict): return x.keys() == y.keys() and all(exact_state(x[k], y[k]) for k in x)
+            if isinstance(x, (tuple, list)): return len(x) == len(y) and all(exact_state(u, v) for u, v in zip(x, y))
+            return x == y
+        checks = {"rank": RANK, "model_exact": exact_state(raw_model.state_dict(), ck["model"]),
+                  "optimizer_exact": exact_state(opt.state_dict(), ck["opt"])}
+        if len(ck.get("rank_rng", [])) == WORLD:
+            checks["rng_exact"] = exact_state({"numpy": rng.bit_generator.state, "torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(dev)}, ck["rank_rng"][RANK])
+        assert all(v for k, v in checks.items() if k != "rank"), checks
+        verified = [None] * WORLD
+        if DDP_ON: dist.all_gather_object(verified, checks)
+        else: verified[0] = checks
+        if RANK == 0: json.dump(verified, open(f"{a.run_dir}/resume_verification.json", "w"), indent=2)
     log0(f"从 {CKPT} 恢复：step {start_step}, tok_seen {tok_seen}"); del ck
 def save_ckpt(step):
     state = {"numpy": rng.bit_generator.state, "torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(dev)}

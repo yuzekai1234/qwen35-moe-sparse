@@ -5,6 +5,7 @@
 - 安装默认使用清华源；安装失败立即返回；libcuda 软链位于项目目录。
 - 明确用 `PreTrainedTokenizerFast` 加载 EXAONE，校验词表 153600；训练关闭 KV cache。
 - 训练二进制数据改为只读 mmap，避免每个 DDP rank 各读入一份完整语料。
+- 增加 `Q35_VERIFY_RESUME=1`，在恢复时逐项核对模型、优化器和各 rank 随机状态与 checkpoint 完全一致，用于集成测试。
 - checkpoint 保存各 rank NumPy / Torch / CUDA 随机状态，正常结束也保存 FP32 主权重；原子替换 checkpoint。
 - 续训校验关键模型、数据和优化参数，防止不兼容地覆盖原运行；允许改变卡数与 micro batch。
 - `max_steps` 保持原 token 预算的学习率曲线，summary 标注预算是否完成。

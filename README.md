@@ -54,7 +54,7 @@ GPUS=1,2 bash launch/train.sh q35_c1_s2
 
 全部五组预设均可启动。通过 `DATA=/path/to/train.bin` 指定现有 EXAONE uint32 语料，通过 `PY` 指定解释器。额外训练参数可直接追加，例如 `--micro_bs 2` 或 `--run_dir /path/to/new-run`；全局 batch 必须整除 `micro_bs × seq × GPU 数量`。命令错误和训练错误会通过 `pipefail` 正常返回失败。
 
-默认 `--resume 1`，重跑原命令会从最新 `ckpt.pt` 续训。checkpoint 保存 FP32 主权重、优化器、训练 token 数与各 rank 随机状态，正常结束也会保存。相同 GPU 数和 micro batch 可恢复采样流；更改 GPU 数/micro batch 可恢复状态和全局 token 计数，但采样顺序会改变。修改模型结构、数据路径、token 预算或学习率策略时使用新 `run_dir`。`--max_steps N` 仅限制此次运行到绝对第 N 步，不改变原预算的学习率曲线；可用于短程测试后继续原预算训练。
+默认 `--resume 1`，重跑原命令会从最新 `ckpt.pt` 续训。checkpoint 保存 FP32 主权重、优化器、训练 token 数与各 rank 随机状态，正常结束也会保存。相同 GPU 数和 micro batch 可恢复采样流；当前 BF16/FLA/MoE 运行环境的独立同种子训练仍观察到数值差异，不保证最终权重逐位相同；更改 GPU 数/micro batch 可恢复状态和全局 token 计数，但采样顺序会改变。修改模型结构、数据路径、token 预算或学习率策略时使用新 `run_dir`。`--max_steps N` 仅限制此次运行到绝对第 N 步，不改变原预算的学习率曲线；可用于短程测试后继续原预算训练。
 
 输出在 `runs/<预设>/`：`ckpt.pt`、`training_metrics.csv`、`run_config.json`、`summary.json`、HF 导出 `hf/`；终端日志在 `logs/`。`summary.json` 的 `completed_budget` 区分短程测试和预算完成。
 
@@ -83,6 +83,8 @@ DATA=$PWD/data/smoke/train.bin GPUS=1 bash launch/train.sh q35_c2_m \
   --micro_bs 1 --eval_tokens 16384 --warmup 1 --log_every 1 --resume 0
 ```
 
+双卡中断恢复对比测试：`GPUS=1,2 bash tests/gpu_resume.sh`。它会逐项检查恢复时模型/优化器/各卡随机状态与 checkpoint 完全一致，并比较续训与连续训练的 token 计数和采样状态；最终权重差异仅报告数值。
+
 本次部署验证见 `docs/VALIDATION.md`。语料、环境、训练日志、checkpoint、模型权重均被 Git 忽略；仓库包含代码、词表、五组历史配置和核算记录。
 
 ## 来源
@@ -94,3 +96,5 @@ DATA=$PWD/data/smoke/train.bin GPUS=1 bash launch/train.sh q35_c2_m \
 - [Liger Kernel](https://github.com/linkedin/Liger-Kernel)
 
 本仓库保留共享源码作者归属，未自行赋予其新的开源许可。新增部署、启动和健壮性修复详见 `docs/CHANGES.md`。
+
+服务器仓库已配置专用 GitHub deploy key（仅此仓库，可推送），通过 SSH 443 端口连接；私钥在 `/home/yzk/.ssh/`，不进入仓库。服务器上可直接运行 `git pull --ff-only` / `git push`。
