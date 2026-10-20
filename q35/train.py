@@ -69,7 +69,7 @@ def parse_args(argv=None):
 
 
 class LossModel(torch.nn.Module):
-    """Fused-linear CE over the backbone + router load-balancing loss; DDP wraps this whole computation.
+    """Fused-linear CE over the backbone + router load-balancing loss (zero for dense, experts=0); DDP wraps this whole computation.
 
     It bypasses Qwen3_5MoeForCausalLM.forward() to avoid materialising logits; change it together with
     the output head or the routing auxiliary loss."""
@@ -81,9 +81,11 @@ class LossModel(torch.nn.Module):
         self.ce = LigerFusedLinearCrossEntropyLoss()
 
     def forward(self, x, y):
-        out = self.lm.model(input_ids=x, output_router_logits=True)
+        out = self.lm.model(input_ids=x, output_router_logits=bool(self.experts))
         h = out.last_hidden_state
         ce = self.ce(self.lm.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
+        if not self.experts:
+            return ce, ce.new_zeros(())
         return ce, M.load_balancing_loss_func(out.router_logits, self.experts, self.topk)
 
 
@@ -158,7 +160,7 @@ def main(argv=None):
     assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "embeddings are not tied"
     log0("GDN kernel:", gdn_kernel())
     n_all = sum(p.numel() for p in model.parameters()); n_total_nv = n_all - model.get_input_embeddings().weight.numel()
-    n_active_nv = n_total_nv - a.layers * (a.experts - a.topk) * 3 * a.hidden * a.moe_ffn
+    n_active_nv = n_total_nv - (a.layers * (a.experts - a.topk) * 3 * a.hidden * a.moe_ffn if a.experts else 0)
     fc = count_flops(cfg.to_dict(), a.seq); flops_per_token = fc["train_flops_per_token"]
     assert (fc["total_nonvocab_params"], fc["active_nonvocab_params"]) == (n_total_nv, n_active_nv), "flops.py param count drifted from the model"
     if not a.tokens:

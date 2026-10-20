@@ -5,6 +5,7 @@ budget and the historical reference numbers.  Everything else uses the shared
 defaults below, which reproduce the original scaling rules:
   每 4 层 [lin, lin, lin, full]，层数非 4 的倍数时余下接 lin；64 选 4 路由专家 + 共享专家；
   全注意力 head_dim 64、输出门、partial_rotary 0.25、rope_theta 1e7；绑定嵌入。
+experts=0 为稠密消融：每层 FFN 换成宽 shared_ffn 的 SwiGLU (无路由、无共享专家门)，topk/moe_ffn 不再使用。
 """
 import json
 from pathlib import Path

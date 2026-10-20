@@ -1,0 +1,25 @@
+{
+  "compute": 3e+17,
+  "model": {
+    "layers": 8,
+    "hidden": 192,
+    "heads": 4,
+    "kv_heads": 1,
+    "head_dim": 64,
+    "lin_k_heads": 2,
+    "lin_v_heads": 4,
+    "lin_head_dim": 64,
+    "experts": 0,
+    "topk": 0,
+    "moe_ffn": 0,
+    "shared_ffn": 896
+  },
+  "train": {
+    "lr": 0.004,
+    "micro_bs": 8
+  },
+  "ablation": {
+    "note": "MoE ablation of q35_c1_s2: dense SwiGLU FFN, width chosen so train FLOPs/token match the MoE preset (within 1%)",
+    "base": "q35_c1_s2"
+  }
+}

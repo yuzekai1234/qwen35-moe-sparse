@@ -11,6 +11,7 @@
     "Resolve Transformers framework imports absolutely and retain local configuration import.",
     "Use qwen35_moe_sparse for the text config model_type to prevent silent stock AutoModel loading.",
     "Bypass the framework arbitrary-custom-code initialization guard to preserve the exact built-in seeded initialization traversal; all upstream init helpers remain in use.",
-    "Text-only: remove vision tower, multimodal Qwen3_5MoeModel / ForConditionalGeneration and their configs; text LM code is unchanged."
+    "Text-only: remove vision tower, multimodal Qwen3_5MoeModel / ForConditionalGeneration and their configs; text LM code is unchanged.",
+    "num_experts == 0 builds a dense SwiGLU FFN (width shared_expert_intermediate_size, no gate) in place of the sparse MoE block; MoE configs are unchanged."
   ]
 }

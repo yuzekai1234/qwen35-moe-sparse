@@ -6,6 +6,7 @@
      状态项 6·dk·dv  (W·S 求 v_new、Q·S 读出、K^T·v_new 更新状态, 各 2·dk·dv)
      块内项 6·C·dk + 4·C·dv  (KK^T、QK^T、A·(βK) 各 2·C·dk; A·(βV)、块内注意力×v_new 各 2·C·dv)
   词表投影: 2·h·V   (嵌入查表不计)
+num_experts=0: 每层 FFN 为稠密 SwiGLU (宽 shared_expert_intermediate_size, 无路由/无门), 激活=总参数。
 改变路由、专家数或结构后, 需同步修改此处与 evaluate.active_parameter_count()。
 
 用法: python -m q35.flops q35_c2_m [--seq 8192] [--tokenizer tokenizer/gzy_30k]   # 预设按实际词表核算预算
@@ -25,6 +26,8 @@ def count(c, seq):
     types = c["layer_types"][:L]
     moe_active = E * h + 3 * h * fs + h + k * 3 * h * fe          # router + 共享专家 + 共享专家门 + top-k 路由专家
     moe_total = E * h + 3 * h * fs + h + E * 3 * h * fe
+    if not E:
+        moe_active = moe_total = 3 * h * fs                       # 稠密 SwiGLU
     gdn = h * (2 * nk * dk + nv * dv) + h * nv * dv + 2 * h * nv + (2 * nk * dk + nv * dv) * K + 2 * nv + dv + nv * dv * h
     full = h * 2 * nq * hd + 2 * h * nkv * hd + nq * hd * h + 2 * hd   # q 含输出门(×2), q/k norm
     n_lin, n_full = types.count("linear_attention"), types.count("full_attention")

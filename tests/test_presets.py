@@ -4,17 +4,21 @@ import unittest
 from tokenizers import Tokenizer
 
 from q35.data import DEFAULT_TOKENIZER
+from q35.evaluate import active_parameter_count
 from q35.flops import count
+from q35.models.qwen3_5_moe import Qwen3_5MoeForCausalLM
+from q35.models.qwen3_5_moe.modeling_qwen3_5_moe import Qwen3_5MoeMLP
 from q35.presets import ROOT, default_layer_types, load_preset, model_config, preset_budget, preset_names
 from q35.train import parse_args
 
-NAMES = ("q35_c1_s1", "q35_c1_s2", "q35_c1_s3", "q35_c2_b", "q35_c2_m")
+NAMES = ("q35_c1_dense", "q35_c1_s1", "q35_c1_s2", "q35_c1_s3", "q35_c2_b", "q35_c2_m")
+HISTORICAL = tuple(n for n in NAMES if "reference" in load_preset(n))
 
 
 class Presets(unittest.TestCase):
     def test_reference_parameter_and_flop_counts(self):
         self.assertEqual(tuple(preset_names()), NAMES)
-        for name in NAMES:
+        for name in HISTORICAL:
             with self.subTest(name=name):
                 p = load_preset(name); ref = p["reference"]
                 cfg = model_config(p["model"], ref["vocab_size"], 8192).to_dict()
@@ -40,6 +44,19 @@ class Presets(unittest.TestCase):
                     self.assertEqual(tokens % 524288, 0)
                     self.assertLessEqual(tokens * flops, budget)
                     self.assertGreater((tokens + 524288) * flops, budget)
+
+    def test_dense_ablation(self):
+        p = load_preset("q35_c1_dense"); base = load_preset(p["ablation"]["base"])
+        cfg = model_config(p["model"], 30080, 8192)
+        fc, fb = count(cfg.to_dict(), 8192), count(model_config(base["model"], 30080, 8192).to_dict(), 8192)
+        self.assertEqual(p["compute"], base["compute"])
+        self.assertLess(abs(fc["train_flops_per_token"] / fb["train_flops_per_token"] - 1), 0.01)
+        model = Qwen3_5MoeForCausalLM(cfg)
+        self.assertTrue(all(type(layer.mlp) is Qwen3_5MoeMLP for layer in model.model.layers))
+        n_nv = sum(p.numel() for p in model.parameters()) - model.get_input_embeddings().weight.numel()
+        self.assertEqual(fc["active_nonvocab_params"], fc["total_nonvocab_params"])
+        self.assertEqual(active_parameter_count(model), n_nv)
+        self.assertEqual(fc["total_nonvocab_params"], n_nv)
 
     def test_cli_overrides_preset(self):
         a = parse_args(["--preset", "q35_c1_s1", "--lr", "1e-3", "--tokens", "3e6"])

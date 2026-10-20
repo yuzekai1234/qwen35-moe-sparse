@@ -861,7 +861,11 @@ class Qwen3_5MoeDecoderLayer(GradientCheckpointingLayer):
             self.linear_attn = Qwen3_5MoeGatedDeltaNet(config, layer_idx)
         elif self.block_type == "full_attention":
             self.self_attn = Qwen3_5MoeAttention(config, layer_idx)
-        self.mlp = Qwen3_5MoeSparseMoeBlock(config)
+        # q35: num_experts == 0 replaces the MoE block with a dense SwiGLU FFN of width shared_expert_intermediate_size.
+        if config.num_experts:
+            self.mlp = Qwen3_5MoeSparseMoeBlock(config)
+        else:
+            self.mlp = Qwen3_5MoeMLP(config, intermediate_size=config.shared_expert_intermediate_size)
         self.input_layernorm = Qwen3_5MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen3_5MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
