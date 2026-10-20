@@ -1,5 +1,6 @@
 """Prepare a small real training sample; deliberately never read official eval data."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import numpy as np
@@ -8,10 +9,11 @@ from transformers import PreTrainedTokenizerFast
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--source", default="/home/shared/data/dolma3_mix_50B-00000.jsonl")
-parser.add_argument("--out", type=Path, default=root / "data/smoke/train.bin")
+parser.add_argument("--out", type=Path, default=root / "data/smoke_gzy10k/train.bin")
+parser.add_argument("--tokenizer", type=Path, default=root / "tokenizer/gzy_10k")
 parser.add_argument("--tokens", type=int, default=262144)
 args = parser.parse_args()
-tok = PreTrainedTokenizerFast.from_pretrained(root / "tokenizer/exaone_154k")
+tok = PreTrainedTokenizerFast.from_pretrained(args.tokenizer, local_files_only=True)
 args.out.parent.mkdir(parents=True, exist_ok=True)
 count = 0
 with open(args.source) as source, args.out.open("wb") as out:
@@ -27,4 +29,8 @@ with open(args.source) as source, args.out.open("wb") as out:
             break
 if count < args.tokens:
     raise ValueError(f"Source exhausted: {count} < {args.tokens}")
-print(json.dumps({"source": args.source, "tokens": count, "path": str(args.out)}))
+metadata = {"source": args.source, "tokens": count, "path": str(args.out), "dtype": "<u4",
+            "tokenizer": str(args.tokenizer),
+            "tokenizer_sha256": hashlib.sha256((args.tokenizer / "tokenizer.json").read_bytes()).hexdigest()}
+(args.out.parent / "meta.json").write_text(json.dumps(metadata, indent=2) + "\n")
+print(json.dumps(metadata))

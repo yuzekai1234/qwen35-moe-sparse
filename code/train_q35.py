@@ -2,9 +2,9 @@
 结构: layer_types 每 4 层 3 层 linear_attention(Gated DeltaNet, conv 4, fla 快速 kernel) + 1 层 full_attention(GQA + 输出门, partial_rotary 0.25, rope_theta 1e7);
       MoE = E 个路由专家选 k + 1 个共享专家(带 sigmoid 门), loss 加 router_aux_loss_coef × load balancing loss; 无 MTP、无视觉部分; 绑定嵌入。
 FLOPs/参数口径见 count_flops_q35.py (激活非词表参数 = 总非词表 − 未选中的路由专家)。
-用法: train_q35.py --run_dir ../runs/q35_c1_s1 --data ../data/corpus_exaone154k/train.bin --tokenizer ../tokenizer/exaone_154k --layers 5 --hidden 96 --heads 2 --kv_heads 1 \
+用法: train_q35.py --run_dir ../runs/q35_c1_s1_gzy10k --data ../data/corpus_gzy10k/train.bin --tokenizer ../tokenizer/gzy_10k --layers 5 --hidden 96 --heads 2 --kv_heads 1 \
         --lin_k_heads 1 --lin_v_heads 2 --experts 64 --topk 4 --moe_ffn 96 --shared_ffn 48 --tokens 2.9e9 --batch_tokens 524288 --micro_bs 8 --lr 3.6e-3"""
-import contextlib, argparse, os, time, math, json, csv, numpy as np, torch
+import contextlib, argparse, os, time, math, json, csv, hashlib, numpy as np, torch
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,7 +13,7 @@ from models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM, sour
 from models.qwen3_5_moe import modeling_qwen3_5_moe as M
 from count_flops_q35 import count as count_flops
 ap = argparse.ArgumentParser()
-for k, v in dict(run_dir="../runs/q35", data="../data/corpus_exaone154k/train.bin", tokenizer="../tokenizer/exaone_154k", layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64,
+for k, v in dict(run_dir="../runs/q35_gzy10k", data="../data/corpus_gzy10k/train.bin", tokenizer="../tokenizer/gzy_10k", layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64,
                  lin_k_heads=1, lin_v_heads=2, lin_head_dim=64, experts=64, topk=4, moe_ffn=96, shared_ffn=48, layer_types="", aux_coef=0.001, rope_theta=1e7, partial_rotary=0.25,
                  experts_impl="eager", seq=8192, tokens=300e6, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1, warmup=0, wd=0.1, clip=1.0, seed=0,
                  log_every=10, eval_every=500, eval_tokens=2e6, gpu=0, ckpt_every=200, resume=1, max_steps=0).items():
@@ -38,7 +38,9 @@ dev = torch.device("cuda", a.gpu); torch.cuda.set_device(dev)
 def log0(*x, **k):
     if RANK == 0: print(*x, flush=True)
 tok = PreTrainedTokenizerFast.from_pretrained(a.tokenizer, local_files_only=True)
-if len(tok) != 153600: raise ValueError(f"Expected EXAONE 153600 vocabulary; got {len(tok)}")
+if tok.eos_token_id is None: raise ValueError("Tokenizer must define EOS")
+tokenizer_sha256 = hashlib.sha256((Path(a.tokenizer) / "tokenizer.json").read_bytes()).hexdigest()
+log0(f"Tokenizer: {a.tokenizer}, vocab={len(tok)}, bos={tok.bos_token_id}, eos={tok.eos_token_id}, pad={tok.pad_token_id}")
 # 层型: 每 4 层 [lin,lin,lin,full]; 层数非 4 的倍数时余下的层接 lin (5 层 = [lin,lin,lin,full,lin])
 types = a.layer_types.split(",") if a.layer_types else [("full_attention" if i % 4 == 3 else "linear_attention") for i in range(a.layers)]
 cfg = Qwen3_5MoeTextConfig(vocab_size=len(tok), hidden_size=a.hidden, num_hidden_layers=a.layers, num_attention_heads=a.heads, num_key_value_heads=a.kv_heads, head_dim=a.head_dim,
@@ -46,7 +48,8 @@ cfg = Qwen3_5MoeTextConfig(vocab_size=len(tok), hidden_size=a.hidden, num_hidden
                            num_experts=a.experts, num_experts_per_tok=a.topk, moe_intermediate_size=a.moe_ffn, shared_expert_intermediate_size=a.shared_ffn,
                            router_aux_loss_coef=a.aux_coef, output_router_logits=False, layer_types=types, max_position_embeddings=a.seq, rms_norm_eps=1e-6,
                            rope_parameters={"rope_type": "default", "rope_theta": a.rope_theta, "partial_rotary_factor": a.partial_rotary}, partial_rotary_factor=a.partial_rotary,
-                           tie_word_embeddings=True, attention_bias=False, initializer_range=0.02, bos_token_id=tok.eos_token_id, eos_token_id=tok.eos_token_id, pad_token_id=tok.eos_token_id)
+                           tie_word_embeddings=True, attention_bias=False, initializer_range=0.02, bos_token_id=tok.bos_token_id if tok.bos_token_id is not None else tok.eos_token_id,
+                           eos_token_id=tok.eos_token_id, pad_token_id=tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id)
 cfg.use_cache = False
 cfg._experts_implementation = a.experts_impl
 cfg._attn_implementation = "sdpa"
@@ -61,7 +64,14 @@ n_expert_each = 3 * a.hidden * a.moe_ffn; n_active_nv = n_total_nv - a.layers * 
 FC = count_flops(cfg.to_dict(), a.seq); flops_per_token = FC["train_flops_per_token"]
 assert FC["total_nonvocab_params"] == n_total_nv and FC["active_nonvocab_params"] == n_active_nv, (FC["total_nonvocab_params"], n_total_nv, FC["active_nonvocab_params"], n_active_nv)
 log0(f"层型 {types}\n参数 总={n_all/1e6:.2f}M 非词表 总={n_total_nv/1e6:.2f}M 激活={n_active_nv/1e6:.3f}M (每 token) | 每token训练 {flops_per_token/1e6:.1f} MFLOPs {FC['breakdown']} | 预算 {a.tokens:.3e} token ≈ {flops_per_token*a.tokens:.3e} FLOPs")
-DT = np.uint32 if len(tok) > 65535 else np.uint16
+# Both corpus preparation scripts write uint32, including vocabularies below 64K.
+DT = np.dtype("<u4")
+for metadata_name in ("meta.json", "parts_manifest.json"):
+    metadata_path = Path(a.data).parent / metadata_name
+    if metadata_path.exists():
+        metadata = json.loads(metadata_path.read_text())
+        if metadata.get("tokenizer_sha256", tokenizer_sha256) != tokenizer_sha256:
+            raise ValueError("Corpus tokenizer mismatch: prepare fresh data for this tokenizer")
 if os.path.getsize(a.data) % np.dtype(DT).itemsize: raise ValueError("Misaligned binary token file")
 data = np.memmap(a.data, dtype=DT, mode="r")
 n_tok_data = len(data); log0(f"数据 {n_tok_data/1e9:.2f}B token mmap (world={WORLD})")
@@ -110,10 +120,12 @@ def evaluate():
 CKPT = f"{a.run_dir}/ckpt.pt"; resuming = a.resume and os.path.exists(CKPT)
 if resuming:
     previous = json.load(open(f"{a.run_dir}/run_config.json"))
+    if previous.get("tokenizer_sha256", tokenizer_sha256) != tokenizer_sha256:
+        raise ValueError("Unsafe resume: tokenizer contents changed; use a new run_dir")
     for key in ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts", "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens", "batch_tokens", "seed", "data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip"):
         if previous[key] != vars(a)[key]: raise ValueError(f"Unsafe resume: {key} changed; use a new run_dir")
 if DDP_ON: dist.barrier()
-if RANK == 0: json.dump({**vars(a), "model_code": source_info(), "n_params": n_all, "n_nonvocab_total": n_total_nv, "n_nonvocab_active": n_active_nv, "flops_per_token": flops_per_token, "flops_breakdown": FC["breakdown"],
+if RANK == 0: json.dump({**vars(a), "tokenizer_sha256": tokenizer_sha256, "data_dtype": DT.str, "model_code": source_info(), "n_params": n_all, "n_nonvocab_total": n_total_nv, "n_nonvocab_active": n_active_nv, "flops_per_token": flops_per_token, "flops_breakdown": FC["breakdown"],
                          "steps": steps, "accum": accum, "config": cfg.to_dict()}, open(f"{a.run_dir}/run_config.json", "w"), indent=1, ensure_ascii=False)
 log = csv.writer(open(f"{a.run_dir}/training_metrics.csv", "a" if resuming else "w", newline="")) if RANK == 0 else None
 if log and not resuming: log.writerow(["step", "tokens", "loss", "aux", "lr", "grad_norm", "tok_per_s", "elapsed_s", "val_loss", "active_nonvocab", "total_nonvocab"])

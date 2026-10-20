@@ -1,5 +1,5 @@
 """从 8 个官方分片均匀抽样文档 -> 分词 -> 每个子任务各写一个 .bin -> 按随机顺序拼成 train.bin，另切 val.bin（uint32，文档间插 EOS；154k 词表必须 uint32）。
-用法(我们 Qwen3.5 sparse 用的语料): prepare_corpus_u32.py --tokenizer /home/shared/tokenizer --data_dir /home/shared/data --out ../data/corpus_exaone154k --every 12 --sub 6 --workers 48 --val_tokens 30000000
+用法: prepare_corpus_u32.py --tokenizer tokenizer/gzy_10k --data_dir /home/shared/data --out data/corpus_gzy10k --every 12 --sub 6 --workers 48 --val_tokens 30000000
 分片可以是 dolma3_mix_50B-*.jsonl.zst 或未压缩的 .jsonl（/home/shared/data 下是 .jsonl）。
 --every 12 ≈ 1/12 文档 ≈ 45 亿 token；--every 1 为全量。子任务结果落盘而不是经进程间管道传回（大对象经管道会把 Pool 弄死）。"""
 import argparse, os, json, subprocess, time, random, hashlib, numpy as np
@@ -21,7 +21,7 @@ else:
 TOK = None
 def init():
     global TOK
-    from transformers import AutoTokenizer; TOK = AutoTokenizer.from_pretrained(a.tokenizer)
+    from transformers import PreTrainedTokenizerFast; TOK = PreTrainedTokenizerFast.from_pretrained(a.tokenizer, local_files_only=True)
 def work(args):
     shard, every, offset, outfile = args
     if os.path.exists(outfile + ".ok") and os.path.exists(outfile): return outfile, 0, 0
@@ -30,7 +30,7 @@ def work(args):
         def flush():
             nonlocal buf, n_docs, n_tok
             for ids in TOK(buf, add_special_tokens=False)["input_ids"]:
-                arr = np.asarray(ids + [eos], dtype=np.uint32); w.write(arr.tobytes()); n_docs += 1; n_tok += len(arr)
+                arr = np.asarray(ids + [eos], dtype="<u4"); w.write(arr.tobytes()); n_docs += 1; n_tok += len(arr)
             buf = []
         for i, line in enumerate(p.stdout):
             if (i + offset) % every: continue
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     if n_tok <= a.val_tokens: raise ValueError("Corpus is smaller than val_tokens")
     if os.path.getsize(parts[0]) // 4 < a.val_tokens: raise ValueError("First shuffled part must contain val_tokens; reduce --val_tokens")
     with open(f"{a.out}/val.bin", "wb") as wv, open(f"{a.out}/train.bin", "wb") as wt:
-        first = np.fromfile(parts[0], dtype=np.uint32); wv.write(first[:a.val_tokens].tobytes()); wt.write(first[a.val_tokens:].tobytes())
+        first = np.fromfile(parts[0], dtype="<u4"); wv.write(first[:a.val_tokens].tobytes()); wt.write(first[a.val_tokens:].tobytes())
         for p in parts[1:]: wt.write(open(p, "rb").read())
-    json.dump({"shards": shards, "every": a.every, "sub": a.sub, "docs": n_docs, "tokens": n_tok, "val_tokens": a.val_tokens, "tokenizer": a.tokenizer, "part_order": [os.path.basename(p) for p in parts]}, open(f"{a.out}/meta.json", "w"), indent=1)
+    json.dump({"shards": shards, "every": a.every, "sub": a.sub, "docs": n_docs, "tokens": n_tok, "val_tokens": a.val_tokens, "tokenizer": a.tokenizer, "tokenizer_sha256": manifest["tokenizer_sha256"], "dtype": "<u4", "part_order": [os.path.basename(p) for p in parts]}, open(f"{a.out}/meta.json", "w"), indent=1)
     print(f"共 {n_docs} 篇 {n_tok/1e9:.2f}B token; train.bin {os.path.getsize(a.out+'/train.bin')/1e9:.2f} GB, val.bin {os.path.getsize(a.out+'/val.bin')/1e6:.0f} MB  {time.time()-t0:.0f}s"); print("DONE", flush=True)

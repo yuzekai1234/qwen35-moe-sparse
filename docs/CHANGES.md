@@ -15,6 +15,15 @@
 
 官方评测适配版 `eval_q35.py` 未改评分逻辑。原始作者与上游来源见 README。
 
+## gzy 10K 词表分支
+
+- 将 guozeyuan 的 10112 词表快照及裁剪记录纳入 `tokenizer/gzy_10k/`，默认训练、预处理、smoke 与启动器使用该词表；模型形状及历史配置归档保留。
+- 新运行目录带 `_gzy10k`，完整语料为 `data/corpus_gzy10k/`，避免与 153600 词表缓存及 checkpoint 混用。
+- 模型词表大小及 BOS/EOS/PAD 从 tokenizer 读取；语料始终按 little-endian uint32 读取，修复小词表被误判为 uint16 的问题。
+- 启动器按实际词表、序列长度和 batch 重新核算 C1/C2 的完整步数、token 数及 warmup；显式 `--tokens` 仍可覆盖预算用于短跑。
+- 训练记录 tokenizer 内容 SHA256，检查语料元数据和续训词表身份。HF 导出携带 10K tokenizer，现有评测直接使用导出词表。
+- 增加小词表语料、缓存不匹配、预算与命令行覆盖、CPU 前后向及导出重新加载验证。
+
 ## 模型实现纳入版本管理
 
 - 增加 `models/qwen3_5_moe/`，从环境中固定的 Transformers 5.19.0 提取模型与配置源码，保留上游版权、Apache-2.0 LICENSE 和原始 SHA256。

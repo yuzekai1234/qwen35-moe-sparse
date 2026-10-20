@@ -1,0 +1,10 @@
+{
+  "source": "/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1",
+  "vocab_size": 10112,
+  "sha256": {
+    "pruning.json": "c9f92121a8750d0892c7beadc2ec5703511cc233a0e3ad5d954254c63dee9214",
+    "special_tokens_map.json": "6128ad6ec65e0a3238b2a51d3ac33da325dfbad6cc81d2bb09f7356695fa8ed7",
+    "tokenizer.json": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+    "tokenizer_config.json": "6f16636c67a1e20e50217b7bf4fe7dfa727c1ebde883e89c0a919a6b47a2950a"
+  }
+}

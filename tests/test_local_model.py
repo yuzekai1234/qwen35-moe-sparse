@@ -8,6 +8,7 @@ import unittest
 
 import torch
 from transformers import AutoModelForCausalLM, AutoConfig
+from transformers import PreTrainedTokenizerFast
 from transformers import Qwen3_5MoeTextConfig as StockConfig
 from transformers import Qwen3_5MoeForCausalLM as StockModel
 
@@ -32,6 +33,34 @@ def config(cls):
 
 
 class LocalModel(unittest.TestCase):
+    def test_gzy_vocab_forward_backward_and_export(self):
+        tok = PreTrainedTokenizerFast.from_pretrained(ROOT / 'tokenizer/gzy_10k')
+        cfg = config(Qwen3_5MoeTextConfig)
+        cfg.vocab_size = len(tok)
+        cfg.num_hidden_layers = 1
+        cfg.layer_types = ['full_attention']
+        cfg.bos_token_id, cfg.eos_token_id, cfg.pad_token_id = (
+            tok.bos_token_id, tok.eos_token_id, tok.pad_token_id)
+        model = Qwen3_5MoeForCausalLM(cfg)
+        text = 'Small vocabulary: 中文训练数据。'
+        ids = tok(text, add_special_tokens=False, return_tensors='pt').input_ids
+        loss = model(ids, labels=ids, use_cache=False).loss
+        self.assertTrue(torch.isfinite(loss))
+        loss.backward()
+        self.assertTrue(torch.isfinite(model.lm_head.weight.grad).all())
+        self.assertEqual(model.lm_head.out_features, 10112)
+        with tempfile.TemporaryDirectory() as tmp:
+            model.save_pretrained(tmp)
+            tok.save_pretrained(tmp)
+            loaded = AutoModelForCausalLM.from_pretrained(tmp, trust_remote_code=True,
+                                                        local_files_only=True)
+            restored = PreTrainedTokenizerFast.from_pretrained(tmp, local_files_only=True)
+            self.assertEqual(restored.encode(text), tok.encode(text))
+            self.assertEqual(restored.decode(restored.encode(text)), text)
+            self.assertEqual((loaded.config.bos_token_id, loaded.config.eos_token_id,
+                              loaded.config.pad_token_id), (1, 53, 0))
+            self.assertEqual(loaded.lm_head.weight.data_ptr(), loaded.model.embed_tokens.weight.data_ptr())
+
     def test_baseline_state_and_exported_source(self):
         torch.manual_seed(0)
         stock = StockModel(config(StockConfig))

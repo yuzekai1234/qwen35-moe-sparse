@@ -1,5 +1,15 @@
 # 4090-8 部署验证
 
+## 10K 词表分支验证（2026-10-20）
+
+- gzy 的四份词表源文件与共享目录原件逐字节一致，实际词表 10112，BOS/EOS/PAD 为 1/53/0。
+- `CUDA_VISIBLE_DEVICES=1 .venv_q35/bin/python -m unittest discover -s tests -v`：7 项全部通过，包括 GPU 前向对齐、小词表 CPU 前后向、HF 导出重新加载、uint32 语料与缓存身份、五组形状的预算核算。
+- `GPUS=1 bash launch/smoke.sh`：完整 C2-m（8 层 × 256，64 专家 Top-4），seq=256，完成两步、16384 token；FLA、反向、checkpoint 及 HF 导出成功。训练 loss 9.2619 → 9.0576，最终验证 loss 8.4777，峰值显存约 1.9 GiB。
+- 运行产物：`runs/smoke_gzy10k/`；语料：`data/smoke_gzy10k/`；日志：`logs/q35_c2_m.log`。仅短程验证，不代表完整预算成绩。
+- 新词表下 C2-m、seq=8192 的理论训练 FLOPs/token 为 101049888，C2 默认 18875 步、9895936000 token；未启动该完整预算训练。
+
+以下保留原 153600 词表的部署验证历史。
+
 日期：2026-10-20（Asia/Shanghai）。目录：`/home/yzk/qwen35-moe-sparse`。本次仅部署代码并进行短程验证，未启动 C1/C2 完整预算预训练，也未重新复现文档中的 bpb。
 
 ## 环境
