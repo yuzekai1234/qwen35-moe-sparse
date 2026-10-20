@@ -10,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoConfig
 from transformers import Qwen3_5MoeTextConfig as StockConfig
 from transformers import Qwen3_5MoeForCausalLM as StockModel
 
-from q35.data import ROOT, load_tokenizer
+from q35.data import DEFAULT_TOKENIZER, ROOT, load_tokenizer
 from q35.models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM
 
 
@@ -31,7 +31,7 @@ def config(cls):
 
 class LocalModel(unittest.TestCase):
     def test_gzy_vocab_forward_backward_and_export(self):
-        tok = load_tokenizer(ROOT / 'tokenizer/gzy_10k')
+        tok = load_tokenizer(DEFAULT_TOKENIZER)
         cfg = config(Qwen3_5MoeTextConfig)
         cfg.vocab_size = len(tok)
         cfg.num_hidden_layers = 1
@@ -45,7 +45,7 @@ class LocalModel(unittest.TestCase):
         self.assertTrue(torch.isfinite(loss))
         loss.backward()
         self.assertTrue(torch.isfinite(model.lm_head.weight.grad).all())
-        self.assertEqual(model.lm_head.out_features, 10112)
+        self.assertEqual(model.lm_head.out_features, 30080)
         with tempfile.TemporaryDirectory() as tmp:
             model.save_pretrained(tmp)
             tok.save_pretrained(tmp)

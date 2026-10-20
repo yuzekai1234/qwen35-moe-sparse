@@ -1,6 +1,6 @@
 # Qwen3.5-MoE Sparse 预训练基线
 
-把 Qwen3.5-35B-A3B 的**文本结构**按固定规则缩小后随机初始化预训练（不下载原权重）：3:1 Gated DeltaNet / 全注意力、64 选 4 路由专家 + 带门共享专家、绑定嵌入，无视觉塔、无 MTP。默认词表为 gzy 10K（实际 10112，BOS=1、EOS=53、PAD=0）。源码最初来自 `/home/shared/hzh_q35_sparse`（原作者黄振华）。
+把 Qwen3.5-35B-A3B 的**文本结构**按固定规则缩小后随机初始化预训练（不下载原权重）：3:1 Gated DeltaNet / 全注意力、64 选 4 路由专家 + 带门共享专家、绑定嵌入，无视觉塔、无 MTP。默认词表为 gzy 30K（实际 30080，BOS=1、EOS=53、PAD=0），默认语料为共享目录里用它分好的训练集与独立验证集。源码最初来自 `/home/shared/hzh_q35_sparse`（原作者黄振华）。
 
 ## 目录结构
 
@@ -15,7 +15,8 @@ q35/                        核心包（在仓库根目录用 python -m q35.<模
 configs/                    五组预设：模型形状、学习率、micro batch、算力预算、历史参考结果
 scripts/                    setup_env.sh / train.sh / eval.sh / smoke.sh（env.sh 为公共环境）
 tests/                      单元测试：预设与 FLOPs、语料准备、模型与原版一致性
-tokenizer/gzy_10k/          词表及其来源记录
+tokenizer/gzy_30k/          默认词表（30080）及其来源记录、对应的共享语料
+tokenizer/gzy_10k/          10K 词表（10112），供对照实验
 ```
 
 `data/`、`runs/`、`logs/`、`.venv_q35/`、`libcuda/` 不进 Git。
@@ -30,11 +31,22 @@ Python 3.11，torch 2.7.1 / CUDA 12.6、transformers 5.19.0、flash-linear-atten
 
 ## 数据
 
+默认直接使用共享目录里用 gzy 30K 分好的语料，无需本地准备（详见 `tokenizer/gzy_30k/README.md`）：
+
+| 用途 | 路径 | 规模 |
+|---|---|---|
+| 训练 `--data` | `/home/shared/llm_pt/cache/ling-no-mtp-c1-global-pruned30k-isoflops-v1/train.bin` | 7.84B token，全局随机抽取文档，无清洗 |
+| 验证 `--val_data` | `/home/shared/llm_pt/cache/ling-no-mtp-c1-holdout-pruned30k-isoflops-v1/valid.bin` | 78M token，按文本哈希独立留出 1% 文档 |
+
+`train.bin` 全部用于训练，过程验证取 `--val_data` 的前 `--eval_tokens`（默认 2M）；`--val_data ""` 时改从 `train.bin` 末尾留出。训练启动时按语料目录的 `meta.json` / `manifest.json` 校验词表 SHA256，拒绝用其他词表分好的语料。10K 词表的同类共享语料：`/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1/train.bin`（5.62B token，配 `--tokenizer tokenizer/gzy_10k`，验证集在同前缀的 `-holdout-` 目录）。
+
+为其他词表或抽样规则自行准备语料：
+
 ```bash
-.venv_q35/bin/python -m q35.data corpus --out data/corpus_gzy10k --data_dir /home/shared/data --every 12 --sub 6 --workers 8
+.venv_q35/bin/python -m q35.data corpus --out data/corpus_<名称> --tokenizer <词表目录> --data_dir /home/shared/data --every 12 --sub 6 --workers 8
 ```
 
-从八个官方训练分片抽取约 1/12 文档，文档间插 EOS，生成 little-endian uint32 的 `train.bin`、`val.bin` 与 `meta.json`（约 30GB，含中间分片，可续跑）。元数据记录词表 SHA256，训练时拒绝用其他词表准备的语料；更换词表或抽样规则须用新输出目录。训练从 `train.bin` 末尾留出 `--eval_tokens`（默认 2M）作过程验证。
+从八个官方训练分片抽取约 1/12 文档，文档间插 EOS，生成 little-endian uint32 的 `train.bin`、`val.bin` 与 `meta.json`（含中间分片，可续跑）。更换词表或抽样规则须用新输出目录。
 
 ## 训练
 
@@ -60,7 +72,7 @@ GPUS=1 bash scripts/eval.sh runs/q35_c2_m/hf [/home/shared/data/dolma3_mix_100M_
 
 输出 bpb / EvalTime 到 `runs/<run>/eval_<数据集>_seq<seq>.json`。评测导入仓库内模型实现，并用 `PreTrainedTokenizerFast` 原样加载 tokenizer（`AutoTokenizer` 会被替换成 Qwen 分词器，导致 bpb 虚高）。
 
-FLOPs 核算：`python -m q35.flops q35_c2_m`（按 10K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
+FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 30K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
 
 ## 自检
 
@@ -92,7 +104,7 @@ GPUS=1 bash scripts/smoke.sh             # 完整 C2-m 模型、seq 256、两步
 | GDN 头 k/v、头维 | 16/32，128 | 2/4，64（h96 用 1/2） |
 | 其余 | aux 0.001、partial_rotary 0.25、rope_theta 1e7、conv 4 | 同；绑定嵌入 |
 
-下表 bpb 为 **EXAONE 153600 词表**的历史结果（`configs/*.json` 的 `reference` 字段），不代表 10K 词表成绩。
+下表 bpb 为 **EXAONE 153600 词表**的历史结果（`configs/*.json` 的 `reference` 字段），不代表 30K 词表成绩。
 
 | 预设 | 算力 | 层 × 宽 | 总参数（153600 词表） | 训练 token | lr | bpb | EvalTime |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -108,4 +120,4 @@ GPUS=1 bash scripts/smoke.sh             # 完整 C2-m 模型、seq 256、两步
 
 - [Qwen3.5-35B-A3B](https://huggingface.co/Qwen/Qwen3.5-35B-A3B)、[Transformers](https://github.com/huggingface/transformers)（模型源码 Apache-2.0，见 `q35/models/qwen3_5_moe/LICENSE` 与 `UPSTREAM.json`）
 - [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention)、[Liger Kernel](https://github.com/linkedin/Liger-Kernel)
-- 词表来源见 `tokenizer/gzy_10k/README.md`
+- 词表来源见 `tokenizer/gzy_30k/README.md`、`tokenizer/gzy_10k/README.md`

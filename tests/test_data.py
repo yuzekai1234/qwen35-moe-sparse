@@ -8,7 +8,8 @@ import tempfile
 import unittest
 import numpy as np
 
-from q35.data import ROOT, load_tokenizer, open_tokens, tokenizer_sha256
+from q35.data import (DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, ROOT, load_tokenizer, open_tokens,
+                      recorded_tokenizer_sha, tokenizer_sha256)
 
 
 class Corpus(unittest.TestCase):
@@ -58,6 +59,26 @@ class Corpus(unittest.TestCase):
                              meta["tokens"] - 64)
             with self.assertRaisesRegex(ValueError, "tokenizer mismatch"):
                 open_tokens(output / "train.bin", tokenizer_sha256(other))
+
+    def test_llm_pt_manifest_tokenizer_check(self):
+        sha = tokenizer_sha256(DEFAULT_TOKENIZER)
+        for manifest in ({"tokenizer": {"files": {"tokenizer.json": sha}}},          # training corpus layout
+                         {"spec": {"tokenizer": {"files": {"tokenizer.json": sha}}}}):  # holdout layout
+            with self.subTest(manifest=manifest), tempfile.TemporaryDirectory() as tmp:
+                np.arange(16, dtype="<u4").tofile(Path(tmp) / "valid.bin")
+                (Path(tmp) / "manifest.json").write_text(json.dumps(manifest))
+                self.assertEqual(len(open_tokens(Path(tmp) / "valid.bin", sha)), 16)
+                with self.assertRaisesRegex(ValueError, "tokenizer mismatch"):
+                    open_tokens(Path(tmp) / "valid.bin", "0" * 64)
+
+    @unittest.skipUnless(DEFAULT_DATA.exists() and DEFAULT_VAL_DATA.exists(), "shared corpus not mounted")
+    def test_default_shared_corpus_matches_default_tokenizer(self):
+        sha = tokenizer_sha256(DEFAULT_TOKENIZER)
+        for path in (DEFAULT_DATA, DEFAULT_VAL_DATA):
+            with self.subTest(path=str(path)):
+                self.assertEqual(recorded_tokenizer_sha(json.loads((path.parent / "manifest.json").read_text())), sha)
+                tokens = open_tokens(path, sha)
+                self.assertLess(int(np.asarray(tokens[:1_000_000]).max()), 30080)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@
 和实际词表/序列长度重新核算(向下取整到完整全局 batch); --warmup 缺省为 1% 步数(至少 10)。
 默认 --resume 1: 重跑同一命令从 run_dir/ckpt.pt 续训; 改模型/数据/预算/学习率策略时用新的 --run_dir。
 --max_steps N 只把此次运行截止到绝对第 N 步, 不改变原预算的学习率曲线。
+默认数据: 共享 gzy 30K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
+--val_data "" 时改为从 train.bin 末尾留出 --eval_tokens。
 输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, tb/ (TensorBoard, --tensorboard 0 关闭),
 run_config.json, summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
 监控: tensorboard --logdir runs --port 6006
@@ -22,20 +24,20 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
-from .data import TOKEN_DTYPE, load_tokenizer, open_tokens, tokenizer_sha256
+from .data import DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, TOKEN_DTYPE, load_tokenizer, open_tokens, tokenizer_sha256
 from .flops import count as count_flops
 from .models.qwen3_5_moe import Qwen3_5MoeForCausalLM, source_info
 from .models.qwen3_5_moe import modeling_qwen3_5_moe as M
 from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, model_config
 
-TRAIN_DEFAULTS = dict(run_dir="", data=str(ROOT / "data/corpus_gzy10k/train.bin"), tokenizer=str(ROOT / "tokenizer/gzy_10k"),
+TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_VAL_DATA), tokenizer=str(DEFAULT_TOKENIZER),
                       seq=8192, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
                       warmup=0, wd=0.1, clip=1.0, seed=0, log_every=10, eval_every=500, eval_tokens=2_000_000,
                       ckpt_every=200, resume=1, max_steps=0, tensorboard=1)
 # A resumed run must agree on everything that shapes the model, data stream or LR schedule.
 RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts",
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
-               "batch_tokens", "seed", "data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip")
+               "batch_tokens", "seed", "data", "val_data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip")
 
 
 def int_like(s):   # accept 3e9-style token counts
@@ -112,7 +114,7 @@ def lr_schedule(a, steps):
 
 @torch.no_grad()
 def evaluate(model, eval_data, seq, dev):
-    """Mean CE over eval_tokens // seq fixed-seed windows of the held-out tail of train.bin."""
+    """Mean CE over len(eval_data) // seq fixed-seed windows of the validation tokens."""
     model.eval(); tot = 0.0; n = 0
     erng = np.random.default_rng(1234)
     for _ in range(len(eval_data) // seq):
@@ -166,12 +168,15 @@ def main(argv=None):
     log0(f"层型 {cfg.layer_types}\n参数 总={n_all/1e6:.2f}M 非词表 总={n_total_nv/1e6:.2f}M 激活={n_active_nv/1e6:.3f}M (每 token) | "
          f"每token训练 {flops_per_token/1e6:.1f} MFLOPs {fc['breakdown']} | 预算 {a.tokens:.3e} token ≈ {flops_per_token*a.tokens:.3e} FLOPs")
 
-    # Data: the last eval_tokens of train.bin are held out for validation.
+    # Data: validate on the first eval_tokens of an independent held-out corpus, or else on the tail of train.bin.
     data = open_tokens(a.data, tok_sha)
-    log0(f"数据 {len(data)/1e9:.2f}B token mmap (world={world})")
-    if len(data) - a.eval_tokens < a.seq + 2:
-        raise ValueError("Not enough train tokens after holding out eval_tokens")
-    train_data, eval_data = data[:-a.eval_tokens], data[-a.eval_tokens:]
+    if a.val_data:
+        train_data, eval_data = data, open_tokens(a.val_data, tok_sha)[:a.eval_tokens]
+    else:
+        train_data, eval_data = data[:-a.eval_tokens], data[-a.eval_tokens:]
+    if len(train_data) < a.seq + 2 or len(eval_data) < a.seq + 2:
+        raise ValueError("Not enough train or validation tokens for one sequence")
+    log0(f"数据 训练 {len(train_data)/1e9:.2f}B token, 验证 {len(eval_data)/1e6:.1f}M token ({a.val_data or 'train.bin 末尾'}), mmap (world={world})")
     per_micro = a.micro_bs * a.seq * world
     if a.batch_tokens % per_micro:
         raise ValueError(f"batch_tokens {a.batch_tokens} must be divisible by micro_bs×seq×world={per_micro}")
@@ -196,7 +201,7 @@ def main(argv=None):
         if previous.get("tokenizer_sha256", tok_sha) != tok_sha:
             raise ValueError("Unsafe resume: tokenizer contents changed; use a new run_dir")
         for key in RESUME_KEYS:
-            if previous[key] != vars(a)[key]:
+            if previous.get(key) != vars(a)[key]:
                 raise ValueError(f"Unsafe resume: {key} changed; use a new run_dir")
     if ddp: dist.barrier()
     if rank == 0:

@@ -3,6 +3,7 @@ import unittest
 
 from tokenizers import Tokenizer
 
+from q35.data import DEFAULT_TOKENIZER
 from q35.flops import count
 from q35.presets import ROOT, default_layer_types, load_preset, model_config, preset_budget, preset_names
 from q35.train import parse_args
@@ -29,8 +30,8 @@ class Presets(unittest.TestCase):
                 self.assertIn(ref["tokens"] - tokens, (0, 524288))
 
     def test_budget_for_tokenizer_and_seq(self):
-        vocab = Tokenizer.from_file(str(ROOT / "tokenizer/gzy_10k/tokenizer.json")).get_vocab_size()
-        self.assertEqual(vocab, 10112)
+        vocab = Tokenizer.from_file(str(DEFAULT_TOKENIZER / "tokenizer.json")).get_vocab_size()
+        self.assertEqual(vocab, 30080)
         for name in NAMES:
             for seq in (8192, 4096):
                 with self.subTest(name=name, seq=seq):
