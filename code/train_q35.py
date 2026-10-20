@@ -5,8 +5,12 @@ FLOPs/参数口径见 count_flops_q35.py (激活非词表参数 = 总非词表 �
 用法: train_q35.py --run_dir ../runs/q35_c1_s1 --data ../data/corpus_exaone154k/train.bin --tokenizer ../tokenizer/exaone_154k --layers 5 --hidden 96 --heads 2 --kv_heads 1 \
         --lin_k_heads 1 --lin_v_heads 2 --experts 64 --topk 4 --moe_ffn 96 --shared_ffn 48 --tokens 2.9e9 --batch_tokens 524288 --micro_bs 8 --lr 3.6e-3"""
 import contextlib, argparse, os, time, math, json, csv, numpy as np, torch
-from transformers import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM, PreTrainedTokenizerFast
-from transformers.models.qwen3_5_moe import modeling_qwen3_5_moe as M
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from transformers import PreTrainedTokenizerFast
+from models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM, source_info
+from models.qwen3_5_moe import modeling_qwen3_5_moe as M
 from count_flops_q35 import count as count_flops
 ap = argparse.ArgumentParser()
 for k, v in dict(run_dir="../runs/q35", data="../data/corpus_exaone154k/train.bin", tokenizer="../tokenizer/exaone_154k", layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64,
@@ -47,6 +51,7 @@ cfg.use_cache = False
 cfg._experts_implementation = a.experts_impl
 cfg._attn_implementation = "sdpa"
 model = Qwen3_5MoeForCausalLM(cfg).to(dev, dtype=torch.float32)
+log0("Model source:", M.__file__)
 assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "嵌入未绑定"
 # fla 快速 kernel 检查: transformers 在装了 fla 时把 torch_chunk_gated_delta_rule 换成 fla 实现
 _impl = [c.cell_contents.__module__ for c in (M.torch_chunk_gated_delta_rule.__closure__ or []) if callable(c.cell_contents) and c.cell_contents.__module__.startswith("fla")]
@@ -108,7 +113,7 @@ if resuming:
     for key in ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts", "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens", "batch_tokens", "seed", "data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip"):
         if previous[key] != vars(a)[key]: raise ValueError(f"Unsafe resume: {key} changed; use a new run_dir")
 if DDP_ON: dist.barrier()
-if RANK == 0: json.dump({**vars(a), "n_params": n_all, "n_nonvocab_total": n_total_nv, "n_nonvocab_active": n_active_nv, "flops_per_token": flops_per_token, "flops_breakdown": FC["breakdown"],
+if RANK == 0: json.dump({**vars(a), "model_code": source_info(), "n_params": n_all, "n_nonvocab_total": n_total_nv, "n_nonvocab_active": n_active_nv, "flops_per_token": flops_per_token, "flops_breakdown": FC["breakdown"],
                          "steps": steps, "accum": accum, "config": cfg.to_dict()}, open(f"{a.run_dir}/run_config.json", "w"), indent=1, ensure_ascii=False)
 log = csv.writer(open(f"{a.run_dir}/training_metrics.csv", "a" if resuming else "w", newline="")) if RANK == 0 else None
 if log and not resuming: log.writerow(["step", "tokens", "loss", "aux", "lr", "grad_norm", "tok_per_s", "elapsed_s", "val_loss", "active_nonvocab", "total_nonvocab"])

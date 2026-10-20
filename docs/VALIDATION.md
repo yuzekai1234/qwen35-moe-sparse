@@ -36,3 +36,10 @@ Python 3.11.17、torch 2.7.1+cu126、transformers 5.19.0、flash-linear-attentio
 - 语料仅准备了 `data/smoke/train.bin`（264368 token）；完整官方训练分片已在 `/home/shared/data`，完整约 1/12 抽样训练集的生成命令见 README。
 - 后续正式训练须先准备完整训练语料并选择空闲卡；本次未启动长时间后台训练。
 - GitHub 为私有仓库；代码、词表与历史配置提交云端，训练数据/环境/权重不提交。
+
+## 模型源码纳入仓库后的补充验证
+
+- `models/qwen3_5_moe/` 来自固定的 Transformers 5.19.0。计算结构保持原样，框架导入改为绝对导入；文本 model_type 改为独立名称；保留原版初始化遍历，避免外部代码兼容初始化分支带来的随机流变化。
+- 共五项测试通过：包含相同种子的初始权重逐项相同、上游/本地 state_dict 严格兼容、GPU 前向对齐、HF 导出代码快照与重新加载、禁用自定义代码时拒绝静默加载官方模型。
+- 完整 142.97M C2-m 模型使用本地源码，在两张 GPU 上进行一步 512-token 短训；FLA、反向、checkpoint 和带源码的 HF 导出均通过。随后通过本地源码完成两条独立文本示例的评测流程。
+- 新运行参数保存模型源码 SHA256；本次机器可读补充结果见 `local-model-validation.json`，服务器日志为 `local-model-tests.log`、`local-model-smoke.log`、`local-model-eval.log`。此前的 8192 序列和断点验证记录属于模型迁入仓库前的环境依赖版本。

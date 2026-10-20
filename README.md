@@ -4,6 +4,38 @@
 
 只复用 Qwen3.5-35B-A3B 的文本结构，**随机初始化、不下载原模型权重**。保留 3:1 Gated DeltaNet/全注意力、64 选 4 MoE、共享专家和门；使用 EXAONE 153600 词表，绑定输入/输出嵌入，无视觉塔、无 MTP。
 
+## 模型源码与魔改入口
+
+训练和评测实际导入仓库内的 `models/qwen3_5_moe/`，启动时会打印源码位置：
+
+| 文件 / 类 | 用途 |
+|---|---|
+| `models/qwen3_5_moe/modeling_qwen3_5_moe.py` | 模型主体，直接在此修改 |
+| `Qwen3_5MoeGatedDeltaNet` | GDN 线性注意力 |
+| `Qwen3_5MoeAttention` | 全注意力 / GQA / 输出门 |
+| `Qwen3_5MoeTopKRouter`、`Qwen3_5MoeExperts`、`Qwen3_5MoeSparseMoeBlock` | 路由、专家、共享专家与组合 |
+| `Qwen3_5MoeDecoderLayer`、`Qwen3_5MoeTextModel` | 层内结构与层间连接 |
+| `Qwen3_5MoeForCausalLM` | 语言模型输出与标准 forward/loss |
+| `models/qwen3_5_moe/configuration_qwen3_5_moe.py` | 配置字段与默认值 |
+| `code/train_q35.py` | 五组缩放参数构造、训练循环和融合 loss |
+
+源码固定来自安装的 Transformers 5.19.0，保留版权和 Apache-2.0 许可，原始文件哈希见该目录 `UPSTREAM.json`。本仓库直接维护这些文件，不运行上游 modular 生成器。为便于核对原版，完整保留上游同文件中的视觉/多模态类，但训练只实例化文本 LM。Transformers 的通用框架、FLA 和 Liger 仍作为版本固定的依赖。
+
+训练为了节省显存，使用 `code/train_q35.py` 的 `LossModel` 调用文本 backbone（`lm.model`）并用 Liger 计算融合 CE；不会调用 `Qwen3_5MoeForCausalLM.forward()` 的标准 loss 路径。若改输出头、训练 loss 或路由辅助 loss，也要修改该训练包装器。
+
+魔改流程：修改模型文件或配置 → 使用新的 `--run_dir` 做短训与评测 → `git add` / `git commit` 记录改动。新运行的 `run_config.json` 会保存模型源码 SHA256。改变路由、专家数或结构后，现有 `count_flops_q35.py` 和评测里的 `active_parameter_count()` 也要同步调整统计口径。
+
+新 HF 导出自动携带模型和配置的 Python 源码及 `auto_map`，使用独立 `model_type=qwen35_moe_sparse`。本仓库评测直接导入当前 Git 版本的实现；在其他环境加载导出目录时，显式使用自己导出的代码：
+
+```python
+from transformers import AutoModelForCausalLM
+model = AutoModelForCausalLM.from_pretrained(
+    "/path/to/run/hf", trust_remote_code=True, local_files_only=True
+)
+```
+
+模型移入仓库时未改计算结构。原版/本地参数兼容、GPU 前向对齐、导出源码与再次加载测试见 `tests/test_local_model.py`。不要修改 `.venv_q35/site-packages` 下的模型副本。
+
 ## 五组原始配置
 
 | 预设 | 层 × 宽 | 总参数 | 训练 token | 峰值学习率 | 文档 bpb（历史结果） |

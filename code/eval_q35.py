@@ -107,7 +107,10 @@ def main():
     import torch
     import torch.distributed as dist
     import torch.nn.functional as F
-    from transformers import AutoConfig, AutoModelForCausalLM, PreTrainedTokenizerFast, set_seed
+    from transformers import PreTrainedTokenizerFast, set_seed
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM
 
     rank = int(os.environ["LOCAL_RANK"])
     device = torch.device("cuda", rank)
@@ -136,15 +139,16 @@ def main():
     global_batch_size = args.batch_size * dist.get_world_size()
     num_steps = math.ceil(num_sequences / global_batch_size)
 
-    config = AutoConfig.from_pretrained(args.model_path, local_files_only=True)
+    config = Qwen3_5MoeTextConfig.from_pretrained(args.model_path, local_files_only=True)
     config = config.get_text_config()
     # Example precision and attention implementation; teams may change both.
-    model, loading_info = AutoModelForCausalLM.from_pretrained(
+    model, loading_info = Qwen3_5MoeForCausalLM.from_pretrained(
         args.model_path, config=config, dtype=torch.bfloat16, attn_implementation="sdpa",
         local_files_only=True, output_loading_info=True,
     )
     if loading_info.get("missing_keys") or loading_info.get("mismatched_keys"):
         raise RuntimeError(f"Checkpoint did not fully initialize the language model: {loading_info}")
+    print(f"Model implementation: {type(model).__module__}", flush=True)
     model.to(device).eval()
     active_params = active_parameter_count(model)
     if active_params <= 0:
