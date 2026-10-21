@@ -12,6 +12,7 @@ q35/                        核心包（在仓库根目录用 python -m q35.<模
   data.py                   语料准备（uint32 token 文件）与加载
   train.py                  训练入口（单卡 / torchrun DDP）
   evaluate.py               官方口径评测：bpb / EvalTime
+  inference.py              评测用的仅前向快路径：Triton 路由专家、FLA GDN prefill、编译归一化
 configs/                    五组预设：模型形状、学习率、micro batch、算力预算、历史参考结果
 scripts/                    setup_env.sh / train.sh / eval.sh / smoke.sh（env.sh 为公共环境）
 tests/                      单元测试：预设与 FLOPs、语料准备、模型与原版一致性
@@ -93,6 +94,21 @@ BATCH=32  # 本机 GPU 4 / q35_c1_s2 / seq=8192 已通过采样；其他配置�
 正式计时应去掉全部 `--profile-*` 参数，并按目标 GPU 使用单卡最大稳定 batch。
 定位瓶颈时先使用可运行的固定 batch；Profiler 本身也可能增加显存开销。
 
+评测加载模型后总会调用 `q35/inference.py` 的 `optimize_for_inference()`，安装三条仅前向的快路径
+（模型源码、训练与 HF 导出不受影响；Triton/编译开销发生在 warmup 中，不计入 EvalTime）：
+
+- **路由专家**：transformers 默认的 `grouped_mm` 在非 Hopper GPU + torch < 2.9 上退回逐专家循环，
+  每层两次 `offs.tolist()` 主机同步。改为两个 Triton grouped GEMM：设备端按专家排序分段，
+  融合 token gather、SiLU 门控与路由加权，与 `grouped_mm` 结果在 BF16 舍入内一致。
+- **Gated DeltaNet**：无 cache 的整段前向改用 FLA 的 Triton `causal_conv1d`（直接处理 `[B, T, D]`，
+  免两次转置）与 `chunk_gated_delta_rule` 原生 GVA（免 `repeat_interleave`）；带 cache、padding mask
+  或 varlen 时回退原实现。
+- **归一化**：`torch.compile` 融合 RMSNorm / gated RMSNorm，保留中间 BF16 舍入。
+
+RTX 4090、q35_c1_s2、seq 8192、batch 32 实测：单次前向 273 → 130 ms；
+4M token 样本 bpb 1.141495 → 1.141490，EvalTime 189.0 → 87.5。
+`scripts/eval.sh` 的第 5 个参数起会透传给评测入口（如 `--profile-dir`）。
+
 FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 30K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
 
 ## 自检
@@ -111,6 +127,7 @@ GPUS=1 bash scripts/smoke.sh             # 完整 C2-m 模型、seq 256、两步
 | `q35/presets.py` | 命令行形状参数 → 模型配置（层型、头数、专家等） |
 | `q35/train.py` `LossModel` | 训练 loss：直接调用 backbone + Liger 融合 CE + 路由辅助 loss，不走 `ForCausalLM.forward()` |
 | `q35/flops.py`、`q35/evaluate.py` `active_parameter_count()` | 参数 / FLOPs 口径，改路由或结构后需同步 |
+| `q35/inference.py` | 评测快路径重写了专家前向与 GDN 无 cache 前向，改这两处模型代码后需同步（`tests/test_model.py` 会对照） |
 
 流程：改代码 → 新 `--run_dir` 短训与评测 → 提交。训练启动会断言 `flops.py` 的参数统计与实际模型一致。HF 导出携带模型源码与 `auto_map`（`model_type=qwen35_moe_sparse`），他处加载用 `AutoModelForCausalLM.from_pretrained(path, trust_remote_code=True)`。`tests/test_model.py` 校验本地实现与原版 transformers 初始化逐位一致、GPU 前向对齐。
 

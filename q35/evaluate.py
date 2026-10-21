@@ -4,6 +4,8 @@ torchrun --standalone --nproc_per_node=<gpus> -m q35.evaluate --dataset-path <ev
 (scripts/eval.sh wraps this.)  Imports the repository model implementation, not the exported remote code.
 
 BF16 and SDPA are example choices; adapt them for the submitted model.
+Forward-only fast paths from q35.inference (Triton experts, FLA GatedDeltaNet prefill,
+compiled norms) are always installed; their compilation happens during warmup.
 Warms each batch shape five times before one complete evaluation.
 EvalTime counts only forward (including the vocabulary projection), in
 s / (1B non-vocabulary active parameters * 1M scored tokens).
@@ -154,6 +156,7 @@ def main():
     import torch.distributed as dist
     import torch.nn.functional as F
     from transformers import PreTrainedTokenizerFast, set_seed
+    from .inference import optimize_for_inference
     from .models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM
 
     rank = int(os.environ["LOCAL_RANK"])
@@ -194,6 +197,7 @@ def main():
         raise RuntimeError(f"Checkpoint did not fully initialize the language model: {loading_info}")
     print(f"Model implementation: {type(model).__module__}", flush=True)
     model.to(device).eval()
+    print(f"Inference fast paths: {optimize_for_inference(model)}", flush=True)
     active_params = active_parameter_count(model)
     if active_params <= 0:
         raise ValueError("Non-vocabulary active parameter count must be positive")
