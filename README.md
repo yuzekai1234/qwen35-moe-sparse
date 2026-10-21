@@ -72,6 +72,27 @@ GPUS=1 bash scripts/eval.sh runs/q35_c2_m/hf [/home/shared/data/dolma3_mix_100M_
 
 输出 bpb / EvalTime 到 `runs/<run>/eval_<数据集>_seq<seq>.json`。评测导入仓库内模型实现，并用 `PreTrainedTokenizerFast` 原样加载 tokenizer（`AutoTokenizer` 会被替换成 Qwen 分词器，导致 bpb 虚高）。
 
+前向 Profiling（单卡，先使用可运行的固定 batch 定位瓶颈）：
+
+```bash
+export GPUS=4
+source scripts/env.sh
+MODEL=runs/q35_c1_s2/hf
+BATCH=32  # 本机 GPU 4 / q35_c1_s2 / seq=8192 已通过采样；其他配置按显存调整
+"$PY" -m torch.distributed.run --standalone --nproc_per_node=1 -m q35.evaluate \
+  --model-path "$MODEL" --dataset-path /home/shared/data/dolma3_mix_100M_a.jsonl \
+  --batch-size "$BATCH" --sequence-length 8192 \
+  --output runs/profiling/result.json --profile-dir runs/profiling/trace --profile-only
+```
+
+复用真实 packed batch 和现有五次模型 warmup，再按 wait=1 / profiler warmup=1 / active=3 采样。
+仅记录 `use_cache=False` 的模型前向（含词表投影），H2D、交叉熵和分布式归约不在采样窗口内。
+输出 `rank0.trace.json`（可导入 Perfetto）和 `rank0.operators.txt`（CPU/CUDA 自身耗时排序）。
+首次关闭 shape / stack / memory 记录以降低开销；每次实验使用新的 `--profile-dir`，避免覆盖 trace。
+`--profile-only` 完成采样即退出，不生成 bpb/EvalTime；省略它则采样后继续完整评测。
+正式计时应去掉全部 `--profile-*` 参数，并按目标 GPU 使用单卡最大稳定 batch。
+定位瓶颈时先使用可运行的固定 batch；Profiler 本身也可能增加显存开销。
+
 FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 30K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
 
 ## 自检

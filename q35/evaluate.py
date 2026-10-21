@@ -94,14 +94,58 @@ def parse_args():
     parser.add_argument("--batch-size", type=int, default=1, help="Sequences per GPU")
     parser.add_argument("--sequence-length", type=int, default=8192)
     parser.add_argument("--output", type=Path, default=Path("result.json"))
+    parser.add_argument("--profile-dir", type=Path, help="Export a short forward-only CPU/CUDA trace before evaluation")
+    parser.add_argument("--profile-only", action="store_true", help="Stop after profiling; do not compute bpb/EvalTime")
     args = parser.parse_args()
     if not 1 <= args.sequence_length <= 8192:
         parser.error("--sequence-length must be between 1 and 8192")
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
-    if args.output.exists():
+    if args.profile_only and args.profile_dir is None:
+        parser.error("--profile-only requires --profile-dir")
+    if not args.profile_only and args.output.exists():
         parser.error(f"Output already exists: {args.output}; choose a new --output path")
     return args
+
+
+def profile_forward(forward_only, inputs, device, profile_dir, rank):
+    """Profile a warmed, GPU-resident real batch, excluding H2D and scoring."""
+    import torch
+    from torch.profiler import ProfilerActivity, profile, record_function, schedule
+
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    stem = profile_dir / f"rank{rank}"
+    trace_path = stem.with_suffix(".trace.json")
+    table_path = stem.with_suffix(".operators.txt")
+
+    def save_trace(prof):
+        prof.export_chrome_trace(str(trace_path))
+        header = (
+            f"Rank: {rank}\nInput shape: {tuple(inputs.shape)}\n"
+            f"GPU: {torch.cuda.get_device_name(device)}\n"
+            "Schedule: wait=1, warmup=1, active=3, repeat=1\n"
+        )
+        tables = []
+        for metric in ("self_cuda_time_total", "self_cpu_time_total"):
+            tables.append(f"Sorted by {metric}\n" + prof.key_averages().table(
+                sort_by=metric, row_limit=25,
+            ))
+        table_path.write_text(header + "\n" + "\n\n".join(tables) + "\n")
+        print(header + "\n".join(tables), flush=True)
+        print(f"Trace: {trace_path}; operators: {table_path}", flush=True)
+
+    torch.cuda.synchronize(device)
+    with torch.inference_mode(), profile(
+        activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+        schedule=schedule(wait=1, warmup=1, active=3, repeat=1),
+        on_trace_ready=save_trace,
+        record_shapes=False, profile_memory=False, with_stack=False,
+    ) as prof:
+        for _ in range(5):
+            with record_function("inference_forward"):
+                logits = forward_only(inputs)
+                del logits
+            prof.step()
 
 
 def main():
@@ -189,6 +233,21 @@ def main():
                 del logits
             torch.cuda.synchronize(device)
         dist.barrier()
+
+        if args.profile_dir is not None:
+            batch = prepare_batch(0)
+            if batch is not None:
+                profile_forward(forward_only, batch[0], device, args.profile_dir, rank)
+                del batch
+            else:
+                print(f"Rank {rank}: no input batch to profile", flush=True)
+            dist.barrier()
+            if args.profile_only:
+                dist.destroy_process_group()
+                del tokens, is_text
+                if temporary is not None:
+                    temporary.cleanup()
+                return
 
         set_seed(0)
         for step in range(num_steps):
