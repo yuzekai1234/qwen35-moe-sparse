@@ -45,7 +45,7 @@ class LocalModel(unittest.TestCase):
         self.assertTrue(torch.isfinite(loss))
         loss.backward()
         self.assertTrue(torch.isfinite(model.lm_head.weight.grad).all())
-        self.assertEqual(model.lm_head.out_features, 30080)
+        self.assertEqual(model.lm_head.out_features, 50048)
         with tempfile.TemporaryDirectory() as tmp:
             model.save_pretrained(tmp)
             tok.save_pretrained(tmp)

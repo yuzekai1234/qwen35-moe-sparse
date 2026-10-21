@@ -8,7 +8,7 @@
   词表投影: 2·h·V   (嵌入查表不计)
 改变路由、专家数或结构后, 需同步修改此处与 evaluate.active_parameter_count()。
 
-用法: python -m q35.flops q35_c2_m [--seq 8192] [--tokenizer tokenizer/gzy_30k]   # 预设按实际词表核算预算
+用法: python -m q35.flops q35_c2_m [--seq 8192] [--tokenizer tokenizer/gzy_50k]   # 预设按实际词表核算预算
       python -m q35.flops runs/q35_c2_m/hf/config.json [--seq 8192] [--tokens 3e9]"""
 import argparse
 import json

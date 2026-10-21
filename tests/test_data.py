@@ -78,7 +78,7 @@ class Corpus(unittest.TestCase):
             with self.subTest(path=str(path)):
                 self.assertEqual(recorded_tokenizer_sha(json.loads((path.parent / "manifest.json").read_text())), sha)
                 tokens = open_tokens(path, sha)
-                self.assertLess(int(np.asarray(tokens[:1_000_000]).max()), 30080)
+                self.assertLess(int(np.asarray(tokens[:1_000_000]).max()), 50048)
 
 
 if __name__ == "__main__":

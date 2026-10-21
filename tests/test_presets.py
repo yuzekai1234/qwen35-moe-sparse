@@ -31,7 +31,7 @@ class Presets(unittest.TestCase):
 
     def test_budget_for_tokenizer_and_seq(self):
         vocab = Tokenizer.from_file(str(DEFAULT_TOKENIZER / "tokenizer.json")).get_vocab_size()
-        self.assertEqual(vocab, 30080)
+        self.assertEqual(vocab, 50048)
         for name in NAMES:
             for seq in (8192, 4096):
                 with self.subTest(name=name, seq=seq):

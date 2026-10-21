@@ -6,7 +6,7 @@
 和实际词表/序列长度重新核算(向下取整到完整全局 batch); --warmup 缺省为 1% 步数(至少 10)。
 默认 --resume 1: 重跑同一命令从 run_dir/ckpt.pt 续训; 改模型/数据/预算/学习率策略时用新的 --run_dir。
 --max_steps N 只把此次运行截止到绝对第 N 步, 不改变原预算的学习率曲线。
-默认数据: 共享 gzy 30K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
+默认数据: 共享 gzy 50K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
 --val_data "" 时改为从 train.bin 末尾留出 --eval_tokens。
 输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, tb/ (TensorBoard, --tensorboard 0 关闭),
 run_config.json, summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
