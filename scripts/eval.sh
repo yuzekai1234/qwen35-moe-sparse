@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GPUS=1 bash scripts/eval.sh <model_dir (runs/<run>/hf)> [dataset.jsonl] [seq_len] [batch_per_gpu]
+# GPUS=1 bash scripts/eval.sh <model_dir (runs/<run>/hf)> [dataset.jsonl] [seq_len] [batch_per_gpu] [evaluate options...]
 # Writes runs/<run>/eval_<dataset>_seq<seq>.json.
 set -euo pipefail
 MODEL=$(realpath "${1:?usage: scripts/eval.sh <model_dir> [dataset] [seq] [batch]}")
@@ -9,5 +9,5 @@ OUT=$(dirname "$MODEL")/eval_$(basename "$DATASET" .jsonl)_seq$SEQ.json
 rm -f "$OUT"
 # Evaluation always initializes a process group, so use torchrun even on one GPU.
 "$PY" -m torch.distributed.run --standalone --nproc_per_node="$NPROC" -m q35.evaluate \
-  --dataset-path "$DATASET" --model-path "$MODEL" --batch-size "$BS" --sequence-length "$SEQ" --output "$OUT"
+  --dataset-path "$DATASET" --model-path "$MODEL" --batch-size "$BS" --sequence-length "$SEQ" --output "$OUT" "${@:5}"
 echo "RESULT_FILE $OUT"; cat "$OUT"
