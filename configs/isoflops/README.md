@@ -8,8 +8,6 @@
 configs/isoflops/
   3e15/M1/config.json       主配置（峰值 lr=0.004）
   3e15/M1/README.md         参数、预算与使用说明
-  3e15/M1/lr_2e-3.json      最低预算的学习率候选
-  3e15/M1/lr_8e-3.json
   ... M2–M7
   1e16/M1 ... M7
   3e16/M1 ... M7
@@ -18,16 +16,13 @@ configs/isoflops/
   manifest.json            28 个主实验的参数量、token、步数和输出路径
 ```
 
-共 28 个主配置、14 个额外学习率候选，初轮均为 model seed=0、data seed=0。
-0.004 只是尚未校准的初始峰值学习率，最低预算的 0.002/0.008 候选用于后续校准。
-选出学习率后应在更高预算训练前修改同一模型的配置；已有训练应换输出目录。
+共 28 个配置，全部使用同一峰值学习率 0.004，model seed=0、data seed=0。
 C1=3e17 的预测模型要等四档结果拟合后再确定，本次没有预先指定 C1 最优结构。
 
 在仓库根目录，仅检查配置（CPU，无模型训练、无输出文件创建）：
 
 ```bash
 GPUS=0 bash scripts/train_isoflops.sh 3e15 M1 --dry-run
-GPUS=0 VARIANT=lr_2e-3 bash scripts/train_isoflops.sh 3e15 M1 --dry-run
 # 也可直接指定配置文件或目录
 .venv_q35/bin/python -m q35.train --config configs/isoflops/3e15/M1 --dry-run
 ```
@@ -55,8 +50,6 @@ runs/3e15/M1/
   summary.json
   flops.json
   hf/
-  lr_2e-3/                 该学习率候选的独立结果
-  lr_8e-3/
 ```
 
 JSON 的 model/train 字段可由 CLI 覆盖。更改 lr、seed、数据或预算时使用新的

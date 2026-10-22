@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GPUS=0 [VARIANT=lr_2e-3] bash scripts/train_isoflops.sh 3e15 M1 [args...]
+# GPUS=0 [VARIANT=config] bash scripts/train_isoflops.sh 3e15 M1 [args...]
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 BUDGET=${1:?usage: scripts/train_isoflops.sh <budget> <M1..M7> [args...]}

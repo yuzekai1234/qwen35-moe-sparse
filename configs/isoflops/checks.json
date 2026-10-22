@@ -1,12 +1,11 @@
 {
   "server_repository": "/home/yzk/qwen35-moe-sparse",
   "main_configs": 28,
-  "lr_candidates": 14,
   "cpu_unittests": 11,
   "cpu_tests_passed": true,
   "shell_dry_runs_passed": [
     "1e17/M1 world=1",
-    "3e15/M1 lr=0.002 world=2"
+    "3e15/M1 world=2"
   ],
   "training_started": false,
   "gpu_benchmark_performed": false,

@@ -118,7 +118,7 @@ def main():
                               compute_shortfall_fraction=1-tokens*fc['train_flops_per_token']/compute)
             config = dict(schema_version=1, compute=compute, model=shape, train=train, accounting=accounting,
                           experiment=dict(budget=budget_name, model=name, phase='main',
-                                          peak_lr_status='initial candidate, not calibrated',
+                                          peak_lr_status='shared by all runs',
                                           validation_manifest='configs/isoflops/validation.json'))
             write_json(directory/'config.json',config,args.force)
             (ROOT/run_dir).mkdir(parents=True,exist_ok=True)
@@ -130,26 +130,17 @@ def main():
                     f'总参数 {accounting["total_params"]:,}，激活非词表参数 {fc["active_nonvocab_params"]:,}。\n\n'
                     f'全局 batch=65536 token（8 条序列），seq=8192；micro_bs=8（每卡取 min(8, 8/卡数)，A100-40G 上 M7 单卡峰值约 28G），'
                     f'梯度累积 = 8/(卡数×micro_bs)；显存不够时加 --auto_micro_bs 1 自动往小探测；warmup={accounting["warmup_steps"]} 步；cosine 降到峰值的 10%。\n\n'
-                    '初始峰值学习率 0.004，尚未校准；model seed=0，data seed=0。'
+                    '峰值学习率 0.004，所有预算/模型统一；model seed=0，data seed=0。'
                     '所有预算/模型共用同一无放回打乱块序列。验证分区按完整文档冻结，见 ../../validation.json。\n\n'
                     f'输出：`{run_dir}/`（日志、checkpoint、TensorBoard、final_eval.json、HF 导出）。\n\n'
                     f'仅检查（无 GPU 分配，不训练）：\n\n```bash\n{command} --dry-run\n```\n\n'
                     f'以后启动：\n\n```bash\n{command}\n```\n\n'
                     'CLI 参数覆盖 JSON；修改预算、学习率或 seed 后须使用新 run_dir。\n')
-            if budget_name == '3e15':
-                for label, lr in [('2e-3',0.002),('8e-3',0.008)]:
-                    variant=json.loads(json.dumps(config))
-                    variant['train'].update(lr=lr,run_dir=f'{run_dir}/lr_{label}')
-                    variant['experiment'].update(phase='lr_search',candidate_lr=lr)
-                    write_json(directory/f'lr_{label}.json',variant,args.force)
-                    (ROOT/variant['train']['run_dir']).mkdir(parents=True,exist_ok=True)
-                text += ('\n最低预算另有 lr_2e-3.json、lr_8e-3.json；0.004 对应 config.json。\n\n'
-                         f'```bash\nGPUS=0 VARIANT=lr_2e-3 bash scripts/train_isoflops.sh {budget_name} {name} --dry-run\n```\n')
             (directory/'README.md').write_text(text)
             rows.append(dict(budget=budget_name,model=name,config=str((directory/'config.json').relative_to(ROOT)),
                              run_dir=run_dir,**accounting))
-    write_json(DEST/'manifest.json',dict(version=1,pool=str(POOL),main_runs=28,lr_candidates=14,runs=rows),args.force)
-    print('Prepared 28 main configs and 14 LR candidates. No training was started.',flush=True)
+    write_json(DEST/'manifest.json',dict(version=1,pool=str(POOL),main_runs=28,runs=rows),args.force)
+    print('Prepared 28 configs, all with peak lr 0.004. No training was started.',flush=True)
 
 
 if __name__ == '__main__':

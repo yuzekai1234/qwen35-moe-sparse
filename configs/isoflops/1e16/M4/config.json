@@ -68,7 +68,7 @@
     "budget": "1e16",
     "model": "M4",
     "phase": "main",
-    "peak_lr_status": "initial candidate, not calibrated",
+    "peak_lr_status": "shared by all runs",
     "validation_manifest": "configs/isoflops/validation.json"
   }
 }

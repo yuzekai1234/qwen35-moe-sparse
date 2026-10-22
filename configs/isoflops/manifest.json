@@ -2,7 +2,6 @@
   "version": 1,
   "pool": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1",
   "main_runs": 28,
-  "lr_candidates": 14,
   "runs": [
     {
       "budget": "3e15",
