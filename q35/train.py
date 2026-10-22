@@ -226,6 +226,34 @@ def gdn_kernel():
     return impl
 
 
+def _autocast_grouped_mm(input, weight, offs):
+    """transformers' grouped_mm casts the input to the FP32 master weights, so on torch<2.9 / non-Hopper
+    its per-expert fallback runs FP32 SGEMM; under autocast run it in the autocast dtype like F.linear."""
+    if torch.is_autocast_enabled(input.device.type):
+        dt = torch.get_autocast_dtype(input.device.type)
+        input, weight = input.to(dt), weight.to(dt)
+    return _autocast_grouped_mm.original(input, weight, offs=offs)
+
+
+def install_fast_paths(model):
+    """Training fast paths with the model's numerics up to BF16 rounding order (see tests/test_model.py):
+    grouped_mm experts (no per-expert host syncs) in the autocast dtype, FLA's Triton causal conv1d and
+    grouped-value heads in Gated DeltaNet (shared with q35.inference), compiled RMSNorm / gated RMSNorm."""
+    import types
+    import transformers.integrations.moe as moe
+    from .inference import _gdn_prefill_forward, compile_inference_norms
+    if moe._grouped_mm is not _autocast_grouped_mm:
+        _autocast_grouped_mm.original, moe._grouped_mm = moe._grouped_mm, _autocast_grouped_mm
+    model.set_experts_implementation("grouped_mm")
+    gdn = 0
+    for module in model.modules():
+        if isinstance(module, M.Qwen3_5MoeGatedDeltaNet):
+            module._reference_forward = module.forward
+            module.forward = types.MethodType(_gdn_prefill_forward, module)
+            gdn += 1
+    return dict(experts="grouped_mm(autocast)", gated_deltanet=gdn, norms=compile_inference_norms(model))
+
+
 def sample_batch(rng, src, bs, seq, dev, offsets=None):
     ix = rng.integers(0, len(src) - seq - 1, bs) if offsets is None else offsets
     x = torch.from_numpy(np.stack([src[i:i + seq].astype(np.int64) for i in ix]))
@@ -347,6 +375,7 @@ def main(argv=None):
     log0("Model source:", M.__file__)
     assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "embeddings are not tied"
     log0("GDN kernel:", gdn_kernel())
+    log0("Fast paths:", install_fast_paths(model))
     n_all = sum(p.numel() for p in model.parameters()); n_total_nv = n_all - model.get_input_embeddings().weight.numel()
     n_active_nv = n_total_nv - a.layers * (a.experts - a.topk) * 3 * a.hidden * a.moe_ffn
     flops_per_token = fc["train_flops_per_token"]
@@ -358,7 +387,7 @@ def main(argv=None):
     lm = LossModel(model, a.experts, a.topk)
     if a.auto_micro_bs:
         gpu = torch.cuda.get_device_properties(dev)
-        key = dict(world=world, gpu=gpu.name, gpu_bytes=gpu.total_memory, torch=torch.__version__,
+        key = dict(world=world, gpu=gpu.name, gpu_bytes=gpu.total_memory, torch=torch.__version__, fast_paths=1,
                    probe_mem_frac=a.probe_mem_frac, max_micro_bs=a.micro_bs, seq=a.seq, batch_tokens=a.batch_tokens,
                    model_sha256=hashlib.sha256(json.dumps(cfg.to_dict(), sort_keys=True).encode()).hexdigest())
         probe_path = Path(a.run_dir) / "micro_bs_probe.json"

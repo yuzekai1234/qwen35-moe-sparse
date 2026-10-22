@@ -108,6 +108,36 @@ class LocalModel(unittest.TestCase):
         self.assertLess(errors[1].mean().item(), 1.5 * errors[0].mean().item())
         self.assertLess(errors[1].max().item(), 1.5 * errors[0].max().item())
 
+    @unittest.skipUnless(torch.cuda.is_available(), "GPU required for training fast paths")
+    def test_training_fast_paths_match_reference(self):
+        from q35.train import LossModel, install_fast_paths
+        torch.manual_seed(0)
+        reference = Qwen3_5MoeForCausalLM(config(Qwen3_5MoeTextConfig)).cuda()
+        fast = copy.deepcopy(reference)
+        self.assertEqual(install_fast_paths(fast), dict(experts="grouped_mm(autocast)", gated_deltanet=3, norms=14))
+
+        def unexpected(*args, **kwargs):
+            raise AssertionError("uncached GatedDeltaNet fell back to the reference forward")
+        for layer in fast.model.layers:
+            if layer.block_type == "linear_attention":
+                layer.linear_attn._reference_forward = unexpected
+        ids, labels = torch.randint(0, 256, (2, 2, 200), device="cuda")
+
+        def grads(model, amp):
+            model.zero_grad(set_to_none=True)
+            with torch.autocast("cuda", dtype=torch.bfloat16, enabled=amp):
+                ce, aux = LossModel(model, 4, 2)(ids, labels)
+            (ce + 1e-3 * aux).backward()
+            return ce.item(), {n: p.grad.float().clone() for n, p in model.named_parameters()}
+        truth_ce, truth = grads(reference, amp=False)
+        results = [grads(model, amp=True) for model in (reference, fast)]
+        errors = [sorted(((g[n] - truth[n]).norm() / truth[n].norm()).item() for n in truth) for _, g in results]
+        # Against FP32, gradients must stay within the BF16 reference path's own rounding error.
+        self.assertEqual(len(results[1][1]), len(truth))
+        self.assertLess(errors[1][len(truth) // 2], 1.5 * errors[0][len(truth) // 2])
+        self.assertLess(errors[1][-1], 1.5 * errors[0][-1])
+        self.assertLess(abs(results[1][0] - truth_ce), 1.5 * abs(results[0][0] - truth_ce) + 1e-3)
+
     def test_gzy_vocab_forward_backward_and_export(self):
         tok = load_tokenizer(DEFAULT_TOKENIZER)
         cfg = config(Qwen3_5MoeTextConfig)
