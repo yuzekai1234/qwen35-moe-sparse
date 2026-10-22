@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# [GPUS=0,1,2,3,4,5,6,7] [EVAL=1] bash scripts/run_isoflops_all.sh [budget...]   e.g. 3e15 (default: all)
-# One IsoFLOPs config per GPU, smallest budget first; each GPU takes the next config when it finishes.
+# [GPUS=0,1,2,3,4,5,6,7] [EVAL=1] bash scripts/run_isoflops_all.sh [budget...]   e.g. 1e16 (default: all)
+# One IsoFLOPs config per GPU, smallest budget first (smallest model first within a budget); each GPU takes the next config when it finishes.
 # Every job trains (incl. final_eval.json), then runs scripts/eval.sh on its hf/ export (EVAL=0 skips).
 # Re-running skips finished jobs and resumes interrupted ones from ckpt.pt. Status: runs/isoflops_queue.log
 set -euo pipefail
@@ -17,11 +17,11 @@ trap 'kill 0' INT TERM
 import json, sys
 from pathlib import Path
 jobs = []
-for path in Path("configs/isoflops").glob("*/M*/*.json"):
+for path in Path("configs/isoflops").glob("*/h*/*.json"):
     c = json.loads(path.read_text()); e = c["experiment"]
     if len(sys.argv) == 1 or e["budget"] in sys.argv[1:]:
-        jobs.append((c["compute"], e["model"], path.stem, e["budget"], c["train"]["run_dir"]))
-for _, model, variant, budget, run_dir in sorted(jobs):
+        jobs.append((c["compute"], c["accounting"]["active_nonvocab_params"], e["model"], path.stem, e["budget"], c["train"]["run_dir"]))
+for _, _, model, variant, budget, run_dir in sorted(jobs):
     print(budget, model, variant, run_dir)
 EOF
 

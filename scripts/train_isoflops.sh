@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# GPUS=0 [VARIANT=config] bash scripts/train_isoflops.sh 3e15 M1 [args...]
+# GPUS=0 [VARIANT=config] bash scripts/train_isoflops.sh 1e16 h256_L5 [args...]
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-BUDGET=${1:?usage: scripts/train_isoflops.sh <budget> <M1..M7> [args...]}
-MODEL=${2:?usage: scripts/train_isoflops.sh <budget> <M1..M7> [args...]}
+BUDGET=${1:?usage: scripts/train_isoflops.sh <budget> <h...> [args...]}
+MODEL=${2:?usage: scripts/train_isoflops.sh <budget> <h...> [args...]}
 shift 2
 CONFIG="$ROOT/configs/isoflops/$BUDGET/$MODEL/${VARIANT:-config}.json"
 test -f "$CONFIG" || { echo "Missing config: $CONFIG" >&2; exit 1; }

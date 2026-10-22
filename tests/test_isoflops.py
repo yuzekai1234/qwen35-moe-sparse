@@ -67,7 +67,7 @@ class Configs(unittest.TestCase):
 
     def test_every_configuration_matches_budget_and_directory(self):
         configs=sorted(self.base.glob('*/*/*.json'))
-        self.assertEqual(len(configs),28)
+        self.assertEqual(len(configs),24)
         for path in configs:
             with self.subTest(path=str(path)):
                 config_path,p=load_training_config(path.parent if path.name=='config.json' else path)
@@ -79,7 +79,8 @@ class Configs(unittest.TestCase):
                 self.assertLessEqual(plan['actual_train_flops'],p['compute'])
                 self.assertGreater(plan['actual_train_flops']+fc['train_flops_per_token']*a.batch_tokens,p['compute'])
                 self.assertEqual(Path(plan['run_dir']),ROOT/p['train']['run_dir'])
-                self.assertEqual((plan['micro_bs'],plan['accumulation']),(8,1))
+                self.assertEqual(plan['micro_bs'],'auto')
+                self.assertGreaterEqual(p['accounting']['active_fraction'],0.10)
                 self.assertFalse(plan['sampling']['replacement'])
                 self.assertGreaterEqual(sampler.blocks*a.seq,plan['train_tokens'])
                 self.assertGreaterEqual(len(dev)-1,2_000_000)
@@ -87,7 +88,7 @@ class Configs(unittest.TestCase):
                 self.assertEqual(a.final_eval_offset,len(dev))
 
     def test_cli_override_and_dry_run_have_no_training_side_effects(self):
-        config=self.base/'3e15/M1'
+        config=self.base/'1e16/h256_L5'
         with tempfile.TemporaryDirectory() as tmp:
             output=Path(tmp)/'must-not-be-created'
             with contextlib.redirect_stdout(io.StringIO()) as stream:
@@ -100,20 +101,20 @@ class Configs(unittest.TestCase):
                 parse_args(['--config',str(config),'--preset','q35_c1_s1'])
 
     def test_micro_batch_follows_world_size(self):
-        config=self.base/'3e15/M1'
+        config=self.base/'1e16/h256_L5'
         for world,expected in [(1,[8,4,2,1]),(2,[4,2,1]),(4,[2,1]),(8,[1])]:
-            plan=prepare_inputs(parse_args(['--config',str(config)]),world)[-1]
+            plan=prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','0']),world)[-1]
             self.assertEqual((plan['micro_bs'],plan['accumulation']),(expected[0],1))
             plan=prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','1']),world)[-1]
             self.assertEqual((plan['micro_bs'],plan['micro_bs_candidates']),('auto',expected))
-        plan=prepare_inputs(parse_args(['--config',str(config),'--micro_bs','2']),2)[-1]
+        plan=prepare_inputs(parse_args(['--config',str(config),'--micro_bs','2','--auto_micro_bs','0']),2)[-1]
         self.assertEqual((plan['micro_bs'],plan['accumulation']),(2,2))
         plan=prepare_inputs(parse_args(['--config',str(config),'--micro_bs','3','--auto_micro_bs','1']),1)[-1]
         self.assertEqual(plan['micro_bs_candidates'],[2,1])
         with self.assertRaises(ValueError):
-            prepare_inputs(parse_args(['--config',str(config),'--micro_bs','3']),1)
+            prepare_inputs(parse_args(['--config',str(config),'--micro_bs','3','--auto_micro_bs','0']),1)
         with self.assertRaises(ValueError):
-            prepare_inputs(parse_args(['--config',str(config)]),3)
+            prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','0']),3)
         self.assertEqual(micro_bs_candidates(12,12),[12,6,4,3,2,1])
 
     def test_validation_partitions_have_disjoint_document_ranges(self):

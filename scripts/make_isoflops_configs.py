@@ -16,11 +16,63 @@ from q35.flops import count
 POOL = Path('/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1')
 VOCAB = 10112
 DEST = ROOT / 'configs/isoflops'
-BUDGETS = {'3e15': 3*10**15, '1e16': 10**16, '3e16': 3*10**16, '1e17': 10**17}
-SHAPES = [(4,64,1,1,2), (4,96,2,1,2), (4,128,2,1,2), (8,128,2,1,2),
-          (8,192,4,2,4), (8,256,4,2,4), (12,256,4,2,4)]
-BATCH = 65536
+BUDGETS = {'1e16': 10**16, '3e16': 3*10**16, '1e17': 10**17, '3e17': 3*10**17}
+HIDDENS = range(128, 1601, 64)
+ASPECT = (32, 80)             # hidden / layers band searched by the sweep (original Qwen3.5: 51.2)
+TARGET_TOKENS_PER_ACTIVE = [40 * 1.5 ** (-2 * k) for k in (-2.5, -1.5, -0.5, 0.5, 1.5, 2.5)]  # ~304 ... ~5 D/Na
 SEQ = 8192
+MIN_ACTIVE_FRACTION = 0.10    # competition rule: non-vocab active / total parameters
+
+
+def shape_for(hidden, layers=None):
+    """Within-layer proportions follow hidden: original Qwen3.5-35B-A3B ratios where they scale
+    (attention q 2h / kv h/4, GDN k h / v 2h), head dims fixed at 64, 64 experts top-4 with expert
+    and shared widths h/2.  Like Chinchilla, the sweep varies depth and width; submitted models use
+    the default depth max(4, round(hidden / 51.2)) (original width/depth ratio)."""
+    q, kv = hidden // 32, max(1, hidden // 256)
+    while q % kv:
+        kv -= 1
+    layers = layers or max(4, round(hidden / 51.2))
+    return {**MODEL_DEFAULTS, 'layers': layers, 'hidden': hidden, 'heads': q, 'kv_heads': kv,
+            'head_dim': 64, 'lin_k_heads': hidden // 64, 'lin_v_heads': hidden // 32, 'lin_head_dim': 64,
+            'experts': 64, 'topk': 4, 'moe_ffn': hidden // 2, 'shared_ffn': hidden // 2, 'experts_impl': 'eager'}
+
+
+def candidates():
+    for hidden in HIDDENS:
+        for layers in range(max(4, -(-hidden // ASPECT[1])), hidden // ASPECT[0] + 1):
+            shape = shape_for(hidden, layers)
+            fc = count(model_config(shape, VOCAB, SEQ).to_dict(), SEQ)
+            ratio = fc['active_nonvocab_params'] / fc['total_nonvocab_params']
+            if ratio < MIN_ACTIVE_FRACTION:
+                raise ValueError(f'h{hidden}_L{layers}: active fraction {ratio:.3f} violates the 10% rule')
+            yield shape, fc, ratio
+
+
+def select_shapes(compute, batch):
+    """Six shapes evenly spaced in log(D/Na) around D/Na=40; ties prefer the original width/depth ratio."""
+    pool = []
+    for shape, fc, ratio in candidates():
+        tokens = budget_tokens(fc['train_flops_per_token'], compute, batch)
+        if tokens:
+            pool.append((shape, fc, ratio, tokens, np.log(tokens / fc['active_nonvocab_params'])))
+    chosen = []
+    for target in TARGET_TOKENS_PER_ACTIVE:
+        best = min((c for c in pool if c not in chosen),
+                   key=lambda c: abs(c[4] - np.log(target)) + 0.1 * abs(np.log(c[0]['hidden'] / c[0]['layers'] / 51.2)))
+        chosen.append(best)
+    return [c[:4] for c in sorted(chosen, key=lambda c: c[1]['active_nonvocab_params'])]
+
+
+def lr_for(compute):
+    """DeepSeek LLM (2024) compute-optimal peak learning rate; shared by every shape of a budget."""
+    return round(0.3118 * compute ** -0.125, 6)
+
+
+def batch_for(compute):
+    """DeepSeek LLM compute-optimal batch, rounded to a power-of-two number of sequences (at least 8)."""
+    sequences = 0.2920 * compute ** 0.3271 / SEQ
+    return SEQ * max(8, 2 ** round(np.log2(sequences)))
 
 
 def write_json(path, value, force=False):
@@ -90,19 +142,16 @@ def main():
     val = validation_partitions(args.force)
     rows = []
     for budget_name, compute in BUDGETS.items():
-        for i, (layers, hidden, heads, lin_k, lin_v) in enumerate(SHAPES, 1):
-            name = f'M{i}'
+        lr, batch = lr_for(compute), batch_for(compute)
+        for shape, fc, ratio, tokens in select_shapes(compute, batch):
+            hidden, layers = shape['hidden'], shape['layers']
+            name = f'h{hidden}_L{layers}'
             directory = DEST / budget_name / name
-            shape = {**MODEL_DEFAULTS, 'layers':layers, 'hidden':hidden, 'heads':heads,
-                     'lin_k_heads':lin_k, 'lin_v_heads':lin_v, 'moe_ffn':hidden,
-                     'shared_ffn':hidden//2, 'experts_impl':'eager'}
-            fc = count(model_config(shape, VOCAB, SEQ).to_dict(), SEQ)
-            tokens = budget_tokens(fc['train_flops_per_token'], compute, BATCH)
-            steps = tokens // BATCH
+            steps = tokens // batch
             run_dir = f'runs/{budget_name}/{name}'
             train = dict(run_dir=run_dir, data=str(POOL/'train.bin'), val_data=str(POOL/'valid.bin'),
-                         tokenizer=str(POOL/'tokenizer'), seq=SEQ, tokens=0, batch_tokens=BATCH,
-                         micro_bs=8, auto_micro_bs=0, lr=0.004, min_lr_ratio=0.1, warmup=0, warmup_ratio=0.05,
+                         tokenizer=str(POOL/'tokenizer'), seq=SEQ, tokens=0, batch_tokens=batch,
+                         micro_bs=8, auto_micro_bs=1, lr=lr, min_lr_ratio=0.1, warmup=0, warmup_ratio=0.05,
                          warmup_min=10, wd=0.1, clip=1.0, seed=0, data_seed=0,
                          data_sampling='shuffled_blocks', require_ready_pool=1,
                          eval_sampling='sequential', eval_offset=val['dev']['offset'],
@@ -110,37 +159,48 @@ def main():
                          final_eval_tokens=val['curve']['targets'], log_every=10, eval_every=100,
                          ckpt_every=100, resume=1, max_steps=0, tensorboard=1)
             accounting = dict(total_params=fc['total_nonvocab_params']+fc['embed_params'],
+                              total_nonvocab_params=fc['total_nonvocab_params'],
                               active_nonvocab_params=fc['active_nonvocab_params'],
+                              active_fraction=ratio,
                               active_params_with_vocab=fc['active_nonvocab_params']+fc['embed_params'],
                               train_flops_per_token=fc['train_flops_per_token'], train_tokens=tokens,
+                              tokens_per_active_param=tokens/fc['active_nonvocab_params'],
                               steps=steps, warmup_steps=max(10,round(steps*0.05)),
                               actual_train_flops=tokens*fc['train_flops_per_token'],
                               compute_shortfall_fraction=1-tokens*fc['train_flops_per_token']/compute)
             config = dict(schema_version=1, compute=compute, model=shape, train=train, accounting=accounting,
                           experiment=dict(budget=budget_name, model=name, phase='main',
-                                          peak_lr_status='shared by all runs',
+                                          scaling_rule='scripts/make_isoflops_configs.py:shape_for (sweep varies hidden and layers)',
+                                          lr_rule='0.3118*C^-0.125 (DeepSeek LLM), shared within a budget',
+                                          batch_rule='0.2920*C^0.3271 tokens, rounded to 2^k sequences',
                                           validation_manifest='configs/isoflops/validation.json'))
             write_json(directory/'config.json',config,args.force)
             (ROOT/run_dir).mkdir(parents=True,exist_ok=True)
             command = f'GPUS=0 bash scripts/train_isoflops.sh {budget_name} {name}'
             text = (f'# {budget_name} / {name}\n\n'
-                    f'模型：{layers} 层 × hidden {hidden}，64 专家 top-4，GDN/full attention=3:1；词表 gzy 10K（{VOCAB}）。\n\n'
+                    f'模型：{layers} 层 × hidden {hidden}（宽深比 {hidden/layers:.0f}）；全注意力 q/kv 头 {shape["heads"]}/{shape["kv_heads"]}，'
+                    f'GDN k/v 头 {shape["lin_k_heads"]}/{shape["lin_v_heads"]}（头维均 64）；64 专家 top-4，专家/共享专家宽 {hidden//2}；'
+                    f'GDN/full attention=3:1；词表 gzy 10K（{VOCAB}）。层内比例由 shape_for 统一生成。\n\n'
                     f'预算 {compute:,} FLOPs；训练 {tokens:,} token，{steps:,} 步；'
                     f'每 token {fc["train_flops_per_token"]:,} FLOPs。\n\n'
-                    f'总参数 {accounting["total_params"]:,}，激活非词表参数 {fc["active_nonvocab_params"]:,}。\n\n'
-                    f'全局 batch=65536 token（8 条序列），seq=8192；micro_bs=8（每卡取 min(8, 8/卡数)，A100-40G 上 M7 单卡峰值约 28G），'
-                    f'梯度累积 = 8/(卡数×micro_bs)；显存不够时加 --auto_micro_bs 1 自动往小探测；warmup={accounting["warmup_steps"]} 步；cosine 降到峰值的 10%。\n\n'
-                    '峰值学习率 0.004，所有预算/模型统一；model seed=0，data seed=0。'
+                    f'非词表总参数 {fc["total_nonvocab_params"]:,}，激活非词表参数 {fc["active_nonvocab_params"]:,}'
+                    f'（Na/N={ratio:.1%}）；D/Na={tokens/fc["active_nonvocab_params"]:.0f}。\n\n'
+                    f'全局 batch={batch} token（{batch//SEQ} 条序列），seq={SEQ}；micro_bs 从 8 起自动探测（auto_micro_bs=1），'
+                    f'梯度累积 = {batch//SEQ}/(卡数×micro_bs)；warmup={accounting["warmup_steps"]} 步；cosine 降到峰值的 10%。\n\n'
+                    f'峰值学习率 {lr}（0.3118·C^-0.125，同一预算内统一）；model seed=0，data seed=0。'
                     '所有预算/模型共用同一无放回打乱块序列。验证分区按完整文档冻结，见 ../../validation.json。\n\n'
                     f'输出：`{run_dir}/`（日志、checkpoint、TensorBoard、final_eval.json、HF 导出）。\n\n'
                     f'仅检查（无 GPU 分配，不训练）：\n\n```bash\n{command} --dry-run\n```\n\n'
                     f'以后启动：\n\n```bash\n{command}\n```\n\n'
                     'CLI 参数覆盖 JSON；修改预算、学习率或 seed 后须使用新 run_dir。\n')
             (directory/'README.md').write_text(text)
-            rows.append(dict(budget=budget_name,model=name,config=str((directory/'config.json').relative_to(ROOT)),
-                             run_dir=run_dir,**accounting))
-    write_json(DEST/'manifest.json',dict(version=1,pool=str(POOL),main_runs=28,runs=rows),args.force)
-    print('Prepared 28 configs, all with peak lr 0.004. No training was started.',flush=True)
+            rows.append(dict(budget=budget_name,model=name,lr=lr,batch_tokens=batch,
+                             config=str((directory/'config.json').relative_to(ROOT)),run_dir=run_dir,**accounting))
+    write_json(DEST/'manifest.json',dict(version=1,pool=str(POOL),runs=rows),args.force)
+    for r in rows:
+        print(f"{r['budget']} {r['model']:>6} lr={r['lr']} batch={r['batch_tokens']} Na/N={r['active_fraction']:.1%} "
+              f"D/Na={r['tokens_per_active_param']:.0f} steps={r['steps']}", flush=True)
+    print(f'Prepared {len(rows)} configs. No training was started.', flush=True)
 
 
 if __name__ == '__main__':
