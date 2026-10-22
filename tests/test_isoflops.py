@@ -76,7 +76,13 @@ class Configs(unittest.TestCase):
                 self.assertEqual(plan['steps'],p['accounting']['steps'])
                 self.assertEqual(plan['train_tokens'],p['accounting']['train_tokens'])
                 self.assertEqual(plan['train_flops_per_token'],p['accounting']['train_flops_per_token'])
+                self.assertEqual(plan['flops_accounting'],p['accounting']['accounting_method'])
+                self.assertEqual(plan['megatron_reference_train_flops_per_token'],
+                                 p['accounting']['megatron_reference_train_flops_per_token'])
                 self.assertLessEqual(plan['actual_train_flops'],p['compute'])
+                reference_budget=plan['train_tokens']*fc['megatron_reference_train_flops_per_token']
+                self.assertGreaterEqual(reference_budget,0.99*p['compute'])
+                self.assertLessEqual(reference_budget,1.01*p['compute'])
                 self.assertGreater(plan['actual_train_flops']+fc['train_flops_per_token']*a.batch_tokens,p['compute'])
                 self.assertEqual(Path(plan['run_dir']),ROOT/p['train']['run_dir'])
                 self.assertEqual(plan['micro_bs'],'auto')

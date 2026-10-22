@@ -61,6 +61,8 @@ GPUS=0 bash scripts/train_isoflops.sh 1e16 h256_L5 --dry-run
 
 启动：
 
+下面队列命令注释中的耗时是 FLOPs 校准前估计，须按更新后的 token 数重估。
+
 ```bash
 bash scripts/run_isoflops_all.sh            # 全部 19 个：8 卡分 4 组、每组 2 卡 DDP；大预算先跑，同预算内小模型（最耗时）先跑；按实测吞吐估算约 2.5 小时（不含评测）
 PER_JOB=1 bash scripts/run_isoflops_all.sh  # 每任务 1 卡（约 2.9 小时，受最长任务 3e17/h320_L6 限制）
@@ -86,7 +88,7 @@ runs/1e16/h256_L5/
 JSON 的 model/train 字段可由 CLI 覆盖。更改 lr、seed、数据或预算时使用新的
 `--run_dir`；默认 resume=1，断点续训核对超参数、数据身份与采样顺序。
 
-训练数据指向共享的 `isoflops-gzy10k-16b-v1/train.bin`（gzy 10K 词表，约 16B token；最大配置 3e17/h320_L6 用约 2.5B），tokenizer 使用该池的冻结快照。
+训练数据指向共享的 `isoflops-gzy10k-16b-v1/train.bin`（gzy 10K 词表，约 16B token；最大配置 3e17/h320_L6 用约 2.65B），tokenizer 使用该池的冻结快照。
 早先 50K 词表及旧形状网格（3e15–1e17、M1–M7）的结果均已清除。
 新采样器把数据划为不重叠的 8192-target 块，再用 data seed=0 全局打乱一次。
 不循环、不放回；相同数据 seed 下所有模型读取相同序列前缀。
@@ -109,6 +111,15 @@ warmup 约占 5%（至少 10 步），完整 cosine 周期在最后一步降至�
 final_eval 在 FP32 主权重/BF16 前向下执行，然后导出 BF16 HF 模型。
 多卡最终评测分摊固定窗口并汇总 NLL/token 数。短跑结果会标记 completed_budget=false。
 训练 FLOPs 不包含验证、编译和优化器开销，实际耗时分别记录。
+
+FLOPs 采用 `megatron_b92c3ed_plus_router_shared_gate_v1`：GDN 核心按比赛指定
+Megatron 提交 `b92c3ed70029005fd5769d2cf4c65bc3d061a74b` 的 `8·nv·dv²` 前向公式，
+全注意力按 causal 减半，前反向按参考约定乘 3，另计实际 router 与共享专家门投影。
+参数量独立统计，norm 等参数不再当作 GEMM 权重。配置中分别记录原函数参考值及额外投影值。
+19 个配置已按新口径重算 token、步数与 warmup；模型、lr、batch、数据与随机种子未改。
+当前口径预算向下取整误差 <0.066%；若直接按未补充额外投影的 Megatron 原函数复核，
+预算偏差为 -0.732% 至 -0.455%，也在 ±1% 内。详细交叉验证见 `audits/flops_audit.json`。
+旧口径 checkpoint 不自动混用续训，历史实验数值保留原口径；此处采用模型 FLOPs 约定，非 FLA 物理指令计数。
 
 配置生成器：`scripts/make_isoflops_configs.py`。它不会启动训练，默认拒绝覆盖手改过的 JSON。
 `--force` 明确要求重新生成配置；冻结验证分区仍复用同一身份文件。

@@ -7,6 +7,7 @@ from q35.data import DEFAULT_TOKENIZER
 from q35.flops import count
 from q35.presets import ROOT, default_layer_types, load_preset, model_config, preset_budget, preset_names
 from q35.train import parse_args
+from scripts.audit_flops import legacy_train_flops_per_token
 
 NAMES = ("q35_c1_s1", "q35_c1_s2", "q35_c1_s3", "q35_c2_b", "q35_c2_m")
 
@@ -19,7 +20,9 @@ class Presets(unittest.TestCase):
                 p = load_preset(name); ref = p["reference"]
                 cfg = model_config(p["model"], ref["vocab_size"], 8192).to_dict()
                 actual = count(cfg, 8192)
-                self.assertEqual(actual["train_flops_per_token"], ref["flops_per_token"])
+                # Archived experiments retain the old convention; never rewrite their history.
+                self.assertEqual(legacy_train_flops_per_token(cfg,8192), ref["flops_per_token"])
+                self.assertLess(actual["train_flops_per_token"], ref["flops_per_token"])
                 self.assertEqual(actual["total_nonvocab_params"] + actual["embed_params"], ref["n_params"])
                 self.assertEqual(actual["active_nonvocab_params"], ref["n_nonvocab_active"])
                 self.assertEqual(cfg["layer_types"], default_layer_types(p["model"]["layers"]))
@@ -27,7 +30,9 @@ class Presets(unittest.TestCase):
                 # Historical runs rounded the step count; budgets are now floored to stay within compute.
                 tokens, _ = preset_budget(name, ref["vocab_size"])
                 self.assertEqual(round(p["compute"] / ref["flops_per_token"] / 524288) * 524288, ref["tokens"])
-                self.assertIn(ref["tokens"] - tokens, (0, 524288))
+                flops=actual["train_flops_per_token"]
+                self.assertLessEqual(tokens*flops,p["compute"])
+                self.assertGreater((tokens+524288)*flops,p["compute"])
 
     def test_budget_for_tokenizer_and_seq(self):
         vocab = Tokenizer.from_file(str(DEFAULT_TOKENIZER / "tokenizer.json")).get_vocab_size()

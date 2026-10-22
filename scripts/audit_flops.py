@@ -156,10 +156,21 @@ def check_local_fla_solve(path):
     return found
 
 
+def legacy_train_flops_per_token(c, seq):
+    """Pre-calibration counter, only for auditing archived experiment numbers."""
+    current = count(c, seq)
+    lin = c['layer_types'].count('linear_attention')
+    nv = c['linear_num_value_heads']
+    dk, dv = c['linear_key_head_dim'], c['linear_value_head_dim']
+    chunk_core = lin * nv * (6*dk*dv + 6*64*dk + 4*64*dv)
+    return 3 * (2*current['active_nonvocab_params'] + chunk_core
+                + current['breakdown']['attn_score'] + current['breakdown']['logits'])
+
+
 def audit(c, seq, reference):
     if c['layer_types'] != c['layer_types'][:c['num_hidden_layers']]:
         raise ValueError('Layer list length does not match layer count')
-    legacy = count(c, seq)
+    current = count(c, seq)
     terms = reference_forward_terms(c, seq)
     ref = reference(reference_args(c, seq), 1) / seq
     assert ref == 3 * sum(terms.values()), 'Independent expansion differs from pinned function'
@@ -171,13 +182,19 @@ def audit(c, seq, reference):
     # though their operations actually require individual non-GEMM accounting.
     misclassified_params = (lin * (2 * c['linear_num_value_heads'] + c['linear_value_head_dim'])
                             + full * 2 * c['head_dim'] + L * 2 * h + h)
-    legacy_core = 3 * legacy['breakdown']['gdn_core']
+    dk, dv = c['linear_key_head_dim'], c['linear_value_head_dim']
+    legacy_core = 3 * lin * c['linear_num_value_heads'] * (6*dk*dv + 6*64*dk + 4*64*dv)
     reference_core = 3 * terms['gdn_recurrent_core_reference']
-    assert legacy['breakdown']['attn_score'] == terms['full_causal_core']
-    assert legacy['train_flops_per_token'] - ref == (
+    old = legacy_train_flops_per_token(c, seq)
+    assert current['breakdown']['attn_score'] == terms['full_causal_core']
+    assert current['megatron_reference_train_flops_per_token'] == ref
+    assert current['train_flops_per_token'] == ref + router_and_shared_gate
+    assert old - ref == (
         legacy_core - reference_core + router_and_shared_gate + 6 * misclassified_params)
-    old = legacy['train_flops_per_token']
     out = dict(legacy_train_flops_per_token=old,
+               current_train_flops_per_token=current['train_flops_per_token'],
+               current_accounting_method=current['accounting_method'],
+               current_over_megatron_fraction=current['train_flops_per_token']/ref-1,
                megatron_train_flops_per_token=ref,
                megatron_forward_terms=terms,
                reference_plus_router_and_shared_gate_train_flops_per_token=ref + router_and_shared_gate,
@@ -215,11 +232,13 @@ def main():
         p = json.loads(path.read_text())
         seq = p['train']['seq']
         c = model_config(p['model'], a.vocab, seq).to_dict()
+        assert p['accounting']['train_flops_per_token'] == count(c,seq)['train_flops_per_token'], f'Stale accounting: {path}'
         row = dict(config=str(path.relative_to(ROOT)), compute=p['compute'],
                    config_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                    shape=f'h{c["hidden_size"]}_L{c["num_hidden_layers"]}', **audit(c, seq, reference))
         D = p['accounting']['train_tokens']
         row['configured_train_tokens'] = D
+        row['current_accounting_budget_fraction'] = D*row['current_train_flops_per_token']/p['compute']-1
         row['megatron_reaccounted_budget_fraction'] = D*row['megatron_train_flops_per_token']/p['compute']-1
         row['reference_plus_router_gate_reaccounted_budget_fraction'] = (
             D*row['reference_plus_router_and_shared_gate_train_flops_per_token']/p['compute']-1)
@@ -247,7 +266,7 @@ def main():
                       'Reference-plus-router/gate is a separate adjusted ledger, not the unmodified official formula.',
                       'Partial FLA GEMMs omit pointwise/reduction/normalization/SFU and vector solve operations.',
                       'Partial FLA GEMMs exclude activation recomputation and tensor-core tiling/padding overhead.',
-                      'Frozen model configs, schedules, token budgets and historical references are not rewritten.',
+                      'Audit command is read-only; token budgets are recalculated separately by the config generator.',
                   ],
                   findings=[
                       'Full attention causal factor is already correct; the old Chinese comment was incorrect.',
@@ -255,8 +274,9 @@ def main():
                       'Pinned reference includes attention output gate when enabled, but omits MoE router and shared gate.',
                       'Multiplying all active parameters by six misclassifies norm and gate scalar parameters as GEMM weights.',
                       'FLA uses WY construction and triangular solve; its forward and backward require separate accounting.',
-                      'Changing budgets based only on the recurrent reference does not settle the actual FLA operator convention.',
-                      'Confirm whether review uses recurrent GDN reference or chunk-graph arithmetic, and how non-GEMM work is counted.',
+                      'Current counter adopts the pinned recurrent GDN convention, plus actual router/shared gate projections.',
+                      'Current reference component is checked for exact equality against the pinned function.',
+                      'This selected model accounting convention does not claim to count physical FLA instructions.',
                   ],
                   installed_versions={name:importlib.metadata.version(name)
                                       for name in ['fla-core','flash-linear-attention','torch','triton']},
@@ -267,9 +287,9 @@ def main():
     a.output.parent.mkdir(parents=True,exist_ok=True)
     a.output.write_text(json.dumps(report,indent=2,ensure_ascii=False)+'\n')
     for row in family:
-        print(f"{row['shape']:12} legacy={row['legacy_train_flops_per_token']:12,d} "
+        print(f"{row['shape']:12} current={row['current_train_flops_per_token']:12,d} "
               f"Megatron={row['megatron_train_flops_per_token']:12,.0f} "
-              f"legacy/reference={row['legacy_over_megatron_fraction']:+.3%}")
+              f"extra router/gate={row['current_over_megatron_fraction']:+.3%}")
     print(f'Checked {len(rows)} on-disk configs and {len(family)} canonical shapes; report: {a.output}')
 
 

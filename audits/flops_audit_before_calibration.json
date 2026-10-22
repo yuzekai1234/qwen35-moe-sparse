@@ -1,0 +1,1320 @@
+{
+  "reference": {
+    "commit": "b92c3ed70029005fd5769d2cf4c65bc3d061a74b",
+    "url": "https://raw.githubusercontent.com/NVIDIA/Megatron-LM/b92c3ed70029005fd5769d2cf4c65bc3d061a74b/megatron/training/training.py",
+    "sha256": "370d7844ccc0b36e60bc7f8238b84671ed488c1d2b5c02b5e2f6c32deef8d177",
+    "function_lines": [
+      821,
+      1407
+    ],
+    "branch": "Transformer with GDN and attention_output_gate=True"
+  },
+  "scope": {
+    "seq": 8192,
+    "vocab": 10112,
+    "physical_kernel_flops": false,
+    "actual_graph_within_one_percent_certified": false
+  },
+  "limitations": [
+    "Contest +/-1% is budget tolerance, not a blanket permission for uncertain operator estimates.",
+    "Pinned reference has a recurrent GDN core estimate; FLA chunk uses additional WY/solve operations.",
+    "Reference-plus-router/gate is a separate adjusted ledger, not the unmodified official formula.",
+    "Partial FLA GEMMs omit pointwise/reduction/normalization/SFU and vector solve operations.",
+    "Partial FLA GEMMs exclude activation recomputation and tensor-core tiling/padding overhead.",
+    "Frozen model configs, schedules, token budgets and historical references are not rewritten."
+  ],
+  "findings": [
+    "Full attention causal factor is already correct; the old Chinese comment was incorrect.",
+    "Legacy GDN core is 16*d^2 per value head at C=dk=dv=64; pinned reference is 8*d^2.",
+    "Pinned reference includes attention output gate when enabled, but omits MoE router and shared gate.",
+    "Multiplying all active parameters by six misclassifies norm and gate scalar parameters as GEMM weights.",
+    "FLA uses WY construction and triangular solve; its forward and backward require separate accounting.",
+    "Changing budgets based only on the recurrent reference does not settle the actual FLA operator convention.",
+    "Confirm whether review uses recurrent GDN reference or chunk-graph arithmetic, and how non-GEMM work is counted."
+  ],
+  "installed_versions": {
+    "fla-core": "0.5.2",
+    "flash-linear-attention": "0.5.2",
+    "torch": "2.7.1",
+    "triton": "3.3.1"
+  },
+  "local_source_sha256": {
+    "fla/ops/gated_delta_rule/chunk.py": "fd4e01dc22a8c139c2a6eb61e47ae472a50322e4b4fff006cc5039a4602b310e",
+    "fla/ops/gated_delta_rule/chunk_fwd.py": "1760a7dd26db2118bb1af7b9b7c115a27c97372e6a4d2e913d1542c9fedcda9e",
+    "fla/ops/gated_delta_rule/wy_fast.py": "bf24a66524ea56383fe6c9a97ae6b060ebe9490589c8499fba06d6172dc4510f",
+    "fla/ops/common/chunk_delta_h.py": "ff461bcc40e9cd0b2ca24af9ae9c3c6d99b2deae047c3737687c93b3fcd6ea57",
+    "fla/ops/common/chunk_o.py": "f174d431ce67139204a0916f638b5af158dd5917e2cb37c0ca03f5ce735466a0",
+    "fla/modules/l2norm.py": "30f7feebdbfa87b8e90c143ec62a7fa0781bfd736c856c0ec69452f0c778be3f"
+  },
+  "local_fla_solve_merge_gemms_checked": {
+    "b_Ai10": 2,
+    "b_Ai21": 2,
+    "b_Ai32": 2,
+    "b_Ai20": 3,
+    "b_Ai31": 3,
+    "b_Ai30": 4
+  },
+  "fla_64x64_chunk64_partial_ledger": {
+    "forward_gemms": {
+      "kkt_ten_lower_blocks": 327680,
+      "solve_sixteen_block_merge_gemms": 131072,
+      "wy_w_and_u": 1048576,
+      "state_w_times_h_and_kt_times_vnew": 1048576,
+      "output_q_times_h": 524288,
+      "output_qkt_and_attn_times_vnew": 1048576
+    },
+    "backward_gemms_excluding_activation_recompute": {
+      "local_dv": 524288,
+      "state_dhu": 1572864,
+      "output_dqkwg": 3145728,
+      "wy_w_and_u_gradients": 2097152,
+      "inverse_gradient_two_full_gemms": 1048576,
+      "kkt_input_gradients": 1048576
+    },
+    "excluded_activation_recompute_gemms": {
+      "wy_w_and_u": 1048576,
+      "state_h_and_vnew": 1048576,
+      "qkt_for_local_dv": 524288,
+      "kkt_for_gate_gradient": 524288
+    },
+    "forward_gemms_per_token": 64512.0,
+    "train_gemms_per_token_excluding_activation_recompute": 211968.0,
+    "complete_operator_count": false
+  },
+  "current_configurations": [
+    {
+      "config": "configs/isoflops/1e16/h128_L4/config.json",
+      "compute": 10000000000000000,
+      "config_sha256": "599b89a33bfb773589823cd9c99c49d79d4b19e82246e03a2e17583cfb6bb6b6",
+      "shape": "h128_L4",
+      "legacy_train_flops_per_token": 28968720,
+      "megatron_train_flops_per_token": 27580416.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 229376,
+        "full_causal_core": 4194304,
+        "gdn_projections": 792576,
+        "gdn_conv": 12288,
+        "gdn_recurrent_core_reference": 393216,
+        "routed_and_shared_swiglu": 983040,
+        "logits": 2588672
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 27780096.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 1179648,
+        "router_and_shared_gate": 199680,
+        "non_gemm_params_treated_as_gemms": 8976
+      },
+      "legacy_over_megatron_fraction": 0.05033658665627083,
+      "legacy_over_reference_plus_router_gate_fraction": 0.042786893177042984,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04792424380504212,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 29144064.0,
+      "fla_partial_vs_legacy_fraction": 0.006052873582263807,
+      "configured_train_tokens": 345178112,
+      "megatron_reaccounted_budget_fraction": -0.04798440769454082,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.041091891154124816
+    },
+    {
+      "config": "configs/isoflops/1e16/h192_L4/config.json",
+      "compute": 10000000000000000,
+      "config_sha256": "79b3f7d484e54cea0319631d574c9f74db7ef3e0259b38473ba0f39573ebe720",
+      "shape": "h192_L4",
+      "legacy_train_flops_per_token": 47889624,
+      "megatron_train_flops_per_token": 45808128.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 491520,
+        "full_causal_core": 6291456,
+        "gdn_projections": 1783296,
+        "gdn_conv": 18432,
+        "gdn_recurrent_core_reference": 589824,
+        "routed_and_shared_swiglu": 2211840,
+        "logits": 3883008
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 46107648.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 1769472,
+        "router_and_shared_gate": 299520,
+        "non_gemm_params_treated_as_gemms": 12504
+      },
+      "legacy_over_megatron_fraction": 0.04543944690339674,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03864816526750614,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04346444649471459,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 48153600.0,
+      "fla_partial_vs_legacy_fraction": 0.005512175246980444,
+      "configured_train_tokens": 208797696,
+      "megatron_reaccounted_budget_fraction": -0.04353684155269122,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03728293296209917
+    },
+    {
+      "config": "configs/isoflops/1e16/h256_L5/config.json",
+      "compute": 10000000000000000,
+      "config_sha256": "0e929246a97bb1736643815b5c9444240c44ad41cc838841ec6576141bd1f172",
+      "shape": "h256_L5",
+      "legacy_train_flops_per_token": 77589120,
+      "megatron_train_flops_per_token": 73924608.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 851968,
+        "full_causal_core": 8388608,
+        "gdn_projections": 4227072,
+        "gdn_conv": 32768,
+        "gdn_recurrent_core_reference": 1048576,
+        "routed_and_shared_swiglu": 4915200,
+        "logits": 5177344
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 74423808.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 3145728,
+        "router_and_shared_gate": 499200,
+        "non_gemm_params_treated_as_gemms": 19584
+      },
+      "legacy_over_megatron_fraction": 0.04957093583776606,
+      "legacy_over_reference_plus_router_gate_fraction": 0.04253090623903577,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04722971468164605,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 78061056.0,
+      "fla_partial_vs_legacy_fraction": 0.006082502288980773,
+      "configured_train_tokens": 128843776,
+      "megatron_reaccounted_budget_fraction": -0.04752743659601921,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.04109555529809916
+    },
+    {
+      "config": "configs/isoflops/1e16/h320_L6/config.json",
+      "compute": 10000000000000000,
+      "config_sha256": "6f8247449c7cb63234e7a14fcb3e6118ab6ea8ab3df80ace11553601d1f39932",
+      "shape": "h320_L6",
+      "legacy_train_flops_per_token": 117981528,
+      "megatron_train_flops_per_token": 112289280.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 1310720,
+        "full_causal_core": 10485760,
+        "gdn_projections": 8256000,
+        "gdn_conv": 51200,
+        "gdn_recurrent_core_reference": 1638400,
+        "routed_and_shared_swiglu": 9216000,
+        "logits": 6471680
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 113038080.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 4915200,
+        "router_and_shared_gate": 748800,
+        "non_gemm_params_treated_as_gemms": 28248
+      },
+      "legacy_over_megatron_fraction": 0.05069271082689286,
+      "legacy_over_reference_plus_router_gate_fraction": 0.043732589937833355,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04824694252137507,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 118721280.0,
+      "fla_partial_vs_legacy_fraction": 0.006270066276815811,
+      "configured_train_tokens": 84738048,
+      "megatron_reaccounted_budget_fraction": -0.048482560147456,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.042137375113216025
+    },
+    {
+      "config": "configs/isoflops/1e17/h256_L5/config.json",
+      "compute": 100000000000000000,
+      "config_sha256": "5ad22a813f42969adc414f25a58fc0d61bf3f740e0dd939362cc67d7a79541fe",
+      "shape": "h256_L5",
+      "legacy_train_flops_per_token": 77589120,
+      "megatron_train_flops_per_token": 73924608.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 851968,
+        "full_causal_core": 8388608,
+        "gdn_projections": 4227072,
+        "gdn_conv": 32768,
+        "gdn_recurrent_core_reference": 1048576,
+        "routed_and_shared_swiglu": 4915200,
+        "logits": 5177344
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 74423808.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 3145728,
+        "router_and_shared_gate": 499200,
+        "non_gemm_params_treated_as_gemms": 19584
+      },
+      "legacy_over_megatron_fraction": 0.04957093583776606,
+      "legacy_over_reference_plus_router_gate_fraction": 0.04253090623903577,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04722971468164605,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 78061056.0,
+      "fla_partial_vs_legacy_fraction": 0.006082502288980773,
+      "configured_train_tokens": 1288830976,
+      "megatron_reaccounted_budget_fraction": -0.047236753209425886,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.04080290897723393
+    },
+    {
+      "config": "configs/isoflops/1e17/h320_L6/config.json",
+      "compute": 100000000000000000,
+      "config_sha256": "ae59da0b7130c966c5fc90ac3ac66123d0d69cefe98badd06968774be4ddd4e6",
+      "shape": "h320_L6",
+      "legacy_train_flops_per_token": 117981528,
+      "megatron_train_flops_per_token": 112289280.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 1310720,
+        "full_causal_core": 10485760,
+        "gdn_projections": 8256000,
+        "gdn_conv": 51200,
+        "gdn_recurrent_core_reference": 1638400,
+        "routed_and_shared_swiglu": 9216000,
+        "logits": 6471680
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 113038080.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 4915200,
+        "router_and_shared_gate": 748800,
+        "non_gemm_params_treated_as_gemms": 28248
+      },
+      "legacy_over_megatron_fraction": 0.05069271082689286,
+      "legacy_over_reference_plus_router_gate_fraction": 0.043732589937833355,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04824694252137507,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 118721280.0,
+      "fla_partial_vs_legacy_fraction": 0.006270066276815811,
+      "configured_train_tokens": 847511552,
+      "megatron_reaccounted_budget_fraction": -0.04833538034237439,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.04198921384099841
+    },
+    {
+      "config": "configs/isoflops/1e17/h384_L8/config.json",
+      "compute": 100000000000000000,
+      "config_sha256": "b7beb38876d44c50dcb02ad057e821dfff872f12095383047904827b48ee09cc",
+      "shape": "h384_L8",
+      "legacy_train_flops_per_token": 221504352,
+      "megatron_train_flops_per_token": 213184512.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 3735552,
+        "full_causal_core": 25165824,
+        "gdn_projections": 14266368,
+        "gdn_conv": 73728,
+        "gdn_recurrent_core_reference": 2359296,
+        "routed_and_shared_swiglu": 17694720,
+        "logits": 7766016
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 214382592.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 7077888,
+        "router_and_shared_gate": 1198080,
+        "non_gemm_params_treated_as_gemms": 43872
+      },
+      "legacy_over_megatron_fraction": 0.039026474868868455,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03321986143352529,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037560616416240866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 222566400.0,
+      "fla_partial_vs_legacy_fraction": 0.004794704891396551,
+      "configured_train_tokens": 451411968,
+      "megatron_reaccounted_budget_fraction": -0.0376595989096038,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03225132240338946
+    },
+    {
+      "config": "configs/isoflops/1e17/h448_L9/config.json",
+      "compute": 100000000000000000,
+      "config_sha256": "fb63d0d9896c00a79b5f6da3cfaf55a0370b614ea0d448d520114291737cd8ec",
+      "shape": "h448_L9",
+      "legacy_train_flops_per_token": 300846360,
+      "megatron_train_flops_per_token": 289583616.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 5046272,
+        "full_causal_core": 29360128,
+        "gdn_projections": 22654464,
+        "gdn_conv": 100352,
+        "gdn_recurrent_core_reference": 3211264,
+        "routed_and_shared_swiglu": 27095040,
+        "logits": 9060352
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 291156096.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 9633792,
+        "router_and_shared_gate": 1572480,
+        "non_gemm_params_treated_as_gemms": 56472
+      },
+      "legacy_over_megatron_fraction": 0.03889289095692483,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03328202339957187,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037436863121760866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 302295168.0,
+      "fla_partial_vs_legacy_fraction": 0.004815773739127227,
+      "configured_train_tokens": 332267520,
+      "megatron_reaccounted_budget_fraction": -0.037807700790476795,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03258286049198078
+    },
+    {
+      "config": "configs/isoflops/1e17/h512_L10/config.json",
+      "compute": 100000000000000000,
+      "config_sha256": "a30226d62343ae449b404e576ddc4a45537880739e2d5d7db7ca2235f17e8d2f",
+      "shape": "h512_L10",
+      "legacy_train_flops_per_token": 399215616,
+      "megatron_train_flops_per_token": 384565248.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 6815744,
+        "full_causal_core": 33554432,
+        "gdn_projections": 33816576,
+        "gdn_conv": 131072,
+        "gdn_recurrent_core_reference": 4194304,
+        "routed_and_shared_swiglu": 39321600,
+        "logits": 10354688
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 386562048.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 12582912,
+        "router_and_shared_gate": 1996800,
+        "non_gemm_params_treated_as_gemms": 70656
+      },
+      "legacy_over_megatron_fraction": 0.038095922801635984,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03273360141138326,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.036697883080806126,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 401111040.0,
+      "fla_partial_vs_legacy_fraction": 0.004747870383908115,
+      "configured_train_tokens": 250478592,
+      "megatron_reaccounted_budget_fraction": -0.03674638148829179,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03174482496323583
+    },
+    {
+      "config": "configs/isoflops/3e16/h192_L4/config.json",
+      "compute": 30000000000000000,
+      "config_sha256": "24ae6abe239f8f840250edcd19e24949c078756ea45c9ce9a5b88b274b1ad0dd",
+      "shape": "h192_L4",
+      "legacy_train_flops_per_token": 47889624,
+      "megatron_train_flops_per_token": 45808128.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 491520,
+        "full_causal_core": 6291456,
+        "gdn_projections": 1783296,
+        "gdn_conv": 18432,
+        "gdn_recurrent_core_reference": 589824,
+        "routed_and_shared_swiglu": 2211840,
+        "logits": 3883008
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 46107648.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 1769472,
+        "router_and_shared_gate": 299520,
+        "non_gemm_params_treated_as_gemms": 12504
+      },
+      "legacy_over_megatron_fraction": 0.04543944690339674,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03864816526750614,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04346444649471459,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 48153600.0,
+      "fla_partial_vs_legacy_fraction": 0.005512175246980444,
+      "configured_train_tokens": 626393088,
+      "megatron_reaccounted_budget_fraction": -0.04353684155269122,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03728293296209917
+    },
+    {
+      "config": "configs/isoflops/3e16/h256_L5/config.json",
+      "compute": 30000000000000000,
+      "config_sha256": "79e524f7e29af44937e2b085de3bd31f6c29e76c48afc952565950d9cfd02483",
+      "shape": "h256_L5",
+      "legacy_train_flops_per_token": 77589120,
+      "megatron_train_flops_per_token": 73924608.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 851968,
+        "full_causal_core": 8388608,
+        "gdn_projections": 4227072,
+        "gdn_conv": 32768,
+        "gdn_recurrent_core_reference": 1048576,
+        "routed_and_shared_swiglu": 4915200,
+        "logits": 5177344
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 74423808.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 3145728,
+        "router_and_shared_gate": 499200,
+        "non_gemm_params_treated_as_gemms": 19584
+      },
+      "legacy_over_megatron_fraction": 0.04957093583776606,
+      "legacy_over_reference_plus_router_gate_fraction": 0.04253090623903577,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04722971468164605,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 78061056.0,
+      "fla_partial_vs_legacy_fraction": 0.006082502288980773,
+      "configured_train_tokens": 386596864,
+      "megatron_reaccounted_budget_fraction": -0.04736594582568965,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.04093297400872964
+    },
+    {
+      "config": "configs/isoflops/3e16/h320_L6/config.json",
+      "compute": 30000000000000000,
+      "config_sha256": "fce796b1d259054ab66e740b5ec0bea3c6971ef603de252940863c64bd70d385",
+      "shape": "h320_L6",
+      "legacy_train_flops_per_token": 117981528,
+      "megatron_train_flops_per_token": 112289280.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 1310720,
+        "full_causal_core": 10485760,
+        "gdn_projections": 8256000,
+        "gdn_conv": 51200,
+        "gdn_recurrent_core_reference": 1638400,
+        "routed_and_shared_swiglu": 9216000,
+        "logits": 6471680
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 113038080.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 4915200,
+        "router_and_shared_gate": 748800,
+        "non_gemm_params_treated_as_gemms": 28248
+      },
+      "legacy_over_megatron_fraction": 0.05069271082689286,
+      "legacy_over_reference_plus_router_gate_fraction": 0.043732589937833355,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04824694252137507,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 118721280.0,
+      "fla_partial_vs_legacy_fraction": 0.006270066276815811,
+      "configured_train_tokens": 254214144,
+      "megatron_reaccounted_budget_fraction": -0.048482560147456,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.042137375113216025
+    },
+    {
+      "config": "configs/isoflops/3e16/h384_L8/config.json",
+      "compute": 30000000000000000,
+      "config_sha256": "96a3d80f7641ce8dc882c4db2d4b5a9c37c56d47b0427040b3c637380a09180f",
+      "shape": "h384_L8",
+      "legacy_train_flops_per_token": 221504352,
+      "megatron_train_flops_per_token": 213184512.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 3735552,
+        "full_causal_core": 25165824,
+        "gdn_projections": 14266368,
+        "gdn_conv": 73728,
+        "gdn_recurrent_core_reference": 2359296,
+        "routed_and_shared_swiglu": 17694720,
+        "logits": 7766016
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 214382592.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 7077888,
+        "router_and_shared_gate": 1198080,
+        "non_gemm_params_treated_as_gemms": 43872
+      },
+      "legacy_over_megatron_fraction": 0.039026474868868455,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03321986143352529,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037560616416240866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 222566400.0,
+      "fla_partial_vs_legacy_fraction": 0.004794704891396551,
+      "configured_train_tokens": 135397376,
+      "megatron_reaccounted_budget_fraction": -0.03784588237864961,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03243865277071356
+    },
+    {
+      "config": "configs/isoflops/3e17/h320_L6/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "52c8ececf5835671a896d976f3257c244e987075e595c0dc75f59d528ee88e26",
+      "shape": "h320_L6",
+      "legacy_train_flops_per_token": 117981528,
+      "megatron_train_flops_per_token": 112289280.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 1310720,
+        "full_causal_core": 10485760,
+        "gdn_projections": 8256000,
+        "gdn_conv": 51200,
+        "gdn_recurrent_core_reference": 1638400,
+        "routed_and_shared_swiglu": 9216000,
+        "logits": 6471680
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 113038080.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 4915200,
+        "router_and_shared_gate": 748800,
+        "non_gemm_params_treated_as_gemms": 28248
+      },
+      "legacy_over_megatron_fraction": 0.05069271082689286,
+      "legacy_over_reference_plus_router_gate_fraction": 0.043732589937833355,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04824694252137507,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 118721280.0,
+      "fla_partial_vs_legacy_fraction": 0.006270066276815811,
+      "configured_train_tokens": 2542665728,
+      "megatron_reaccounted_budget_fraction": -0.04828632040734715,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.0419398267502592
+    },
+    {
+      "config": "configs/isoflops/3e17/h384_L8/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "8a02bf525650ad6a2c56126761360d2ec8a25cfcd26f0b31e802462f5a92c562",
+      "shape": "h384_L8",
+      "legacy_train_flops_per_token": 221504352,
+      "megatron_train_flops_per_token": 213184512.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 3735552,
+        "full_causal_core": 25165824,
+        "gdn_projections": 14266368,
+        "gdn_conv": 73728,
+        "gdn_recurrent_core_reference": 2359296,
+        "routed_and_shared_swiglu": 17694720,
+        "logits": 7766016
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 214382592.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 7077888,
+        "router_and_shared_gate": 1198080,
+        "non_gemm_params_treated_as_gemms": 43872
+      },
+      "legacy_over_megatron_fraction": 0.039026474868868455,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03321986143352529,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037560616416240866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 222566400.0,
+      "fla_partial_vs_legacy_fraction": 0.004794704891396551,
+      "configured_train_tokens": 1354366976,
+      "megatron_reaccounted_budget_fraction": -0.037566457175081,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03215765721972741
+    },
+    {
+      "config": "configs/isoflops/3e17/h448_L9/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "feca8680a1b04ddb3464a5984bab44399c7a36bfa9807142b0a5d832eda9c36e",
+      "shape": "h448_L9",
+      "legacy_train_flops_per_token": 300846360,
+      "megatron_train_flops_per_token": 289583616.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 5046272,
+        "full_causal_core": 29360128,
+        "gdn_projections": 22654464,
+        "gdn_conv": 100352,
+        "gdn_recurrent_core_reference": 3211264,
+        "routed_and_shared_swiglu": 27095040,
+        "logits": 9060352
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 291156096.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 9633792,
+        "router_and_shared_gate": 1572480,
+        "non_gemm_params_treated_as_gemms": 56472
+      },
+      "legacy_over_megatron_fraction": 0.03889289095692483,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03328202339957187,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037436863121760866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 302295168.0,
+      "fla_partial_vs_legacy_fraction": 0.004815773739127227,
+      "configured_train_tokens": 997064704,
+      "megatron_reaccounted_budget_fraction": -0.03755465876570108,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.032328444413214696
+    },
+    {
+      "config": "configs/isoflops/3e17/h512_L10/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "6e0e2c6ba94b60fa41376e1603fa9303a3490e6fc9bdfecc4d6ba4a1146eff02",
+      "shape": "h512_L10",
+      "legacy_train_flops_per_token": 399215616,
+      "megatron_train_flops_per_token": 384565248.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 6815744,
+        "full_causal_core": 33554432,
+        "gdn_projections": 33816576,
+        "gdn_conv": 131072,
+        "gdn_recurrent_core_reference": 4194304,
+        "routed_and_shared_swiglu": 39321600,
+        "logits": 10354688
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 386562048.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 12582912,
+        "router_and_shared_gate": 1996800,
+        "non_gemm_params_treated_as_gemms": 70656
+      },
+      "legacy_over_megatron_fraction": 0.038095922801635984,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03273360141138326,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.036697883080806126,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 401111040.0,
+      "fla_partial_vs_legacy_fraction": 0.004747870383908115,
+      "configured_train_tokens": 751435776,
+      "megatron_reaccounted_budget_fraction": -0.03674638148829179,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.03174482496323583
+    },
+    {
+      "config": "configs/isoflops/3e17/h576_L11/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "af0be1ea0d641c8fe8d989fa31c5baf168248e9fad036ac1213288d5ec7dbf47",
+      "shape": "h576_L11",
+      "legacy_train_flops_per_token": 517432344,
+      "megatron_train_flops_per_token": 498949632.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 8552448,
+        "full_causal_core": 37748736,
+        "gdn_projections": 48148992,
+        "gdn_conv": 165888,
+        "gdn_recurrent_core_reference": 5308416,
+        "routed_and_shared_swiglu": 54743040,
+        "logits": 11649024
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 501420672.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 15925248,
+        "router_and_shared_gate": 2471040,
+        "non_gemm_params_treated_as_gemms": 86424
+      },
+      "legacy_over_megatron_fraction": 0.037043242072177796,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03193261246317336,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.03572005541269374,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 519834240.0,
+      "fla_partial_vs_legacy_fraction": 0.004641951798822985,
+      "configured_train_tokens": 579731456,
+      "megatron_reaccounted_budget_fraction": -0.03581067789991932,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.031035545843138612
+    },
+    {
+      "config": "configs/isoflops/3e17/h640_L12/config.json",
+      "compute": 300000000000000000,
+      "config_sha256": "505453a6081a79a2e1f013c0fff7c4471eb4f06bd12ec5b8d056e89fa8be4297",
+      "shape": "h640_L12",
+      "legacy_train_flops_per_token": 713314800,
+      "megatron_train_flops_per_token": 692520960.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 15728640,
+        "full_causal_core": 62914560,
+        "gdn_projections": 59443200,
+        "gdn_conv": 184320,
+        "gdn_recurrent_core_reference": 5898240,
+        "routed_and_shared_swiglu": 73728000,
+        "logits": 12943360
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 695516160.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 17694720,
+        "router_and_shared_gate": 2995200,
+        "non_gemm_params_treated_as_gemms": 103920
+      },
+      "legacy_over_megatron_fraction": 0.030026296965798727,
+      "legacy_over_reference_plus_router_gate_fraction": 0.025590548464035745,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.029151000371785307,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 715975680.0,
+      "fla_partial_vs_legacy_fraction": 0.003730302525617013,
+      "configured_train_tokens": 420478976,
+      "megatron_reaccounted_budget_fraction": -0.029364986268876847,
+      "reference_plus_router_gate_reaccounted_budget_fraction": -0.025166924172492777
+    }
+  ],
+  "canonical_family": [
+    {
+      "shape": "h128_L4",
+      "legacy_train_flops_per_token": 28968720,
+      "megatron_train_flops_per_token": 27580416.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 229376,
+        "full_causal_core": 4194304,
+        "gdn_projections": 792576,
+        "gdn_conv": 12288,
+        "gdn_recurrent_core_reference": 393216,
+        "routed_and_shared_swiglu": 983040,
+        "logits": 2588672
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 27780096.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 1179648,
+        "router_and_shared_gate": 199680,
+        "non_gemm_params_treated_as_gemms": 8976
+      },
+      "legacy_over_megatron_fraction": 0.05033658665627083,
+      "legacy_over_reference_plus_router_gate_fraction": 0.042786893177042984,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04792424380504212,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 29144064.0,
+      "fla_partial_vs_legacy_fraction": 0.006052873582263807
+    },
+    {
+      "shape": "h192_L4",
+      "legacy_train_flops_per_token": 47889624,
+      "megatron_train_flops_per_token": 45808128.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 491520,
+        "full_causal_core": 6291456,
+        "gdn_projections": 1783296,
+        "gdn_conv": 18432,
+        "gdn_recurrent_core_reference": 589824,
+        "routed_and_shared_swiglu": 2211840,
+        "logits": 3883008
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 46107648.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 1769472,
+        "router_and_shared_gate": 299520,
+        "non_gemm_params_treated_as_gemms": 12504
+      },
+      "legacy_over_megatron_fraction": 0.04543944690339674,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03864816526750614,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04346444649471459,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 48153600.0,
+      "fla_partial_vs_legacy_fraction": 0.005512175246980444
+    },
+    {
+      "shape": "h256_L5",
+      "legacy_train_flops_per_token": 77589120,
+      "megatron_train_flops_per_token": 73924608.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 851968,
+        "full_causal_core": 8388608,
+        "gdn_projections": 4227072,
+        "gdn_conv": 32768,
+        "gdn_recurrent_core_reference": 1048576,
+        "routed_and_shared_swiglu": 4915200,
+        "logits": 5177344
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 74423808.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 3145728,
+        "router_and_shared_gate": 499200,
+        "non_gemm_params_treated_as_gemms": 19584
+      },
+      "legacy_over_megatron_fraction": 0.04957093583776606,
+      "legacy_over_reference_plus_router_gate_fraction": 0.04253090623903577,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04722971468164605,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 78061056.0,
+      "fla_partial_vs_legacy_fraction": 0.006082502288980773
+    },
+    {
+      "shape": "h320_L6",
+      "legacy_train_flops_per_token": 117981528,
+      "megatron_train_flops_per_token": 112289280.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 1310720,
+        "full_causal_core": 10485760,
+        "gdn_projections": 8256000,
+        "gdn_conv": 51200,
+        "gdn_recurrent_core_reference": 1638400,
+        "routed_and_shared_swiglu": 9216000,
+        "logits": 6471680
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 113038080.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 4915200,
+        "router_and_shared_gate": 748800,
+        "non_gemm_params_treated_as_gemms": 28248
+      },
+      "legacy_over_megatron_fraction": 0.05069271082689286,
+      "legacy_over_reference_plus_router_gate_fraction": 0.043732589937833355,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.04824694252137507,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 118721280.0,
+      "fla_partial_vs_legacy_fraction": 0.006270066276815811
+    },
+    {
+      "shape": "h384_L8",
+      "legacy_train_flops_per_token": 221504352,
+      "megatron_train_flops_per_token": 213184512.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 3735552,
+        "full_causal_core": 25165824,
+        "gdn_projections": 14266368,
+        "gdn_conv": 73728,
+        "gdn_recurrent_core_reference": 2359296,
+        "routed_and_shared_swiglu": 17694720,
+        "logits": 7766016
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 214382592.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 7077888,
+        "router_and_shared_gate": 1198080,
+        "non_gemm_params_treated_as_gemms": 43872
+      },
+      "legacy_over_megatron_fraction": 0.039026474868868455,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03321986143352529,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037560616416240866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 222566400.0,
+      "fla_partial_vs_legacy_fraction": 0.004794704891396551
+    },
+    {
+      "shape": "h448_L9",
+      "legacy_train_flops_per_token": 300846360,
+      "megatron_train_flops_per_token": 289583616.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 5046272,
+        "full_causal_core": 29360128,
+        "gdn_projections": 22654464,
+        "gdn_conv": 100352,
+        "gdn_recurrent_core_reference": 3211264,
+        "routed_and_shared_swiglu": 27095040,
+        "logits": 9060352
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 291156096.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 9633792,
+        "router_and_shared_gate": 1572480,
+        "non_gemm_params_treated_as_gemms": 56472
+      },
+      "legacy_over_megatron_fraction": 0.03889289095692483,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03328202339957187,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.037436863121760866,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 302295168.0,
+      "fla_partial_vs_legacy_fraction": 0.004815773739127227
+    },
+    {
+      "shape": "h512_L10",
+      "legacy_train_flops_per_token": 399215616,
+      "megatron_train_flops_per_token": 384565248.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 6815744,
+        "full_causal_core": 33554432,
+        "gdn_projections": 33816576,
+        "gdn_conv": 131072,
+        "gdn_recurrent_core_reference": 4194304,
+        "routed_and_shared_swiglu": 39321600,
+        "logits": 10354688
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 386562048.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 12582912,
+        "router_and_shared_gate": 1996800,
+        "non_gemm_params_treated_as_gemms": 70656
+      },
+      "legacy_over_megatron_fraction": 0.038095922801635984,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03273360141138326,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.036697883080806126,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 401111040.0,
+      "fla_partial_vs_legacy_fraction": 0.004747870383908115
+    },
+    {
+      "shape": "h576_L11",
+      "legacy_train_flops_per_token": 517432344,
+      "megatron_train_flops_per_token": 498949632.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 8552448,
+        "full_causal_core": 37748736,
+        "gdn_projections": 48148992,
+        "gdn_conv": 165888,
+        "gdn_recurrent_core_reference": 5308416,
+        "routed_and_shared_swiglu": 54743040,
+        "logits": 11649024
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 501420672.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 15925248,
+        "router_and_shared_gate": 2471040,
+        "non_gemm_params_treated_as_gemms": 86424
+      },
+      "legacy_over_megatron_fraction": 0.037043242072177796,
+      "legacy_over_reference_plus_router_gate_fraction": 0.03193261246317336,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.03572005541269374,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 519834240.0,
+      "fla_partial_vs_legacy_fraction": 0.004641951798822985
+    },
+    {
+      "shape": "h640_L12",
+      "legacy_train_flops_per_token": 713314800,
+      "megatron_train_flops_per_token": 692520960.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 15728640,
+        "full_causal_core": 62914560,
+        "gdn_projections": 59443200,
+        "gdn_conv": 184320,
+        "gdn_recurrent_core_reference": 5898240,
+        "routed_and_shared_swiglu": 73728000,
+        "logits": 12943360
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 695516160.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 17694720,
+        "router_and_shared_gate": 2995200,
+        "non_gemm_params_treated_as_gemms": 103920
+      },
+      "legacy_over_megatron_fraction": 0.030026296965798727,
+      "legacy_over_reference_plus_router_gate_fraction": 0.025590548464035745,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.029151000371785307,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 715975680.0,
+      "fla_partial_vs_legacy_fraction": 0.003730302525617013
+    },
+    {
+      "shape": "h704_L14",
+      "legacy_train_flops_per_token": 935367768,
+      "megatron_train_flops_per_token": 907602432.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 18923520,
+        "full_causal_core": 69206016,
+        "gdn_projections": 87909888,
+        "gdn_conv": 247808,
+        "gdn_recurrent_core_reference": 7929856,
+        "routed_and_shared_swiglu": 104079360,
+        "logits": 14237696
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 911446272.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 23789568,
+        "router_and_shared_gate": 3843840,
+        "non_gemm_params_treated_as_gemms": 131928
+      },
+      "legacy_over_megatron_fraction": 0.030591958572451228,
+      "legacy_over_reference_plus_router_gate_fraction": 0.02624564577735189,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.02968387082587609,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 938952960.0,
+      "fla_partial_vs_legacy_fraction": 0.0038329223249438105
+    },
+    {
+      "shape": "h768_L15",
+      "legacy_train_flops_per_token": 1144775808,
+      "megatron_train_flops_per_token": 1111818240.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 23003136,
+        "full_causal_core": 75497472,
+        "gdn_projections": 114130944,
+        "gdn_conv": 294912,
+        "gdn_recurrent_core_reference": 9437184,
+        "routed_and_shared_swiglu": 132710400,
+        "logits": 15532032
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 1116311040.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 28311552,
+        "router_and_shared_gate": 4492800,
+        "non_gemm_params_treated_as_gemms": 153216
+      },
+      "legacy_over_megatron_fraction": 0.02964294595490724,
+      "legacy_over_reference_plus_router_gate_fraction": 0.025498957709851222,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.02878953920032523,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 1149046272.0,
+      "fla_partial_vs_legacy_fraction": 0.0037303932963614894
+    },
+    {
+      "shape": "h832_L16",
+      "legacy_train_flops_per_token": 1450332192,
+      "megatron_train_flops_per_token": 1414293504.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 34930688,
+        "full_causal_core": 109051904,
+        "gdn_projections": 133945344,
+        "gdn_conv": 319488,
+        "gdn_recurrent_core_reference": 10223616,
+        "routed_and_shared_swiglu": 166133760,
+        "logits": 16826368
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 1419485184.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 30670848,
+        "router_and_shared_gate": 5191680,
+        "non_gemm_params_treated_as_gemms": 176160
+      },
+      "legacy_over_megatron_fraction": 0.025481760255613883,
+      "legacy_over_reference_plus_router_gate_fraction": 0.02173112361277041,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.024848574829124392,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 1454948352.0,
+      "fla_partial_vs_legacy_fraction": 0.0031828294410498614
+    },
+    {
+      "shape": "h896_L18",
+      "legacy_train_flops_per_token": 1806558816,
+      "megatron_train_flops_per_token": 1761521664.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 40370176,
+        "full_causal_core": 117440512,
+        "gdn_projections": 181235712,
+        "gdn_conv": 401408,
+        "gdn_recurrent_core_reference": 12845056,
+        "routed_and_shared_swiglu": 216760320,
+        "logits": 18120704
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 1767811584.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 38535168,
+        "router_and_shared_gate": 6289920,
+        "non_gemm_params_treated_as_gemms": 212064
+      },
+      "legacy_over_megatron_fraction": 0.025567185984946228,
+      "legacy_over_reference_plus_router_gate_fraction": 0.02191819102821313,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.024929801123065087,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 1812367872.0,
+      "fla_partial_vs_legacy_fraction": 0.003215536603929703
+    },
+    {
+      "shape": "h960_L19",
+      "legacy_train_flops_per_token": 2131202712,
+      "megatron_train_flops_per_token": 2079613440.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 47185920,
+        "full_causal_core": 125829120,
+        "gdn_projections": 222912000,
+        "gdn_conv": 460800,
+        "gdn_recurrent_core_reference": 14745600,
+        "routed_and_shared_swiglu": 262656000,
+        "logits": 19415040
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 2086727040.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 44236800,
+        "router_and_shared_gate": 7113600,
+        "non_gemm_params_treated_as_gemms": 238872
+      },
+      "legacy_over_megatron_fraction": 0.024807144927857294,
+      "legacy_over_reference_plus_router_gate_fraction": 0.021313603143801707,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.02420664712442422,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 2137875840.0,
+      "fla_partial_vs_legacy_fraction": 0.0031311559254434407
+    },
+    {
+      "shape": "h1024_L20",
+      "legacy_train_flops_per_token": 2578609152,
+      "megatron_train_flops_per_token": 2523168768.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 68157440,
+        "full_causal_core": 167772160,
+        "gdn_projections": 253624320,
+        "gdn_conv": 491520,
+        "gdn_recurrent_core_reference": 15728640,
+        "routed_and_shared_swiglu": 314572800,
+        "logits": 20709376
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 2531155968.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 47185920,
+        "router_and_shared_gate": 7987200,
+        "non_gemm_params_treated_as_gemms": 267264
+      },
+      "legacy_over_megatron_fraction": 0.02197252308411568,
+      "legacy_over_reference_plus_router_gate_fraction": 0.01874763333430418,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.02150011139028174,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 2585714688.0,
+      "fla_partial_vs_legacy_fraction": 0.0027555692162533063
+    },
+    {
+      "shape": "h1088_L21",
+      "legacy_train_flops_per_token": 2974904448,
+      "megatron_train_flops_per_token": 2912219136.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 73809920,
+        "full_causal_core": 178257920,
+        "gdn_projections": 305405952,
+        "gdn_conv": 557056,
+        "gdn_recurrent_core_reference": 17825792,
+        "routed_and_shared_swiglu": 372879360,
+        "logits": 22003712
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 2921129856.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 53477376,
+        "router_and_shared_gate": 8910720,
+        "non_gemm_params_treated_as_gemms": 297216
+      },
+      "legacy_over_megatron_fraction": 0.0215249296404596,
+      "legacy_over_reference_plus_router_gate_fraction": 0.018408833105980182,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.021071369886230373,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 2982963072.0,
+      "fla_partial_vs_legacy_fraction": 0.0027088681807638793
+    },
+    {
+      "shape": "h1152_L22",
+      "legacy_train_flops_per_token": 3430325808,
+      "megatron_train_flops_per_token": 3359950848.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 85524480,
+        "full_causal_core": 188743680,
+        "gdn_projections": 363792384,
+        "gdn_conv": 626688,
+        "gdn_recurrent_core_reference": 20054016,
+        "routed_and_shared_swiglu": 437944320,
+        "logits": 23298048
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 3369835008.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 60162048,
+        "router_and_shared_gate": 9884160,
+        "non_gemm_params_treated_as_gemms": 328752
+      },
+      "legacy_over_megatron_fraction": 0.020945234970294324,
+      "legacy_over_reference_plus_router_gate_fraction": 0.017950671132680007,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.020515532325202424,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 3439397376.0,
+      "fla_partial_vs_legacy_fraction": 0.0026445208145662313
+    },
+    {
+      "shape": "h1216_L24",
+      "legacy_train_flops_per_token": 4154427792,
+      "megatron_train_flops_per_token": 4075428864.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 110198784,
+        "full_causal_core": 239075328,
+        "gdn_projections": 429179904,
+        "gdn_conv": 700416,
+        "gdn_recurrent_core_reference": 22413312,
+        "routed_and_shared_swiglu": 532316160,
+        "logits": 24592384
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 4086810624.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 67239936,
+        "router_and_shared_gate": 11381760,
+        "non_gemm_params_treated_as_gemms": 377232
+      },
+      "legacy_over_megatron_fraction": 0.01938419995447127,
+      "legacy_over_reference_plus_router_gate_fraction": 0.016545216850253563,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.01901559780437745,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 4164556800.0,
+      "fla_partial_vs_legacy_fraction": 0.0024381234930848095
+    },
+    {
+      "shape": "h1280_L25",
+      "legacy_train_flops_per_token": 4729764384,
+      "megatron_train_flops_per_token": 4642160640.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 127795200,
+        "full_causal_core": 251658240,
+        "gdn_projections": 501964800,
+        "gdn_conv": 778240,
+        "gdn_recurrent_core_reference": 24903680,
+        "routed_and_shared_swiglu": 614400000,
+        "logits": 25886720
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 4654640640.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 74711040,
+        "router_and_shared_gate": 12480000,
+        "non_gemm_params_treated_as_gemms": 412704
+      },
+      "legacy_over_megatron_fraction": 0.01887132970908989,
+      "legacy_over_reference_plus_router_gate_fraction": 0.016139536821472067,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.018521798738294182,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 4741025280.0,
+      "fla_partial_vs_legacy_fraction": 0.0023808577099726502
+    },
+    {
+      "shape": "h1344_L26",
+      "legacy_train_flops_per_token": 5325866976,
+      "megatron_train_flops_per_token": 5229213696.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 136249344,
+        "full_causal_core": 264241152,
+        "gdn_projections": 582543360,
+        "gdn_conv": 860160,
+        "gdn_recurrent_core_reference": 27525120,
+        "routed_and_shared_swiglu": 704471040,
+        "logits": 27181056
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 5242841856.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 82575360,
+        "router_and_shared_gate": 13628160,
+        "non_gemm_params_treated_as_gemms": 449760
+      },
+      "legacy_over_megatron_fraction": 0.018483329544159544,
+      "legacy_over_reference_plus_router_gate_fraction": 0.015835900124468782,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.018147896001824537,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 5338319616.0,
+      "fla_partial_vs_legacy_fraction": 0.0023381432649587364
+    },
+    {
+      "shape": "h1408_L28",
+      "legacy_train_flops_per_token": 6296394960,
+      "megatron_train_flops_per_token": 6189680640.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 176619520,
+        "full_causal_core": 322961408,
+        "gdn_projections": 671311872,
+        "gdn_conv": 946176,
+        "gdn_recurrent_core_reference": 30277632,
+        "routed_and_shared_swiglu": 832634880,
+        "logits": 28475392
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 6205056000.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 90832896,
+        "router_and_shared_gate": 15375360,
+        "non_gemm_params_treated_as_gemms": 506064
+      },
+      "legacy_over_megatron_fraction": 0.017240682711539668,
+      "legacy_over_reference_plus_router_gate_fraction": 0.014720086329599535,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.016948479356511004,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 6310081536.0,
+      "fla_partial_vs_legacy_fraction": 0.0021737162434931623
+    },
+    {
+      "shape": "h1472_L29",
+      "legacy_train_flops_per_token": 7017014640,
+      "megatron_train_flops_per_token": 6900335616.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 187285504,
+        "full_causal_core": 337641472,
+        "gdn_projections": 768666624,
+        "gdn_conv": 1036288,
+        "gdn_recurrent_core_reference": 33161216,
+        "routed_and_shared_swiglu": 942551040,
+        "logits": 29769728
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 6916983936.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 99483648,
+        "router_and_shared_gate": 16648320,
+        "non_gemm_params_treated_as_gemms": 547056
+      },
+      "legacy_over_megatron_fraction": 0.016909181015696273,
+      "legacy_over_reference_plus_router_gate_fraction": 0.014461607100080487,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.016628014901790222,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 7032011904.0,
+      "fla_partial_vs_legacy_fraction": 0.0021372712997502763
+    },
+    {
+      "shape": "h1536_L30",
+      "legacy_train_flops_per_token": 7843313472,
+      "megatron_train_flops_per_token": 7716225024.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 214695936,
+        "full_causal_core": 352321536,
+        "gdn_projections": 875003904,
+        "gdn_conv": 1130496,
+        "gdn_recurrent_core_reference": 36175872,
+        "routed_and_shared_swiglu": 1061683200,
+        "logits": 31064064
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 7734196224.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 108527616,
+        "router_and_shared_gate": 17971200,
+        "non_gemm_params_treated_as_gemms": 589632
+      },
+      "legacy_over_megatron_fraction": 0.016470287945817175,
+      "legacy_over_reference_plus_router_gate_fraction": 0.014108414738870811,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.01620341306690032,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 7859681280.0,
+      "fla_partial_vs_legacy_fraction": 0.0020868486333527336
+    },
+    {
+      "shape": "h1600_L31",
+      "legacy_train_flops_per_token": 8689161792,
+      "megatron_train_flops_per_token": 8551219200.0,
+      "megatron_forward_terms": {
+        "full_projections_including_output_gate": 229376000,
+        "full_causal_core": 367001600,
+        "gdn_projections": 990720000,
+        "gdn_conv": 1228800,
+        "gdn_recurrent_core_reference": 39321600,
+        "routed_and_shared_swiglu": 1190400000,
+        "logits": 32358400
+      },
+      "reference_plus_router_and_shared_gate_train_flops_per_token": 8570563200.0,
+      "difference_train_flops_per_token": {
+        "gdn_core": 117964800,
+        "router_and_shared_gate": 19344000,
+        "non_gemm_params_treated_as_gemms": 633792
+      },
+      "legacy_over_megatron_fraction": 0.01613133621928431,
+      "legacy_over_reference_plus_router_gate_fraction": 0.013837899474330895,
+      "same_tokens_megatron_vs_legacy_budget_fraction": -0.01587524726803935,
+      "complete_actual_graph_verified_within_one_percent": false,
+      "fla_partial_gemm_plus_conv_train_flops_per_token": 8706960000.0,
+      "fla_partial_vs_legacy_fraction": 0.0020483227756660227
+    }
+  ]
+}

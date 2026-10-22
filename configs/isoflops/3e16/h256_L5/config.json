@@ -55,17 +55,21 @@
   },
   "accounting": {
     "total_params": 37179840,
+    "accounting_method": "megatron_b92c3ed_plus_router_shared_gate_v1",
+    "megatron_commit": "b92c3ed70029005fd5769d2cf4c65bc3d061a74b",
+    "megatron_reference_train_flops_per_token": 73924608,
+    "extra_router_shared_gate_train_flops_per_token": 499200,
     "total_nonvocab_params": 34591168,
     "active_nonvocab_params": 5099968,
     "active_fraction": 0.14743555349157333,
     "active_params_with_vocab": 7688640,
-    "train_flops_per_token": 77589120,
-    "train_tokens": 386596864,
-    "tokens_per_active_param": 75.80378229824187,
-    "steps": 5899,
-    "warmup_steps": 295,
-    "actual_train_flops": 29995710472519680,
-    "compute_shortfall_fraction": 0.00014298424934400256
+    "train_flops_per_token": 74423808,
+    "train_tokens": 403046400,
+    "tokens_per_active_param": 79.02920175185413,
+    "steps": 6150,
+    "warmup_steps": 308,
+    "actual_train_flops": 29996247888691200,
+    "compute_shortfall_fraction": 0.00012507037695996814
   },
   "experiment": {
     "budget": "3e16",
@@ -74,6 +78,7 @@
     "scaling_rule": "scripts/make_isoflops_configs.py:shape_for (hidden only; layers = max(4, round(hidden/51.2)))",
     "lr_rule": "0.3118*C^-0.125 (DeepSeek LLM), shared within a budget",
     "batch_rule": "0.2920*C^0.3271 tokens, rounded to 2^k sequences",
+    "flops_rule": "megatron_b92c3ed_plus_router_shared_gate_v1",
     "validation_manifest": "configs/isoflops/validation.json"
   }
 }

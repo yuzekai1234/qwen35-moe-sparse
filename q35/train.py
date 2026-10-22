@@ -31,7 +31,7 @@ import torch
 import torch.distributed as dist
 
 from .data import DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, TOKEN_DTYPE, load_tokenizer, open_tokens, tokenizer_sha256
-from .flops import count as count_flops
+from .flops import count as count_flops, validate_resume_accounting
 from .models.qwen3_5_moe import Qwen3_5MoeForCausalLM, source_info
 from .models.qwen3_5_moe import modeling_qwen3_5_moe as M
 from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_training_config, model_config
@@ -184,6 +184,8 @@ def prepare_inputs(a, world=1):
                 train_tokens=steps * a.batch_tokens, steps=steps, warmup_steps=a.warmup,
                 actual_train_flops=fc["train_flops_per_token"] * steps * a.batch_tokens,
                 train_flops_per_token=fc["train_flops_per_token"],
+                flops_accounting=fc["accounting_method"],
+                megatron_reference_train_flops_per_token=fc["megatron_reference_train_flops_per_token"],
                 total_params=fc["total_nonvocab_params"] + fc["embed_params"],
                 active_nonvocab_params=fc["active_nonvocab_params"],
                 seq=a.seq, batch_tokens=a.batch_tokens, micro_bs="auto" if a.auto_micro_bs else a.micro_bs, world=world,
@@ -421,6 +423,7 @@ def main(argv=None):
     ckpt_path = f"{a.run_dir}/ckpt.pt"; resuming = a.resume and os.path.exists(ckpt_path)
     if resuming:
         previous = json.load(open(f"{a.run_dir}/run_config.json"))
+        validate_resume_accounting(previous, fc)
         if previous.get("tokenizer_sha256", tok_sha) != tok_sha:
             raise ValueError("Unsafe resume: tokenizer contents changed; use a new run_dir")
         for key in RESUME_KEYS:
@@ -436,7 +439,8 @@ def main(argv=None):
         json.dump({**vars(a), "tokenizer_sha256": tok_sha, "data_dtype": TOKEN_DTYPE.str, "model_code": source_info(),
                    "data_identity": plan["data_identity"], "sampling": plan["sampling"], "config_sha256": plan["config_sha256"],
                    "n_params": n_all, "n_nonvocab_total": n_total_nv, "n_nonvocab_active": n_active_nv,
-                   "flops_per_token": flops_per_token, "flops_breakdown": fc["breakdown"], "steps": steps, "accum": accum,
+                   "flops_per_token": flops_per_token, "flops_accounting": fc["accounting_method"],
+                   "flops_breakdown": fc["breakdown"], "steps": steps, "accum": accum,
                    "config": cfg.to_dict()}, open(f"{a.run_dir}/run_config.json", "w"), indent=1, ensure_ascii=False)
     metrics = csv.writer(open(f"{a.run_dir}/training_metrics.csv", "a" if resuming else "w", newline="")) if rank == 0 else None
     if metrics and not resuming:
@@ -518,6 +522,7 @@ def main(argv=None):
         final_loss = evaluate(model, final_data, a.seq, dev, "sequential", distributed=ddp)
         if rank == 0:
             json.dump(dict(loss=final_loss, metric="pure_cross_entropy", scored_tokens=len(final_data)-1,
+                           train_flops=flops_per_token*tok_seen, flops_accounting=fc["accounting_method"],
                            offset=a.final_eval_offset, tokenizer_sha256=tok_sha,
                            tokens_trained=tok_seen, completed_budget=tok_seen >= steps*a.batch_tokens),
                       open(f"{a.run_dir}/final_eval.json", "w"), indent=2)
@@ -527,6 +532,7 @@ def main(argv=None):
     if rank == 0:
         model.to(torch.bfloat16).save_pretrained(f"{a.run_dir}/hf"); tok.save_pretrained(f"{a.run_dir}/hf")
         json.dump({"tokens_trained": tok_seen, "train_flops": flops_per_token * tok_seen, "active_nonvocab": n_active_nv,
+                   "flops_accounting": fc["accounting_method"],
                    "total_nonvocab": n_total_nv, "elapsed_s": time.time() - t0, "world": world,
                    "completed_budget": tok_seen >= steps * a.batch_tokens,
                    "final_eval_loss": final_loss, "sampling": plan["sampling"]}, open(f"{a.run_dir}/summary.json", "w"), indent=1)

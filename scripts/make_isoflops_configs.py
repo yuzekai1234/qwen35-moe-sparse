@@ -153,6 +153,10 @@ def main():
                          final_eval_tokens=val['curve']['targets'], log_every=10, eval_every=100,
                          ckpt_every=100, resume=1, max_steps=0, tensorboard=1)
             accounting = dict(total_params=fc['total_nonvocab_params']+fc['embed_params'],
+                              accounting_method=fc['accounting_method'],
+                              megatron_commit=fc['megatron_commit'],
+                              megatron_reference_train_flops_per_token=fc['megatron_reference_train_flops_per_token'],
+                              extra_router_shared_gate_train_flops_per_token=fc['extra_router_shared_gate_train_flops_per_token'],
                               total_nonvocab_params=fc['total_nonvocab_params'],
                               active_nonvocab_params=fc['active_nonvocab_params'],
                               active_fraction=ratio,
@@ -167,6 +171,7 @@ def main():
                                           scaling_rule='scripts/make_isoflops_configs.py:shape_for (hidden only; layers = max(4, round(hidden/51.2)))',
                                           lr_rule='0.3118*C^-0.125 (DeepSeek LLM), shared within a budget',
                                           batch_rule='0.2920*C^0.3271 tokens, rounded to 2^k sequences',
+                                          flops_rule=fc['accounting_method'],
                                           validation_manifest='configs/isoflops/validation.json'))
             write_json(directory/'config.json',config,args.force)
             (ROOT/run_dir).mkdir(parents=True,exist_ok=True)
@@ -177,6 +182,8 @@ def main():
                     f'GDN/full attention=3:1；词表 gzy 10K（{VOCAB}）。层内比例由 shape_for 统一生成。\n\n'
                     f'预算 {compute:,} FLOPs；训练 {tokens:,} token，{steps:,} 步；'
                     f'每 token {fc["train_flops_per_token"]:,} FLOPs。\n\n'
+                    f'核算口径：`{fc["accounting_method"]}`；GDN 采用比赛指定 Megatron 核心公式，'
+                    '另计 router 和共享专家门投影；参数量与 FLOPs 分开统计。\n\n'
                     f'非词表总参数 {fc["total_nonvocab_params"]:,}，激活非词表参数 {fc["active_nonvocab_params"]:,}'
                     f'（Na/N={ratio:.1%}）；D/Na={tokens/fc["active_nonvocab_params"]:.0f}。\n\n'
                     f'全局 batch={batch} token（{batch//SEQ} 条序列），seq={SEQ}；micro_bs 从 8 起自动探测（auto_micro_bs=1），'

@@ -2,11 +2,13 @@
 
 模型：10 层 × hidden 512（宽深比 51）；全注意力 q/kv 头 16/2，GDN k/v 头 8/16（头维均 64）；64 专家 top-4，专家/共享专家宽 256；GDN/full attention=3:1；词表 gzy 10K（10112）。层内比例由 shape_for 统一生成。
 
-预算 100,000,000,000,000,000 FLOPs；训练 250,478,592 token，1,911 步；每 token 399,215,616 FLOPs。
+预算 100,000,000,000,000,000 FLOPs；训练 258,605,056 token，1,973 步；每 token 386,562,048 FLOPs。
+
+核算口径：`megatron_b92c3ed_plus_router_shared_gate_v1`；GDN 采用比赛指定 Megatron 核心公式，另计 router 和共享专家门投影；参数量与 FLOPs 分开统计。
 
 非词表总参数 276,316,672，激活非词表参数 40,387,072（Na/N=14.6%）；D/Na=6。
 
-全局 batch=131072 token（16 条序列），seq=8192；micro_bs 从 8 起自动探测（auto_micro_bs=1），梯度累积 = 16/(卡数×micro_bs)；warmup=96 步；cosine 降到峰值的 10%。
+全局 batch=131072 token（16 条序列），seq=8192；micro_bs 从 8 起自动探测（auto_micro_bs=1），梯度累积 = 16/(卡数×micro_bs)；warmup=99 步；cosine 降到峰值的 10%。
 
 峰值学习率 0.002338（0.3118·C^-0.125，同一预算内统一）；model seed=0，data seed=0。所有预算/模型共用同一无放回打乱块序列。验证分区按完整文档冻结，见 ../../validation.json。
 

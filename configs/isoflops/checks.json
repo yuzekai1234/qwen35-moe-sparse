@@ -1,7 +1,7 @@
 {
   "server_repository": "/home/yzk/qwen35-moe-sparse",
   "main_configs": 19,
-  "cpu_unittests": 11,
+  "cpu_unittests": 17,
   "cpu_tests_passed": true,
   "shell_dry_runs_passed": [
     "1e16/h128_L4 world=1",
@@ -9,5 +9,12 @@
   ],
   "training_started": false,
   "gpu_benchmark_performed": false,
-  "training_output_files": []
+  "training_output_files": [],
+  "flops_accounting": "megatron_b92c3ed_plus_router_shared_gate_v1",
+  "megatron_original_function_crosscheck_passed": true,
+  "crosschecked_configs": 19,
+  "crosschecked_canonical_shapes": 24,
+  "maximum_budget_shortfall_percent": 0.0652218892287948,
+  "megatron_reference_budget_deviation_percent": [-0.7315429477580793, -0.45544902819839583],
+  "audit_report": "audits/flops_audit.json"
 }

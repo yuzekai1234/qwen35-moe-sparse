@@ -1,19 +1,22 @@
-"""Qwen3.5-MoE 文本模型(Gated DeltaNet 3:1 full attention + 路由专家/共享专家)的每 token FLOPs 与参数核算, 口径对齐 Megatron num_floating_point_operations。
-口径(前向+反向 = 3 × 前向; 前向每 token):
-  稠密 GEMM: 2 × 激活非词表参数 (每层 norm/投影/conv/router/共享专家/门 + top-k 个路由专家; 即 "6×激活非词表参数" 的 6N 项)
-  全注意力层分数: 2·s·(heads·head_dim)  (Megatron 不打因果对折, 与 FMA×2 抵消)
-  线性注意力层(chunked GDN, chunk C=64, 按 fla chunk_gated_delta_rule 的实际 matmul, 每个 v 头):
-     状态项 6·dk·dv  (W·S 求 v_new、Q·S 读出、K^T·v_new 更新状态, 各 2·dk·dv)
-     块内项 6·C·dk + 4·C·dv  (KK^T、QK^T、A·(βK) 各 2·C·dk; A·(βV)、块内注意力×v_new 各 2·C·dv)
-  词表投影: 2·h·V   (嵌入查表不计)
-改变路由、专家数或结构后, 需同步修改此处与 evaluate.active_parameter_count()。
+"""Qwen3.5-MoE 参数量及比赛 Megatron 参考口径的 FLOPs。
+
+参考固定提交 b92c3ed70029005fd5769d2cf4c65bc3d061a74b，training.py:821-1407。
+前向每 token：全注意力投影包含输出门，causal 核心为 2*s*nq*hd；GDN 投影和
+depthwise conv 按实际尺寸计，核心严格采用参考的 8*nv*dv**2；SwiGLU 为三次 GEMM。
+另计原函数未列出的实际 MoE router 和共享专家门投影。所有参考项前反向合计乘 3。
+参数量统计独立于 FLOPs；norm 等标量参数不再按 GEMM 权重计算。
+
+这是指定的 Megatron 模型 FLOPs 约定，不统计 FLA chunk 的物理 kernel 指令数；
+与未修改原函数的差异仅为 router/shared gate，返回值中单列参考值和差异。
+独立原函数交叉核对见 scripts/audit_flops.py。改变结构时须同步参数统计。
 
 用法: python -m q35.flops q35_c2_m [--seq 8192] [--tokenizer tokenizer/gzy_50k]   # 预设按实际词表核算预算
       python -m q35.flops runs/q35_c2_m/hf/config.json [--seq 8192] [--tokens 3e9]"""
 import argparse
 import json
 
-CHUNK = 64
+MEGATRON_COMMIT = "b92c3ed70029005fd5769d2cf4c65bc3d061a74b"
+ACCOUNTING_METHOD = "megatron_b92c3ed_plus_router_shared_gate_v1"
 
 
 def count(c, seq):
@@ -23,6 +26,10 @@ def count(c, seq):
     nq, nkv, hd = c["num_attention_heads"], c["num_key_value_heads"], c["head_dim"]
     nk, nv, dk, dv, K = c["linear_num_key_heads"], c["linear_num_value_heads"], c["linear_key_head_dim"], c["linear_value_head_dim"], c["linear_conv_kernel_dim"]
     types = c["layer_types"][:L]
+    if seq <= 0 or len(types) != L or any(t not in ("linear_attention", "full_attention") for t in types):
+        raise ValueError("Positive sequence length and one supported layer type per layer are required")
+    if c.get("attention_bias", False):
+        raise ValueError("This accounting supports the bias-free Qwen attention projections")
     moe_active = E * h + 3 * h * fs + h + k * 3 * h * fe          # router + 共享专家 + 共享专家门 + top-k 路由专家
     moe_total = E * h + 3 * h * fs + h + E * 3 * h * fe
     gdn = h * (2 * nk * dk + nv * dv) + h * nv * dv + 2 * h * nv + (2 * nk * dk + nv * dv) * K + 2 * nv + dv + nv * dv * h
@@ -30,15 +37,37 @@ def count(c, seq):
     n_lin, n_full = types.count("linear_attention"), types.count("full_attention")
     mix = n_lin * gdn + n_full * full + L * 2 * h + h              # + 每层两个 RMSNorm + 末层 norm
     active, total = mix + L * moe_active, mix + L * moe_total
-    gdn_core = n_lin * nv * (6 * dk * dv + 6 * CHUNK * dk + 4 * CHUNK * dv)
+    # Operation counts are independent of norm/decay parameters counted above.
+    full_proj = n_full * 2 * h * (3 * nq * hd + 2 * nkv * hd)
+    gdn_proj = n_lin * 2 * h * (2 * nk * dk + 3 * nv * dv + 2 * nv)
+    gdn_conv = n_lin * 2 * K * (2 * nk * dk + nv * dv)
+    # Preserve the pinned reference's dv**2 convention, including when dk != dv.
+    gdn_core = n_lin * 8 * nv * dv**2
+    expert_gemm = L * 6 * h * (k * fe + fs)
+    router = L * 2 * h * E
+    shared_gate = L * 2 * h
     attn_score = n_full * 2 * seq * nq * hd
     logits = 2 * h * V
-    fwd = 2 * active + gdn_core + attn_score + logits
+    breakdown = dict(full_projections=full_proj, gdn_projections=gdn_proj, gdn_conv=gdn_conv,
+                     gdn_core=gdn_core, expert_gemm=expert_gemm, router=router,
+                     shared_gate=shared_gate, attn_score=attn_score, logits=logits)
+    fwd = sum(breakdown.values())
+    reference_fwd = fwd - router - shared_gate
     return dict(layers=L, hidden=h, layer_types=types, vocab=V, seq=seq, experts=E, topk=k, expert_ffn=fe, shared_ffn=fs,
                 attn_heads=nq, kv_heads=nkv, head_dim=hd, lin_k_heads=nk, lin_v_heads=nv,
                 active_nonvocab_params=active, total_nonvocab_params=total, nonvocab_params=active, embed_params=h * V,
+                accounting_method=ACCOUNTING_METHOD, megatron_commit=MEGATRON_COMMIT,
                 fwd_flops_per_token=fwd, train_flops_per_token=3 * fwd,
-                breakdown={"dense_2Na": 2 * active, "gdn_core": gdn_core, "attn_score": attn_score, "logits": logits})
+                megatron_reference_train_flops_per_token=3 * reference_fwd,
+                extra_router_shared_gate_train_flops_per_token=3 * (router + shared_gate),
+                breakdown=breakdown)
+
+
+def validate_resume_accounting(previous, current):
+    """Do not silently mix accounting conventions in one checkpoint history."""
+    if (previous.get("flops_per_token") != current["train_flops_per_token"]
+            or previous.get("flops_accounting", current["accounting_method"]) != current["accounting_method"]):
+        raise ValueError("Unsafe resume: FLOPs accounting changed; use a new run_dir")
 
 
 def main():

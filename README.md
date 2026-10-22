@@ -122,6 +122,10 @@ A100-40G、seq 8192、整步（前向+反向+AdamW）实测：hidden 192 × 5 �
 1e17/h384_L5 68K → 189K，3e17/h640_L12 15K → 65K（显存下降，micro_bs 由 2 升到 4），MFU 3% → 6–15%。
 
 FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 50K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
+当前核算口径为 `megatron_b92c3ed_plus_router_shared_gate_v1`：GDN 使用比赛指定 Megatron 的核心公式，
+另计实际 router / 共享专家门投影，参数量与 FLOPs 分开统计。返回值同时给出未补充投影的
+`megatron_reference_train_flops_per_token` 与两项额外投影值；原函数核对见 `scripts/audit_flops.py`。
+下文历史实验的 `reference.flops_per_token` 和 token 数保持旧口径，不能直接用于当前预算推导。
 
 ## 自检
 
