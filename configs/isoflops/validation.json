@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "tokenizer_sha256": "fe6cd82b970e13998eabec68358e2f12defa0f9636d1cb8f91ce1eb7c90e9488",
+  "validation_sha256": "54acda03bd635e011c324961667d0d6697e4d4669bbd4035bc53122eac6ea94f",
+  "source_jsonl": "/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-holdout-pruned50k-scale-isoflops-v1/valid.jsonl",
+  "document_count": 52643,
+  "total_tokens": 78381387,
+  "boundary_rule": "complete documents, end-exclusive token ranges; no shared documents",
+  "dev": {
+    "offset": 0,
+    "end": 2001434,
+    "targets": 2001433,
+    "documents": 1275
+  },
+  "curve": {
+    "offset": 2001434,
+    "end": 18001806,
+    "targets": 16000371,
+    "documents": 11426
+  },
+  "report": {
+    "offset": 18001806,
+    "end": 78381387,
+    "targets": 60379580,
+    "documents": 39942
+  }
+}

@@ -32,6 +32,22 @@ def load_preset(name):
     return json.loads(path.read_text())
 
 
+def load_training_config(target):
+    """Load an explicit JSON file or a directory containing config.json."""
+    path = Path(target).expanduser()
+    if not path.is_absolute():
+        path = ROOT / path
+    if path.is_dir():
+        path /= "config.json"
+    path = path.resolve()
+    config = json.loads(path.read_text())
+    if not isinstance(config, dict) or not {"compute", "model", "train"} <= config.keys():
+        raise ValueError(f"Training config requires compute/model/train sections: {path}")
+    if not isinstance(config["model"], dict) or not isinstance(config["train"], dict):
+        raise ValueError("model and train must be JSON objects")
+    return path, config
+
+
 def default_layer_types(layers):
     return ["full_attention" if i % 4 == 3 else "linear_attention" for i in range(layers)]
 
