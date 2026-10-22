@@ -1,12 +1,12 @@
 # 3e15 / M5
 
-模型：8 层 × hidden 192，64 专家 top-4，GDN/full attention=3:1。
+模型：8 层 × hidden 192，64 专家 top-4，GDN/full attention=3:1；词表 gzy 10K（10112）。
 
-预算 3,000,000,000,000,000 FLOPs；训练 24,707,072 token，377 步；每 token 121,321,632 FLOPs。
+预算 3,000,000,000,000,000 FLOPs；训练 39,780,352 token，607 步；每 token 75,315,360 FLOPs。
 
-总参数 68,323,696，激活非词表参数 5,630,320。
+总参数 60,655,984，激活非词表参数 5,630,320。
 
-全局 batch=65536 token（8 条序列），seq=8192；micro_bs=8（每卡取 min(8, 8/卡数)，A100-40G 上 M7 单卡峰值约 28G），梯度累积 = 8/(卡数×micro_bs)；显存不够时加 --auto_micro_bs 1 自动往小探测；warmup=19 步；cosine 降到峰值的 10%。
+全局 batch=65536 token（8 条序列），seq=8192；micro_bs=8（每卡取 min(8, 8/卡数)，A100-40G 上 M7 单卡峰值约 28G），梯度累积 = 8/(卡数×micro_bs)；显存不够时加 --auto_micro_bs 1 自动往小探测；warmup=30 步；cosine 降到峰值的 10%。
 
 初始峰值学习率 0.004，尚未校准；model seed=0，data seed=0。所有预算/模型共用同一无放回打乱块序列。验证分区按完整文档冻结，见 ../../validation.json。
 

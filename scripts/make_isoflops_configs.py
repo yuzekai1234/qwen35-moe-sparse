@@ -13,7 +13,8 @@ from tokenizers import Tokenizer
 from q35.presets import MODEL_DEFAULTS, ROOT, budget_tokens, model_config
 from q35.flops import count
 
-POOL = Path('/home/shared/qwen35_moe_sparse/cache/isoflops-gzy50k-16b-v1')
+POOL = Path('/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1')
+VOCAB = 10112
 DEST = ROOT / 'configs/isoflops'
 BUDGETS = {'3e15': 3*10**15, '1e16': 10**16, '3e16': 3*10**16, '1e17': 10**17}
 SHAPES = [(4,64,1,1,2), (4,96,2,1,2), (4,128,2,1,2), (8,128,2,1,2),
@@ -95,7 +96,7 @@ def main():
             shape = {**MODEL_DEFAULTS, 'layers':layers, 'hidden':hidden, 'heads':heads,
                      'lin_k_heads':lin_k, 'lin_v_heads':lin_v, 'moe_ffn':hidden,
                      'shared_ffn':hidden//2, 'experts_impl':'eager'}
-            fc = count(model_config(shape, 50048, SEQ).to_dict(), SEQ)
+            fc = count(model_config(shape, VOCAB, SEQ).to_dict(), SEQ)
             tokens = budget_tokens(fc['train_flops_per_token'], compute, BATCH)
             steps = tokens // BATCH
             run_dir = f'runs/{budget_name}/{name}'
@@ -123,7 +124,7 @@ def main():
             (ROOT/run_dir).mkdir(parents=True,exist_ok=True)
             command = f'GPUS=0 bash scripts/train_isoflops.sh {budget_name} {name}'
             text = (f'# {budget_name} / {name}\n\n'
-                    f'模型：{layers} 层 × hidden {hidden}，64 专家 top-4，GDN/full attention=3:1。\n\n'
+                    f'模型：{layers} 层 × hidden {hidden}，64 专家 top-4，GDN/full attention=3:1；词表 gzy 10K（{VOCAB}）。\n\n'
                     f'预算 {compute:,} FLOPs；训练 {tokens:,} token，{steps:,} 步；'
                     f'每 token {fc["train_flops_per_token"]:,} FLOPs。\n\n'
                     f'总参数 {accounting["total_params"]:,}，激活非词表参数 {fc["active_nonvocab_params"]:,}。\n\n'

@@ -62,14 +62,15 @@ runs/3e15/M1/
 JSON 的 model/train 字段可由 CLI 覆盖。更改 lr、seed、数据或预算时使用新的
 `--run_dir`；默认 resume=1，断点续训核对超参数、数据身份与采样顺序。
 
-训练数据指向共享的 `isoflops-gzy50k-16b-v1/train.bin`，tokenizer 使用该池的冻结快照。
+训练数据指向共享的 `isoflops-gzy10k-16b-v1/train.bin`（gzy 10K 词表，约 16B token；最大配置 1e17/M1 用约 9.6B），tokenizer 使用该池的冻结快照。
+早先基于 50K 词表（`isoflops-gzy50k-16b-v1`）的一轮结果已清除，本轮全部按 10K 重新生成并重跑。
 新采样器把数据划为不重叠的 8192-target 块，再用 data seed=0 全局打乱一次。
 不循环、不放回；相同数据 seed 下所有模型读取相同序列前缀。
 各 rank/micro batch 分割同一全局 batch，改变卡数或 micro batch 不改变全局数据块顺序。
 块间允许共享一个预测上下文 token，预测 target 不重复。恢复位置由已完成全局步数确定。
 
 全局 batch=65536、seq=8192；micro_bs=8 为每卡上限，多卡时取 8/卡数（A100-40G 上 M7 单卡 micro_bs=8 峰值约 28G）。显存不够时加 `--auto_micro_bs 1`：训练前从 micro_bs 往小探测能放下的最大值（显存 ≤ probe_mem_frac=0.92），结果写入 `runs/<预算>/<模型>/micro_bs_probe.json`，卡型/卡数/模型不变时续训直接复用。
-允许 1/2/4/8 卡，梯度累积 = 8/(卡数×micro_bs)，默认均为 1。预算按实际 50048 词表和每 token FLOPs 向下取整。
+允许 1/2/4/8 卡，梯度累积 = 8/(卡数×micro_bs)，默认均为 1。预算按实际 10112 词表和每 token FLOPs 向下取整。
 warmup 约占 5%（至少 10 步），完整 cosine 周期在最后一步降至峰值的 10%。
 `--max_steps` 只是短跑截止点，不改变完整周期，不能用其中间结果代替低预算正式实验。
 

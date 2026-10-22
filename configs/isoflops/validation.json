@@ -1,27 +1,27 @@
 {
   "version": 1,
-  "tokenizer_sha256": "fe6cd82b970e13998eabec68358e2f12defa0f9636d1cb8f91ce1eb7c90e9488",
-  "validation_sha256": "54acda03bd635e011c324961667d0d6697e4d4669bbd4035bc53122eac6ea94f",
-  "source_jsonl": "/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-holdout-pruned50k-scale-isoflops-v1/valid.jsonl",
-  "document_count": 52643,
-  "total_tokens": 78381387,
+  "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+  "validation_sha256": "19d30b21482012f07062f46d2d204ef2b27a101728b33a66f992348623fda924",
+  "source_jsonl": "/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-holdout-pruned10k-scale-isoflops-v1/valid.jsonl",
+  "document_count": 42563,
+  "total_tokens": 78381534,
   "boundary_rule": "complete documents, end-exclusive token ranges; no shared documents",
   "dev": {
     "offset": 0,
-    "end": 2001434,
-    "targets": 2001433,
-    "documents": 1275
+    "end": 2002536,
+    "targets": 2002535,
+    "documents": 941
   },
   "curve": {
-    "offset": 2001434,
-    "end": 18001806,
-    "targets": 16000371,
-    "documents": 11426
+    "offset": 2002536,
+    "end": 18004412,
+    "targets": 16001875,
+    "documents": 8961
   },
   "report": {
-    "offset": 18001806,
-    "end": 78381387,
-    "targets": 60379580,
-    "documents": 39942
+    "offset": 18004412,
+    "end": 78381534,
+    "targets": 60377121,
+    "documents": 32661
   }
 }
