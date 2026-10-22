@@ -18,21 +18,21 @@ VOCAB = 10112
 DEST = ROOT / 'configs/isoflops'
 BUDGETS = {'1e16': 10**16, '3e16': 3*10**16, '1e17': 10**17, '3e17': 3*10**17}
 HIDDENS = range(128, 1601, 64)
-ASPECT = (32, 80)             # hidden / layers band searched by the sweep (original Qwen3.5: 51.2)
-TARGET_TOKENS_PER_ACTIVE = [40 * 1.5 ** (-2 * k) for k in (-2.5, -1.5, -0.5, 0.5, 1.5, 2.5)]  # ~304 ... ~5 D/Na
+TOKENS_PER_ACTIVE = (4, 400)  # D/Na window of the sweep; every on-rule shape inside it is trained
 SEQ = 8192
 MIN_ACTIVE_FRACTION = 0.10    # competition rule: non-vocab active / total parameters
 
 
-def shape_for(hidden, layers=None):
-    """Within-layer proportions follow hidden: original Qwen3.5-35B-A3B ratios where they scale
-    (attention q 2h / kv h/4, GDN k h / v 2h), head dims fixed at 64, 64 experts top-4 with expert
-    and shared widths h/2.  Like Chinchilla, the sweep varies depth and width; submitted models use
-    the default depth max(4, round(hidden / 51.2)) (original width/depth ratio)."""
+def shape_for(hidden):
+    """The declared scaling rule: hidden alone fixes the model.  Depth max(4, round(hidden / 51.2))
+    keeps the original width/depth ratio; within-layer proportions follow original Qwen3.5-35B-A3B
+    ratios where they scale (attention q 2h / kv h/4, GDN k h / v 2h), head dims fixed at 64,
+    64 experts top-4 with expert and shared widths h/2.  Sweep and submitted models share it, so the
+    fitted N_opt lies on the same one-parameter family the submissions are taken from."""
     q, kv = hidden // 32, max(1, hidden // 256)
     while q % kv:
         kv -= 1
-    layers = layers or max(4, round(hidden / 51.2))
+    layers = max(4, round(hidden / 51.2))
     return {**MODEL_DEFAULTS, 'layers': layers, 'hidden': hidden, 'heads': q, 'kv_heads': kv,
             'head_dim': 64, 'lin_k_heads': hidden // 64, 'lin_v_heads': hidden // 32, 'lin_head_dim': 64,
             'experts': 64, 'topk': 4, 'moe_ffn': hidden // 2, 'shared_ffn': hidden // 2, 'experts_impl': 'eager'}
@@ -40,28 +40,22 @@ def shape_for(hidden, layers=None):
 
 def candidates():
     for hidden in HIDDENS:
-        for layers in range(max(4, -(-hidden // ASPECT[1])), hidden // ASPECT[0] + 1):
-            shape = shape_for(hidden, layers)
-            fc = count(model_config(shape, VOCAB, SEQ).to_dict(), SEQ)
-            ratio = fc['active_nonvocab_params'] / fc['total_nonvocab_params']
-            if ratio < MIN_ACTIVE_FRACTION:
-                raise ValueError(f'h{hidden}_L{layers}: active fraction {ratio:.3f} violates the 10% rule')
-            yield shape, fc, ratio
+        shape = shape_for(hidden)
+        fc = count(model_config(shape, VOCAB, SEQ).to_dict(), SEQ)
+        ratio = fc['active_nonvocab_params'] / fc['total_nonvocab_params']
+        if ratio < MIN_ACTIVE_FRACTION:
+            raise ValueError(f'h{hidden}: active fraction {ratio:.3f} violates the 10% rule')
+        yield shape, fc, ratio
 
 
 def select_shapes(compute, batch):
-    """Six shapes evenly spaced in log(D/Na) around D/Na=40; ties prefer the original width/depth ratio."""
-    pool = []
+    """Every on-rule shape whose D/Na falls inside TOKENS_PER_ACTIVE (4-6 per budget, ~2x apart in Na)."""
+    chosen = []
     for shape, fc, ratio in candidates():
         tokens = budget_tokens(fc['train_flops_per_token'], compute, batch)
-        if tokens:
-            pool.append((shape, fc, ratio, tokens, np.log(tokens / fc['active_nonvocab_params'])))
-    chosen = []
-    for target in TARGET_TOKENS_PER_ACTIVE:
-        best = min((c for c in pool if c not in chosen),
-                   key=lambda c: abs(c[4] - np.log(target)) + 0.1 * abs(np.log(c[0]['hidden'] / c[0]['layers'] / 51.2)))
-        chosen.append(best)
-    return [c[:4] for c in sorted(chosen, key=lambda c: c[1]['active_nonvocab_params'])]
+        if tokens and TOKENS_PER_ACTIVE[0] <= tokens / fc['active_nonvocab_params'] <= TOKENS_PER_ACTIVE[1]:
+            chosen.append((shape, fc, ratio, tokens))
+    return chosen
 
 
 def lr_for(compute):
@@ -170,7 +164,7 @@ def main():
                               compute_shortfall_fraction=1-tokens*fc['train_flops_per_token']/compute)
             config = dict(schema_version=1, compute=compute, model=shape, train=train, accounting=accounting,
                           experiment=dict(budget=budget_name, model=name, phase='main',
-                                          scaling_rule='scripts/make_isoflops_configs.py:shape_for (sweep varies hidden and layers)',
+                                          scaling_rule='scripts/make_isoflops_configs.py:shape_for (hidden only; layers = max(4, round(hidden/51.2)))',
                                           lr_rule='0.3118*C^-0.125 (DeepSeek LLM), shared within a budget',
                                           batch_rule='0.2920*C^0.3271 tokens, rounded to 2^k sequences',
                                           validation_manifest='configs/isoflops/validation.json'))

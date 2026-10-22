@@ -67,7 +67,7 @@ class Configs(unittest.TestCase):
 
     def test_every_configuration_matches_budget_and_directory(self):
         configs=sorted(self.base.glob('*/*/*.json'))
-        self.assertEqual(len(configs),24)
+        self.assertEqual(len(configs),19)
         for path in configs:
             with self.subTest(path=str(path)):
                 config_path,p=load_training_config(path.parent if path.name=='config.json' else path)

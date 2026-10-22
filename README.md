@@ -118,7 +118,7 @@ RTX 4090、q35_c1_s2、seq 8192、batch 32 实测：单次前向 273 → 130 ms�
   二者均支持反向；未安装需编译的 `causal_conv1d` CUDA 包也不会退回 PyTorch 参考卷积。
 
 与 FP32 参考相比，梯度误差不超过原 BF16 路径自身的舍入误差（`tests/test_model.py`）。
-A100-40G、seq 8192、整步（前向+反向+AdamW）实测：IsoFLOPs 1e16/h192_L5 138K → 360K tok/s，
+A100-40G、seq 8192、整步（前向+反向+AdamW）实测：hidden 192 × 5 层 138K → 360K tok/s，
 1e17/h384_L5 68K → 189K，3e17/h640_L12 15K → 65K（显存下降，micro_bs 由 2 升到 4），MFU 3% → 6–15%。
 
 FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 50K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。

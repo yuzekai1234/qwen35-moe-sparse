@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# [GPUS=0,1,2,3,4,5,6,7] [EVAL=1] bash scripts/run_isoflops_all.sh [budget...]   e.g. 1e16 (default: all)
-# One IsoFLOPs config per GPU, smallest budget first (smallest model first within a budget); each GPU takes the next config when it finishes.
+# [GPUS=0,1,2,3,4,5,6,7] [PER_JOB=2] [EVAL=1] bash scripts/run_isoflops_all.sh [budget...]   e.g. 1e16 (default: all)
+# GPUs are split into groups of PER_JOB; each group trains one config with DDP (2-GPU scaling measured ~1.96x)
+# and takes the next config when it finishes. Longest jobs first: largest budget first, and within a budget the
+# smallest model first (it trains the most tokens at the lowest throughput), so the tail is filled with short jobs.
 # Every job trains (incl. final_eval.json), then runs scripts/eval.sh on its hf/ export (EVAL=0 skips).
 # Re-running skips finished jobs and resumes interrupted ones from ckpt.pt. Status: runs/isoflops_queue.log
 set -euo pipefail
 export GPUS=${GPUS:-0,1,2,3,4,5,6,7}
 source "$(dirname "$0")/env.sh"
 EVAL=${EVAL:-1}
+PER_JOB=${PER_JOB:-2}
+((NPROC % PER_JOB == 0)) || { echo "PER_JOB=$PER_JOB must divide the $NPROC GPUs in GPUS=$GPUS" >&2; exit 1; }
 LOG=runs/isoflops_queue.log
 QUEUE=$(mktemp)
 trap 'rm -f "$QUEUE" "$QUEUE.lock"' EXIT
@@ -20,7 +24,7 @@ jobs = []
 for path in Path("configs/isoflops").glob("*/h*/*.json"):
     c = json.loads(path.read_text()); e = c["experiment"]
     if len(sys.argv) == 1 or e["budget"] in sys.argv[1:]:
-        jobs.append((c["compute"], c["accounting"]["active_nonvocab_params"], e["model"], path.stem, e["budget"], c["train"]["run_dir"]))
+        jobs.append((-c["compute"], c["accounting"]["active_nonvocab_params"], e["model"], path.stem, e["budget"], c["train"]["run_dir"]))
 for _, _, model, variant, budget, run_dir in sorted(jobs):
     print(budget, model, variant, run_dir)
 EOF
@@ -34,7 +38,7 @@ trained() {
 evaluated() { compgen -G "$1/eval_*.json" > /dev/null; }
 
 worker() {
-  local gpu=$1 job budget model variant dir name
+  local gpu=$1 job budget model variant dir name   # gpu: comma-separated group
   while job=$(next_job) && [[ -n $job ]]; do
     read -r budget model variant dir <<< "$job"
     name="$budget/$model/$variant"; mkdir -p "$dir"
@@ -52,7 +56,7 @@ worker() {
   done
 }
 
-say "queue: $(wc -l < "$QUEUE") jobs on GPUs $GPUS"
-for gpu in "${DEVICES[@]}"; do worker "$gpu" & done
+say "queue: $(wc -l < "$QUEUE") jobs on GPUs $GPUS, $PER_JOB per job"
+for ((i = 0; i < NPROC; i += PER_JOB)); do group=$(IFS=,; echo "${DEVICES[*]:i:PER_JOB}"); worker "$group" & done
 wait
 say "all workers finished"

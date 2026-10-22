@@ -1,6 +1,6 @@
 {
   "server_repository": "/home/yzk/qwen35-moe-sparse",
-  "main_configs": 24,
+  "main_configs": 19,
   "cpu_unittests": 11,
   "cpu_tests_passed": true,
   "shell_dry_runs_passed": [

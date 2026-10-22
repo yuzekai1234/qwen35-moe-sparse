@@ -4,29 +4,29 @@
 目的：为比赛四档（3e17 / 1e18 / 3e18 / 1e19）确定 N、D 配比。扫描预算 1e16 / 3e16 / 1e17 / 3e17，
 拟合 N_opt(C)、D_opt(C) 后按同一缩放规则外推；3e17 档的最优扫描点本身即可作为该档提交模型。
 
-目录结构（形状以 hidden 和层数命名，同名形状在各预算中结构相同；每个预算 6 个）：
+目录结构（形状以 hidden 和层数命名，同名形状在各预算中结构相同；每个预算 4–6 个，共 19 个）：
 
 ```text
 configs/isoflops/
-  1e16/h128_L4 h192_L4 h192_L5 h256_L5 h320_L5 h384_L6
-  3e16/h192_L4 h192_L6 h256_L6 h320_L6 h320_L9 h384_L10
-  1e17/h256_L4 h256_L7 h384_L5 h448_L6 h448_L9 h512_L11
-  3e17/h256_L8 h320_L8 h384_L9 h512_L8 h576_L10 h640_L12
+  1e16/h128_L4 h192_L4 h256_L5 h320_L6
+  3e16/h192_L4 h256_L5 h320_L6 h384_L8
+  1e17/h256_L5 h320_L6 h384_L8 h448_L9 h512_L10
+  3e17/h320_L6 h384_L8 h448_L9 h512_L10 h576_L11 h640_L12
   <预算>/<形状>/config.json, README.md
   validation.json          按完整文档冻结的验证分区
-  manifest.json            24 个实验的参数量、Na/N、token、D/Na、步数、lr、batch 和输出路径
+  manifest.json            19 个实验的参数量、Na/N、token、D/Na、步数、lr、batch 和输出路径
 ```
 
 ## 缩放规则（`scripts/make_isoflops_configs.py:shape_for`）
 
-层内比例只由 hidden 决定，扫描与四档提交模型共用。仿照 Chinchilla（Table A9：ffw 固定 4×d_model、头维固定，
-d_model 与层数同时变化），扫描在宽深比 hidden/层数 ∈ [32, 80] 内同时改变 hidden 和层数，使相邻规模更细；
-四档提交模型取默认层数 max(4, round(hidden/51.2))：
+hidden 是唯一自由参数，层数和层内比例都由它决定；扫描与四档提交模型共用这一条单参数规则。
+因此拟合出的 N_opt 就落在提交模型所属的同一族上，不混入宽深比的影响，3e17 扫描的最优点本身就是合规的提交模型
+（若扫描在宽深比带内另选层数，最优点可能不在声明规则上，外推的 N_opt 也会混入宽深比效应）：
 
 | 维度 | 规则 | 与 Qwen3.5-35B-A3B 原版 |
 |---|---|---|
 | 层型 | 每 4 层 `[lin, lin, lin, full]`，余下接 lin | 同 |
-| 层数 | 扫描：hidden/层数 ∈ [32, 80]，至少 4 层；提交：max(4, round(hidden / 51.2)) | 原版宽深比 2048/40 = 51.2 |
+| 层数 | max(4, round(hidden / 51.2))，扫描与提交相同 | 原版宽深比 2048/40 = 51.2 |
 | 全注意力 | q 头 hidden/32、kv 头 ≈ hidden/256（整除 q），头维 64（q 宽 2h、kv 宽 h/4） | 宽度比例同；头维 256→64 |
 | GDN | k 头 hidden/64、v 头 hidden/32，头维 64（k 宽 h、v 宽 2h） | 宽度比例同；头维 128→64 |
 | MoE | 64 专家 top-4，专家宽 h/2；共享专家宽 h/2（sigmoid 门） | 原版 256 选 8、宽 h/4：为满足 Na/N≥10% 并兼顾小规模 GPU 效率而调整 |
@@ -34,8 +34,9 @@ d_model 与层数同时变化），扫描在宽深比 hidden/层数 ∈ [32, 80]
 
 非词表口径 Na/N 在所有规模约 14.5%–15.0%（比赛要求 ≥10%），生成器对每个形状断言。
 
-每个预算取 6 个形状：以 D/Na（训练 token / 激活非词表参数）= 40 为中心，在 log 空间均匀取目标 ≈304、135、60、27、12、5，
-各取最接近的形状（接近程度相同时偏向宽深比 51.2），覆盖最优点两侧，供每个预算拟合抛物线找最低点。
+hidden 以 64 为步长（GDN k 头数 hidden/64 须为整数），规则上相邻形状的 Na 约差 2 倍。
+每个预算训练 D/Na（训练 token / 激活非词表参数）落在 [4, 400] 内的全部规则形状（4–6 个，D/Na 相邻约差 3 倍），
+覆盖最优点两侧，供每个预算拟合抛物线找最低点；点较疏，拟合时也可把四个预算合并拟合 L(N, D)。
 
 ## 学习率与 batch
 
@@ -61,7 +62,8 @@ GPUS=0 bash scripts/train_isoflops.sh 1e16 h256_L5 --dry-run
 启动：
 
 ```bash
-bash scripts/run_isoflops_all.sh            # 全部 24 个，8 卡队列，小预算/小模型优先
+bash scripts/run_isoflops_all.sh            # 全部 19 个：8 卡分 4 组、每组 2 卡 DDP；大预算先跑，同预算内小模型（最耗时）先跑；按实测吞吐估算约 2.5 小时（不含评测）
+PER_JOB=1 bash scripts/run_isoflops_all.sh  # 每任务 1 卡（约 2.9 小时，受最长任务 3e17/h320_L6 限制）
 GPUS=0 bash scripts/train_isoflops.sh 1e16 h256_L5
 GPUS=0,1 bash scripts/train_isoflops.sh 1e16 h256_L5   # 两卡训练同一实验，全局 batch 不变
 ```
@@ -84,7 +86,7 @@ runs/1e16/h256_L5/
 JSON 的 model/train 字段可由 CLI 覆盖。更改 lr、seed、数据或预算时使用新的
 `--run_dir`；默认 resume=1，断点续训核对超参数、数据身份与采样顺序。
 
-训练数据指向共享的 `isoflops-gzy10k-16b-v1/train.bin`（gzy 10K 词表，约 16B token；最大配置 3e17/h256_L8 用约 2.4B），tokenizer 使用该池的冻结快照。
+训练数据指向共享的 `isoflops-gzy10k-16b-v1/train.bin`（gzy 10K 词表，约 16B token；最大配置 3e17/h320_L6 用约 2.5B），tokenizer 使用该池的冻结快照。
 早先 50K 词表及旧形状网格（3e15–1e17、M1–M7）的结果均已清除。
 新采样器把数据划为不重叠的 8192-target 块，再用 data seed=0 全局打乱一次。
 不循环、不放回；相同数据 seed 下所有模型读取相同序列前缀。
