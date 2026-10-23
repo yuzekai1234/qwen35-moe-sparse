@@ -36,7 +36,7 @@
     "seq": 4096,
     "tokens": 4355260416,
     "batch_tokens": 524288,
-    "micro_bs": 4,
+    "micro_bs": 2,
     "auto_micro_bs": 1,
     "probe_mem_frac": 0.92,
     "lr": 0.001315,

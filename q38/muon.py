@@ -141,6 +141,11 @@ class HybridOptimizer:
         self.muon = Muon(matrices, lr=lr, weight_decay=weight_decay) if matrices else None
         self.param_groups = self.adam.param_groups + (self.muon.param_groups if self.muon else [])
 
+    def state_bytes(self):
+        """Persistent optimizer state once stepped: AdamW exp_avg/exp_avg_sq, Muon momentum."""
+        size = lambda groups: sum(p.numel() * p.element_size() for g in groups for p in g["params"])
+        return 2 * size(self.adam.param_groups) + (size(self.muon.param_groups) if self.muon else 0)
+
     def step(self):
         self.adam.step()
         if self.muon:

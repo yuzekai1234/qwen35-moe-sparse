@@ -54,7 +54,9 @@ GPU小case：FP32 experts输出max误差3.49e-10，输入/权重梯度约1e-11�
 | micro4 | 29.28 GiB | 3088 | 5.31K |
 | micro8 | 38.03 GiB | 5736 | 5.71K |
 
-原始数据见 q38_c4_ckpt_micro{1,2,4,8}.json。重算约多一次前向，只影响墙钟时间，**不计入 FLOPs 核算**。这是为在 40GB 卡上放下 C4 训练的临时措施，正式提交代码前需改回（C4 预设 `grad_ckpt` 置 0 或移除）。普通 DDP 每卡另有约 6.7 GiB 梯度 bucket，多卡 micro_bs 以 `--auto_micro_bs` 探测为准。
+原始数据见 q38_c4_ckpt_micro{1,2,4,8}.json。重算约多一次前向，只影响墙钟时间，**不计入 FLOPs 核算**。这是为在 40GB 卡上放下 C4 训练的临时措施，正式提交代码前需改回（C4 预设 `grad_ckpt` 置 0 或移除）。DDP 使用 `gradient_as_bucket_view=True`，梯度即 all-reduce bucket，不再另占约 6.7 GiB；`--auto_micro_bs` 的预留改为实际优化器状态（AdamW 两个 moment + Muon momentum，C4 为 8.65 GiB），旧公式按全 Adam + DDP 副本预留 20.17 GiB，连 micro1 都被拒。
+
+8 卡 DDP 冒烟：micro4 探测通过（25.10+8.65 GiB），但第 7 步 OOM。A100+Torch2.7 的 padded batched experts 按每层最忙专家补齐容量，真实语料路由偏斜后显存逐步上涨（34.7→36.2 GiB→OOM），随机 token 探测低估了这部分。C4 预设因此限定 micro_bs≤2。micro2 跑 120 步（覆盖 dense warmup 结束的第 83 步）：峰值稳定 31.8 GiB，aux 先升至 5.34 后回落到 5.07，吞吐 32–34.5K tok/s（8 卡），step 119 val CE 4.837。从 step 119 checkpoint（16.5 GB）续训到 125：复用 micro_bs 探测缓存，loss 连续，val CE 4.771，峰值 30.4 GiB。按 33–34.5K tok/s，C4 全程约 35–37 小时（不含评估与保存）。padding 只影响显存与吞吐，补零行不进入输出和梯度，不改变数值与 FLOPs 核算。
 
 ## 复现与范围
 

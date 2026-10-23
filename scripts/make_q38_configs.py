@@ -152,7 +152,10 @@ def main():
                    final_eval_offset=val['curve']['offset'],final_eval_tokens=val['curve']['targets'],
                    log_every=10,eval_every=500,ckpt_every=500,resume=1,max_steps=0,tensorboard=1,
                    mtp_coef=.3,kl_coef=.05,muon=1,dense_warmup=1)
-        if name=='c4': train['grad_ckpt']=1   # Temporary: fits C4 on 40GB GPUs; recompute is not counted as FLOPs. Revert before submission.
+        if name=='c4':
+            # Temporary: fits C4 on 40GB GPUs; recompute is not counted as FLOPs. Revert before submission.
+            # micro4 OOMs once real-data routing skews the padded expert capacity on A100/Torch 2.7.
+            train.update(grad_ckpt=1,micro_bs=2)
         accounting=dict(accounting_method=fc['accounting_method'],vocab_size=VOCAB,compute_reserve_fraction=COMPUTE_RESERVE,
                         total_params=fc['total_params_all'],total_nonvocab_params=fc['total_nonvocab_params'],
                         active_nonvocab_params=fc['active_nonvocab_params'],active_fraction=best['active_fraction'],

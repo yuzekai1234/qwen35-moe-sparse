@@ -314,16 +314,18 @@ def sample_batch(rng, src, bs, seq, dev, offsets=None):
     return x.to(dev, non_blocking=True), y.to(dev, non_blocking=True)
 
 
-def probe_micro_bs(lm, model, train_data, a, dev, world, ddp, log0):
-    """Largest micro_bs (at most --micro_bs) whose fwd+bwd peak plus AdamW/DDP state fits in probe_mem_frac of GPU memory.
+def probe_micro_bs(lm, model, opt, train_data, a, dev, world, ddp, log0):
+    """Largest micro_bs (at most --micro_bs) whose fwd+bwd peak plus optimizer state fits in probe_mem_frac of GPU memory.
 
+    The peak already holds the FP32 gradients, which DDP keeps as bucket views (gradient_as_bucket_view), so DDP adds
+    no gradient copy.
     Runs on the unwrapped LossModel (no gradient all-reduce, so one rank's OOM cannot hang the others) and never
     steps the optimizer; ranks agree via all_reduce(MIN). Global RNG states are restored afterwards."""
     cands = micro_bs_candidates(a.batch_tokens // (a.seq * world), a.micro_bs)
     if len(cands) == 1:
         return cands[0], []
     total = torch.cuda.get_device_properties(dev).total_memory
-    reserve = sum(p.numel() for p in model.parameters()) * 4 * (2 + ddp)   # exp_avg/exp_avg_sq (+ DDP grad buckets)
+    reserve = opt.state_bytes()
     rng_state = torch.get_rng_state(), torch.cuda.get_rng_state(dev)
     prng = np.random.default_rng(0); chosen = 0; trials = []
     for m in cands:
@@ -439,9 +441,11 @@ def main(argv=None):
 
     log0(f"数据 训练 {len(train_data)/1e9:.2f}B token, 验证 {len(eval_data)/1e6:.1f}M token ({a.val_data or 'train.bin 末尾'}), mmap (world={world})")
     lm = LossModel(model, a.experts, a.topk)
+    from .muon import HybridOptimizer
+    opt = HybridOptimizer(model, lr=a.lr, weight_decay=a.wd, muon=bool(a.muon))
     if a.auto_micro_bs:
         gpu = torch.cuda.get_device_properties(dev)
-        key = dict(world=world, gpu=gpu.name, gpu_bytes=gpu.total_memory, torch=torch.__version__, fast_paths=1,
+        key = dict(world=world, gpu=gpu.name, gpu_bytes=gpu.total_memory, torch=torch.__version__, fast_paths=1, reserve="optimizer_state",
                    probe_mem_frac=a.probe_mem_frac, grad_ckpt=a.grad_ckpt, max_micro_bs=a.micro_bs, seq=a.seq, batch_tokens=a.batch_tokens,
                    model_sha256=hashlib.sha256(json.dumps(cfg.to_dict(), sort_keys=True).encode()).hexdigest())
         probe_path = Path(a.run_dir) / "micro_bs_probe.json"
@@ -454,7 +458,7 @@ def main(argv=None):
         if cached.item():
             a.micro_bs = int(cached.item()); log0(f"micro_bs {a.micro_bs} (复用 {probe_path})")
         else:
-            a.micro_bs, trials = probe_micro_bs(lm, model, train_data, a, dev, world, ddp, log0)
+            a.micro_bs, trials = probe_micro_bs(lm, model, opt, train_data, a, dev, world, ddp, log0)
             if rank == 0:
                 probe_path.write_text(json.dumps(dict(key=key, micro_bs=a.micro_bs, trials=trials), indent=1) + "\n")
     per_micro = a.micro_bs * a.seq * world
@@ -465,9 +469,13 @@ def main(argv=None):
     rng = np.random.default_rng(a.data_seed + rank)
 
     if ddp:
-        lm = torch.nn.parallel.DistributedDataParallel(lm, device_ids=[local_rank], find_unused_parameters=True)
-    from .muon import HybridOptimizer
-    opt = HybridOptimizer(model, lr=a.lr, weight_decay=a.wd, muon=bool(a.muon))
+        # Every parameter gets a gradient each step, so DDP keeps gradients as views of its all-reduce buckets
+        # instead of a second FP32 copy; zeroed gradients make DDP adopt the bucket views at construction,
+        # and zero_grad keeps them (set_to_none=False) so no_sync accumulation writes into the buckets.
+        for p in model.parameters():
+            p.grad = torch.zeros_like(p)
+        lm = torch.nn.parallel.DistributedDataParallel(lm, device_ids=[local_rank], find_unused_parameters=True,
+                                                       gradient_as_bucket_view=True)
     lr_at = lr_schedule(a, steps)
 
     ckpt_path = f"{a.run_dir}/ckpt.pt"; resuming = a.resume and os.path.exists(ckpt_path)
@@ -547,7 +555,7 @@ def main(argv=None):
             totals += torch.stack([ce.detach(), torch.as_tensor(aux, device=dev).detach(),
                                    mtp_loss.detach(), kl.detach()]).float() / accum
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip)
-        opt.step(); opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
+        opt.step(); opt.zero_grad(set_to_none=not ddp); tok_seen += accum * per_micro
         if ddp:
             dist.all_reduce(totals); totals /= world
         # One host transfer per optimizer step, rather than four synchronizations per micro batch.

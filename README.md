@@ -62,4 +62,4 @@ C1–C4 预设采用同一 64 选 5 缩放规则，非词表激活比例按包�
 GPUS=0 bash -c 'source scripts/env.sh; "$PY" scripts/profile_q38.py --preset q38_c1 --seq 4096 --micro-bs 4 --output audits/q38_c1_local.json --profile'
 ```
 
-性能及显存适用范围见 [GPU profiling 报告](audits/q38_performance.md)。C2–C4 的质量为外推起点。C4 在 40GB A100 上不开 checkpointing 时 micro1 即 OOM，开启后单卡 micro1–8 峰值 23.7–38.0 GiB；普通 DDP 不分摊权重和优化器状态。
+性能及显存适用范围见 [GPU profiling 报告](audits/q38_performance.md)。C2–C4 的质量为外推起点。C4 在 40GB A100 上不开 checkpointing 时 micro1 即 OOM；开启后 8 卡 DDP 下 micro4 会因专家 padding 随路由偏斜增长而 OOM，预设限定 micro_bs≤2（实测峰值 31.8 GiB）。DDP 不分摊权重和优化器状态。
