@@ -10,12 +10,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 from tokenizers import Tokenizer
-from q35.presets import MODEL_DEFAULTS, ROOT, budget_tokens, model_config
-from q35.flops import count
+from q38.presets import MODEL_DEFAULTS, ROOT, budget_tokens, model_config
+from q38.flops import _count_backbone as count
 
 POOL = Path('/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1')
 VOCAB = 10112
-DEST = ROOT / 'configs/isoflops'
+DEST = ROOT / 'configs/q35_isoflops'
 BUDGETS = {'1e16': 10**16, '3e16': 3*10**16, '1e17': 10**17, '3e17': 3*10**17}
 HIDDENS = range(128, 1601, 64)
 TOKENS_PER_ACTIVE = (4, 400)  # D/Na window of the sweep; every on-rule shape inside it is trained
@@ -130,6 +130,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--force', action='store_true', help='Replace existing generated JSON configurations')
     args = parser.parse_args()
+    raise SystemExit("Q35 IsoFLOPs configurations are archived unchanged in configs/q35_isoflops; use the Q35 baseline commit to regenerate them.")
     if not (POOL / 'READY').is_file():
         raise ValueError('16B training pool is not READY')
     DEST.mkdir(parents=True, exist_ok=True)
@@ -172,7 +173,7 @@ def main():
                                           lr_rule='0.3118*C^-0.125 (DeepSeek LLM), shared within a budget',
                                           batch_rule='0.2920*C^0.3271 tokens, rounded to 2^k sequences',
                                           flops_rule=fc['accounting_method'],
-                                          validation_manifest='configs/isoflops/validation.json'))
+                                          validation_manifest='configs/q35_isoflops/validation.json'))
             write_json(directory/'config.json',config,args.force)
             (ROOT/run_dir).mkdir(parents=True,exist_ok=True)
             command = f'GPUS=0 bash scripts/train_isoflops.sh {budget_name} {name}'

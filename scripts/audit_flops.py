@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compare q35 accounting with the EXACT Megatron revision linked in the contest PDF.
+"""Audit the inherited Q35 backbone only (not complete Q38 accounting) with the EXACT Megatron revision linked in the contest PDF.
 
 Read-only with respect to training configurations and checkpoints. Usage:
-  .venv_q35/bin/python scripts/audit_flops.py \
+  .venv_q38/bin/python scripts/audit_flops.py \
     --reference-source /tmp/qwen35-megatron-b92c3ed-training.py \
     --output audits/flops_audit.json
 
@@ -28,7 +28,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from q35.flops import count
+from q38.flops import _count_backbone as count
 
 REFERENCE_COMMIT = 'b92c3ed70029005fd5769d2cf4c65bc3d061a74b'
 REFERENCE_URL = f'https://raw.githubusercontent.com/NVIDIA/Megatron-LM/{REFERENCE_COMMIT}/megatron/training/training.py'
@@ -225,10 +225,10 @@ def main():
     ap.add_argument('--vocab', type=int, default=10112)
     a = ap.parse_args()
     reference = load_reference(a.reference_source)
-    from q35.presets import model_config
+    from q38.presets import model_config
     from scripts.make_isoflops_configs import shape_for
     rows = []
-    for path in sorted((ROOT/'configs/isoflops').glob('*/*/config.json')):
+    for path in sorted((ROOT/'configs/q35_isoflops').glob('*/*/config.json')):
         p = json.loads(path.read_text())
         seq = p['train']['seq']
         c = model_config(p['model'], a.vocab, seq).to_dict()

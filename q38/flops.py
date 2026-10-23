@@ -1,17 +1,9 @@
-"""Qwen3.5-MoE 参数量及比赛 Megatron 参考口径的 FLOPs。
+"""Q38 sparse parameter and compute accounting.
 
-参考固定提交 b92c3ed70029005fd5769d2cf4c65bc3d061a74b，training.py:821-1407。
-前向每 token：全注意力投影包含输出门，causal 核心为 2*s*nq*hd；GDN 投影和
-depthwise conv 按实际尺寸计，核心严格采用参考的 8*nv*dv**2；SwiGLU 为三次 GEMM。
-另计原函数未列出的实际 MoE router 和共享专家门投影。所有参考项前反向合计乘 3。
-参数量统计独立于 FLOPs；norm 等标量参数不再按 GEMM 权重计算。
-
-这是指定的 Megatron 模型 FLOPs 约定，不统计 FLA chunk 的物理 kernel 指令数；
-与未修改原函数的差异仅为 router/shared gate，返回值中单列参考值和差异。
-独立原函数交叉核对见 scripts/audit_flops.py。改变结构时须同步参数统计。
-
-用法: python -m q35.flops q35_c2_m [--seq 8192] [--tokenizer tokenizer/gzy_50k]   # 预设按实际词表核算预算
-      python -m q35.flops runs/q35_c2_m/hf/config.json [--seq 8192] [--tokens 3e9]"""
+Inherited GDN terms use the contest-pinned Megatron convention. Q38 adds
+sparse QSA, indexer/KL, mHC, N-gram gates and training-only MTP.
+Usage: python -m q38.flops q38_c2_m --seq 2048
+"""
 import argparse
 import json
 
@@ -19,7 +11,7 @@ MEGATRON_COMMIT = "b92c3ed70029005fd5769d2cf4c65bc3d061a74b"
 ACCOUNTING_METHOD = "megatron_b92c3ed_plus_router_shared_gate_v1"
 
 
-def count(c, seq):
+def _count_backbone(c, seq):
     c = c.get("text_config", c)
     L, h, V = c["num_hidden_layers"], c["hidden_size"], c["vocab_size"]
     E, k, fe, fs = c["num_experts"], c["num_experts_per_tok"], c["moe_intermediate_size"], c["shared_expert_intermediate_size"]
@@ -63,6 +55,53 @@ def count(c, seq):
                 breakdown=breakdown)
 
 
+def count(c, seq):
+    """Q38 budget: sparse attention, indexer, mHC, N-gram gate and training-only MTP.
+
+    Total non-vocabulary parameters include N-gram tables and MTP. Active parameters
+    describe the evaluation main head: two accessed hash rows, no training-only MTP.
+    Dense warmup and optimizer operations are excluded, matching the reference.
+    """
+    c = c.get("text_config", c)
+    r = _count_backbone(c, seq)
+    h, L = c["hidden_size"], c["num_hidden_layers"]
+    nf = r["layer_types"].count("full_attention")
+    n, rank = c.get("n_branch", 4), max(1, round(h / 8))
+    ni, di = c.get("indexer_heads", 4), c.get("indexer_head_dim", 64)
+    rows, budget = c.get("ngram_rows", 0), c.get("qsa_blocks", 8)
+    if rows < 0 or budget < 1 or seq < 1:
+        raise ValueError("Invalid Q38 N-gram rows, sparse block budget or sequence length")
+    blocks = (seq + 63) // 64
+    avg = sum(64 * (min(i + 1, budget) - 1) + 32.5 for i in range(blocks)) / blocks
+    bd = dict(r["breakdown"])
+    bd["attn_score"] = round(nf * 4 * c["num_attention_heads"] * c["head_dim"] * avg)
+    ip = nf * h * (ni * di + di + ni)
+    mp = 2 * L * (n*h*rank + rank*(2*n+n*n) + 2*n+n*n+3)
+    gp, tables = (h*h + 2*h, 2*rows*h) if rows else (0, 0)
+    bd.update(indexer_projections=2*ip, indexer_score=nf*2*seq*ni*di,
+              mhc_projections=2*2*L*(n*h*rank + rank*(2*n+n*n)),
+              mhc_mix=2*L*2*h*(2*n+n*n), ngram_gate=2*h*h if rows else 0)
+    mtp_params = mtp_active = 0
+    if c.get("mtp", True):
+        mc = dict(c, num_hidden_layers=1, layer_types=["linear_attention"])
+        mr = _count_backbone(mc, seq)
+        mtp_params = mr["total_nonvocab_params"] + 2*h*h + 2*h
+        mtp_active = mr["active_nonvocab_params"] + 2*h*h + 2*h
+        bd["mtp"] = mr["fwd_flops_per_token"] + 4*h*h
+    distill = nf * 2 * seq * c["num_attention_heads"] * c["head_dim"]
+    active = r["active_nonvocab_params"] + ip + mp + gp + (2*h if rows else 0)
+    total = r["total_nonvocab_params"] + ip + mp + gp + tables + mtp_params
+    fwd = sum(bd.values())
+    r.update(accounting_method="q38_sparse_mhc_ngram_mtp_v1", breakdown=bd,
+             active_nonvocab_params=active, nonvocab_params=active, total_nonvocab_params=total,
+             total_params_all=total+r["embed_params"], ngram_params=tables, ngram_rows=rows,
+             indexer_params=ip, mhc_params=mp, mtp_params=mtp_params,
+             mtp_active_params=mtp_active, distill_target_flops=distill,
+             fwd_flops_per_token=fwd, main_fwd_flops_per_token=fwd-bd.get("mtp", 0),
+             train_flops_per_token=3*fwd+distill)
+    return r
+
+
 def validate_resume_accounting(previous, current):
     """Do not silently mix accounting conventions in one checkpoint history."""
     if (previous.get("flops_per_token") != current["train_flops_per_token"]
@@ -75,7 +114,7 @@ def main():
     from .presets import preset_budget, preset_names
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("target", help="preset name or config.json")
-    ap.add_argument("--seq", type=int, default=8192)
+    ap.add_argument("--seq", type=int, default=2048)
     ap.add_argument("--tokens", type=float, default=0)
     ap.add_argument("--batch_tokens", type=int, default=524288)
     ap.add_argument("--tokenizer", default=str(DEFAULT_TOKENIZER))

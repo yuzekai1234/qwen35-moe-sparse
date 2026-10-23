@@ -1,177 +1,51 @@
-# Qwen3.5-MoE Sparse 预训练基线
+# Q38 sparse
 
-把 Qwen3.5-35B-A3B 的**文本结构**按固定规则缩小后随机初始化预训练（不下载原权重）：3:1 Gated DeltaNet / 全注意力、64 选 4 路由专家 + 带门共享专家、绑定嵌入，无视觉塔、无 MTP。默认词表为 gzy 50K（实际 50048，BOS=1、EOS=53、PAD=0），默认语料为共享目录里用它分好的训练集与独立验证集。源码最初来自 `/home/shared/hzh_q35_sparse`（原作者黄振华）。
+从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
+架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。
 
-## 目录结构
+模型包含每四层三层 Gated DeltaNet、一层 QSA；QSA 使用 64-token 块、默认选 8 块、4 头 MQA indexer 和 KL 蒸馏。
+MoE 默认 256 专家选 5，加一个共享专家，专家宽 h/4；其余组件为第二层前注入的 bigram/trigram 哈希嵌入、4 路 mHC/Sinkhorn 残差、训练专用一层 MTP。
+训练使用 Muon + AdamW，损失为主 CE + 0.001 router auxiliary + 0.3 MTP CE + 0.05 indexer KL。保留 DDP、断点恢复、数据采样和 TensorBoard。
 
-```
-q35/                        核心包（在仓库根目录用 python -m q35.<模块> 运行）
-  models/qwen3_5_moe/       可编辑的 Qwen3.5-MoE 文本模型（源自 transformers 5.19.0，仅保留文本 LM）
-  presets.py                读取 configs/*.json，构造模型配置，按算力预算核算 token 数
-  flops.py                  每 token 参数 / 训练 FLOPs 核算
-  data.py                   语料准备（uint32 token 文件）与加载
-  train.py                  训练入口（单卡 / torchrun DDP）
-  evaluate.py               官方口径评测：bpb / EvalTime
-  inference.py              评测用的仅前向快路径：Triton 路由专家、FLA GDN prefill、编译归一化
-configs/                    五组预设：模型形状、学习率、micro batch、算力预算、历史参考结果
-scripts/                    setup_env.sh / train.sh / eval.sh / smoke.sh（env.sh 为公共环境）
-tests/                      单元测试：预设与 FLOPs、语料准备、模型与原版一致性
-tokenizer/gzy_50k/          默认词表（50048）及其来源记录、对应的共享语料
-tokenizer/gzy_30k/          30K 词表（30080），供对照实验
-tokenizer/gzy_10k/          10K 词表（10112），供对照实验
-```
+Q38 是这里的本地缩小版实现，继承的 GDN/MoE 基础代码来自 Transformers 5.19 的 Qwen3.5。
+QSA 的块选择使用每块首个 query 的分数，避免参考实现中块内后续 query 影响前面 token 的选择。
+N-gram 不跨 EOS；序列开头不足的前文使用独立占位 ID。模型只支持无 cache 的 packed prefill；评估用主头，MTP 不参与评估。
 
-`data/`、`runs/`、`logs/`、`.venv_q35/`、`libcuda/` 不进 Git。
-
-## 安装
+## 使用
 
 ```bash
+# 环境；已有 .venv_q35 可直接复用，脚本会自动回退
 bash scripts/setup_env.sh
+
+# 单卡；GPUS=0,1 可用 DDP
+GPUS=0 bash scripts/train.sh q38_c2_m --run_dir runs/q38_c2_m
+
+# 模型参数及预算
+.venv_q35/bin/python -m q38.flops q38_c2_m --seq 2048
+
+# 评估 HF 导出
+GPUS=0 bash scripts/eval.sh runs/q38_c2_m/hf /path/to/eval.jsonl 2048 1
 ```
 
-Python 3.11，torch 2.7.1 / CUDA 12.6、transformers 5.19.0、flash-linear-attention 0.5.2、liger-kernel 0.8.4（完整锁定见 `requirements.txt`）。默认清华 PyPI 源，可用 `PIP_INDEX_URL` 覆盖；Triton 的 `libcuda.so` 软链建在 `libcuda/`。
+默认训练 seq=2048，沿用现有 GZY tokenizer 和 token 数据，无需重新分词。参考仓库的 16k tokenizer 未替换进来。
+入口为 `python -m q38.train`、`python -m q38.evaluate`、`python -m q38.data`。
+配置新增 `n_branch`、`mhc_iters`、`qsa_blocks`、`indexer_heads`、`indexer_head_dim`、`ngram_rows`、`mtp`；`ngram_rows=-1` 自动按非词表参数规模选择行数，`0` 关闭哈希表。
+训练参数可设置 `--muon 0`、`--mtp_coef`、`--kl_coef` 和 `--dense_warmup`。QSA 在学习率 warmup 阶段使用 dense attention。
 
-## 数据
+HF 导出包含全部自定义模型代码、N-gram 表和 MTP 权重；可用 `AutoModelForCausalLM.from_pretrained(path, trust_remote_code=True)` 加载，前向请传 `use_cache=False`。
+旧 Q35 checkpoint 不兼容。IsoFLOPs 配置逐字保留指定提交的 Q35 内容，目录改为 `configs/q35_isoflops/`，仅作 Q35 历史配置；请在原 Q35 提交上运行或重新生成。
 
-默认直接使用共享目录里用 gzy 50K 分好的语料，无需本地准备（详见 `tokenizer/gzy_50k/README.md`）：
+## 核算与验证
 
-| 用途 | 路径 | 规模 |
-|---|---|---|
-| 训练 `--data` | `/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned50k-scale-isoflops-v1/train.bin` | 3.56B token，全局随机抽取文档，无清洗 |
-| 验证 `--val_data` | `/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-holdout-pruned50k-scale-isoflops-v1/valid.bin` | 78M token，按文本哈希独立留出 1% 文档 |
+`q38/flops.py` 在原 Megatron GDN 约定上计入 QSA 实际选块、indexer 投影/打分、KL 目标、mHC、N-gram 门和训练 MTP；优化器与 dense warmup 开销不计。
+非词表总参数包含完整 N-gram 表与 MTP；激活参数采用主头评估口径，只计每 token 访问的两条 N-gram 行，排除训练专用 MTP。
+参考的 256 选 5 配置不承诺满足比赛 10% 激活比例，生成器不再按旧 Q35 比例筛选。
+`audits/` 与 `scripts/audit_flops.py` 仅保留继承的 Q35 backbone 核算历史，不代表 Q38 全模型核算。
 
-`train.bin` 全部用于训练，过程验证取 `--val_data` 的前 `--eval_tokens`（默认 2M）；`--val_data ""` 时改从 `train.bin` 末尾留出。训练启动时按语料目录的 `meta.json` / `manifest.json` 校验词表 SHA256，拒绝用其他词表分好的语料。训练窗口从 `train.bin` 随机抽取，预算超过 3.56B token（C2 及以上）时会重复使用数据。30K 词表的同类共享语料：`/home/shared/llm_pt/cache/ling-no-mtp-c1-global-pruned30k-isoflops-v1/train.bin`（7.84B token，配 `--tokenizer tokenizer/gzy_30k`）；10K：`/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1/train.bin`（5.62B token，配 `--tokenizer tokenizer/gzy_10k`，验证集均在同前缀的 `-holdout-` 目录）。
-
-为其他词表或抽样规则自行准备语料：
+快速检查：
 
 ```bash
-.venv_q35/bin/python -m q35.data corpus --out data/corpus_<名称> --tokenizer <词表目录> --data_dir /home/shared/data --every 12 --sub 6 --workers 8
+.venv_q35/bin/python -m unittest tests.test_model tests.test_presets tests.test_isoflops -q
 ```
 
-从八个官方训练分片抽取约 1/12 文档，文档间插 EOS，生成 little-endian uint32 的 `train.bin`、`val.bin` 与 `meta.json`（含中间分片，可续跑）。更换词表或抽样规则须用新输出目录。
-
-## 训练
-
-```bash
-GPUS=1 bash scripts/train.sh q35_c2_m                  # 单卡
-GPUS=1,2 bash scripts/train.sh q35_c2_m                # 双卡，全局 batch 不变，梯度累积自动调整
-GPUS=1,2 bash scripts/train.sh q35_c1_s2 --max_steps 100 --run_dir runs/try
-```
-
-`scripts/train.sh <预设> [参数...]` 运行 `q35.train --preset <预设>`，追加参数覆盖预设（全部参数见 `python -m q35.train -h`），日志追加到 `logs/<预设>.log`。先用 `nvidia-smi` 选空闲 GPU。
-
-- **预算**：不传 `--tokens` 时按预设算力（C1=3e17，C2=1e18）和实际词表、`--seq`、`--batch_tokens` 重新核算，向下取整到完整全局 batch；warmup 默认 1% 步数（至少 10）。
-- **公共设置**：seq 8192、全局 batch 524288 token、AdamW(0.9, 0.95)、wd 0.1、clip 1、bf16、seed 0、cosine 降到 0.1×lr。全局 batch 须整除 `micro_bs × seq × GPU 数`。
-- **续训**：默认 `--resume 1`，重跑原命令从 `ckpt.pt` 续训（FP32 主权重、优化器、token 数、各 rank 随机状态）。改了模型、数据、词表、预算或学习率策略会拒绝续训，请用新 `--run_dir`。相同 GPU 数和 micro batch 可恢复采样流；BF16/FLA 下同种子训练仍有微小数值差异。`--max_steps N` 只把本次运行截止到第 N 步，不改变学习率曲线。
-- **输出** `runs/<预设>/`：`ckpt.pt`、`training_metrics.csv`、TensorBoard 日志 `tb/`（`--tensorboard 0` 关闭）、`run_config.json`（含模型源码 SHA256）、`summary.json`（`completed_budget` 区分短程与完成）、`flops.json`、BF16 HF 导出 `hf/`。
-- **监控**：`.venv_q35/bin/tensorboard --logdir runs --port 6006`，远程用 `ssh -L 6006:localhost:6006 <服务器>` 转发后打开 `http://localhost:6006`。曲线：`train/{loss,aux,lr,grad_norm,tokens}`（每步）、`perf/{tok_per_s,max_mem_gib}`、`val/loss`（每 `--log_every` / `--eval_every` 步），横轴为优化步。
-
-## 评测
-
-```bash
-GPUS=1 bash scripts/eval.sh runs/q35_c2_m/hf [/home/shared/data/dolma3_mix_100M_a.jsonl] [seq=8192] [batch=2]
-```
-
-输出 bpb / EvalTime 到 `runs/<run>/eval_<数据集>_seq<seq>.json`。评测导入仓库内模型实现，并用 `PreTrainedTokenizerFast` 原样加载 tokenizer（`AutoTokenizer` 会被替换成 Qwen 分词器，导致 bpb 虚高）。
-
-前向 Profiling（单卡，先使用可运行的固定 batch 定位瓶颈）：
-
-```bash
-export GPUS=4
-source scripts/env.sh
-MODEL=runs/q35_c1_s2/hf
-BATCH=32  # 本机 GPU 4 / q35_c1_s2 / seq=8192 已通过采样；其他配置按显存调整
-"$PY" -m torch.distributed.run --standalone --nproc_per_node=1 -m q35.evaluate \
-  --model-path "$MODEL" --dataset-path /home/shared/data/dolma3_mix_100M_a.jsonl \
-  --batch-size "$BATCH" --sequence-length 8192 \
-  --output runs/profiling/result.json --profile-dir runs/profiling/trace --profile-only
-```
-
-复用真实 packed batch 和现有五次模型 warmup，再按 wait=1 / profiler warmup=1 / active=3 采样。
-仅记录 `use_cache=False` 的模型前向（含词表投影），H2D、交叉熵和分布式归约不在采样窗口内。
-输出 `rank0.trace.json`（可导入 Perfetto）和 `rank0.operators.txt`（CPU/CUDA 自身耗时排序）。
-首次关闭 shape / stack / memory 记录以降低开销；每次实验使用新的 `--profile-dir`，避免覆盖 trace。
-`--profile-only` 完成采样即退出，不生成 bpb/EvalTime；省略它则采样后继续完整评测。
-正式计时应去掉全部 `--profile-*` 参数，并按目标 GPU 使用单卡最大稳定 batch。
-定位瓶颈时先使用可运行的固定 batch；Profiler 本身也可能增加显存开销。
-
-评测加载模型后总会调用 `q35/inference.py` 的 `optimize_for_inference()`，安装三条仅前向的快路径
-（模型源码、训练与 HF 导出不受影响；Triton/编译开销发生在 warmup 中，不计入 EvalTime）：
-
-- **路由专家**：transformers 默认的 `grouped_mm` 在非 Hopper GPU + torch < 2.9 上退回逐专家循环，
-  每层两次 `offs.tolist()` 主机同步。改为两个 Triton grouped GEMM：设备端按专家排序分段，
-  融合 token gather、SiLU 门控与路由加权，与 `grouped_mm` 结果在 BF16 舍入内一致。
-- **Gated DeltaNet**：无 cache 的整段前向改用 FLA 的 Triton `causal_conv1d`（直接处理 `[B, T, D]`，
-  免两次转置）与 `chunk_gated_delta_rule` 原生 GVA（免 `repeat_interleave`）；带 cache、padding mask
-  或 varlen 时回退原实现。
-- **归一化**：`torch.compile` 融合 RMSNorm / gated RMSNorm，保留中间 BF16 舍入。
-
-RTX 4090、q35_c1_s2、seq 8192、batch 32 实测：单次前向 273 → 130 ms；
-4M token 样本 bpb 1.141495 → 1.141490，EvalTime 189.0 → 87.5。
-`scripts/eval.sh` 的第 5 个参数起会透传给评测入口（如 `--profile-dir`）。
-
-训练启动时总会调用 `q35/train.py` 的 `install_fast_paths()`（同样不改模型源码与 HF 导出）：
-
-- **路由专家**：改用 `grouped_mm`（免 eager 逐专家循环里的主机同步），并在 autocast 下以 BF16 计算；
-  transformers 原本把输入转成 FP32 主权重的 dtype，回退路径因而跑 FP32 SGEMM、用不上 tensor core。
-- **Gated DeltaNet / 归一化**：复用上面推理用的 FLA `causal_conv1d` + GVA 前向与编译后的 RMSNorm，
-  二者均支持反向；未安装需编译的 `causal_conv1d` CUDA 包也不会退回 PyTorch 参考卷积。
-
-与 FP32 参考相比，梯度误差不超过原 BF16 路径自身的舍入误差（`tests/test_model.py`）。
-A100-40G、seq 8192、整步（前向+反向+AdamW）实测：hidden 192 × 5 层 138K → 360K tok/s，
-1e17/h384_L5 68K → 189K，3e17/h640_L12 15K → 65K（显存下降，micro_bs 由 2 升到 4），MFU 3% → 6–15%。
-
-FLOPs 核算：`python -m q35.flops q35_c2_m`（按默认 50K 词表核算预算）或 `python -m q35.flops runs/<run>/hf/config.json`。
-当前核算口径为 `megatron_b92c3ed_plus_router_shared_gate_v1`：GDN 使用比赛指定 Megatron 的核心公式，
-另计实际 router / 共享专家门投影，参数量与 FLOPs 分开统计。返回值同时给出未补充投影的
-`megatron_reference_train_flops_per_token` 与两项额外投影值；原函数核对见 `scripts/audit_flops.py`。
-下文历史实验的 `reference.flops_per_token` 和 token 数保持旧口径，不能直接用于当前预算推导。
-
-## 自检
-
-```bash
-.venv_q35/bin/python -m unittest -v      # 需要 GPU 的用例在无 GPU 时跳过
-GPUS=1 bash scripts/smoke.sh             # 完整 C2-m 模型、seq 256、两步训练 + checkpoint + HF 导出
-```
-
-## 修改模型
-
-| 位置 | 内容 |
-|---|---|
-| `q35/models/qwen3_5_moe/modeling_qwen3_5_moe.py` | `Qwen3_5MoeGatedDeltaNet`（GDN）、`Qwen3_5MoeAttention`（GQA + 输出门）、`Qwen3_5MoeTopKRouter` / `Experts` / `SparseMoeBlock`、`DecoderLayer`、`TextModel`、`ForCausalLM` |
-| `q35/models/qwen3_5_moe/configuration_qwen3_5_moe.py` | 配置字段与默认值 |
-| `q35/presets.py` | 命令行形状参数 → 模型配置（层型、头数、专家等） |
-| `q35/train.py` `LossModel` | 训练 loss：直接调用 backbone + Liger 融合 CE + 路由辅助 loss，不走 `ForCausalLM.forward()` |
-| `q35/flops.py`、`q35/evaluate.py` `active_parameter_count()` | 参数 / FLOPs 口径，改路由或结构后需同步 |
-| `q35/inference.py` | 评测快路径重写了专家前向与 GDN 无 cache 前向，改这两处模型代码后需同步（`tests/test_model.py` 会对照） |
-
-流程：改代码 → 新 `--run_dir` 短训与评测 → 提交。训练启动会断言 `flops.py` 的参数统计与实际模型一致。HF 导出携带模型源码与 `auto_map`（`model_type=qwen35_moe_sparse`），他处加载用 `AutoModelForCausalLM.from_pretrained(path, trust_remote_code=True)`。`tests/test_model.py` 校验本地实现与原版 transformers 初始化逐位一致、GPU 前向对齐。
-
-## 缩放规则与历史结果
-
-| 结构项 | 原版（h=2048，40 层） | 本基线（给定 h、L） |
-|---|---|---|
-| 层型 | 每 4 层 `[lin, lin, lin, full]` | 同；L 非 4 的倍数时余下接 lin |
-| 路由专家 / 宽 | 256 选 8，宽 h/4 | 64 选 4，宽 h |
-| 共享专家 | 1 个，宽 h/4，sigmoid 门 | 1 个，宽 h/2，sigmoid 门 |
-| 全注意力 | head_dim 256，q/kv 16/2 | head_dim 64，q/kv ≈ h/64 / 1 |
-| GDN 头 k/v、头维 | 16/32，128 | 2/4，64（h96 用 1/2） |
-| 其余 | aux 0.001、partial_rotary 0.25、rope_theta 1e7、conv 4 | 同；绑定嵌入 |
-
-下表 bpb 为 **EXAONE 153600 词表**的历史结果（`configs/*.json` 的 `reference` 字段），不代表 50K 词表成绩。
-
-| 预设 | 算力 | 层 × 宽 | 总参数（153600 词表） | 训练 token | lr | bpb | EvalTime |
-|---|---|---:|---:|---:|---:|---:|---:|
-| q35_c1_s1 | 3e17 | 5 × 96 | 23.9M | 2.95B | 4e-3 | 1.2703 | 2107 |
-| q35_c1_s2 | 3e17 | 8 × 192 | 88.2M | 1.25B | 4e-3 | **1.1859** | 516 |
-| q35_c1_s3 | 3e17 | 12 × 256 | 194.8M | 0.82B | 3.5e-3 | 1.2134 | 304 |
-| q35_c2_m | 1e18 | 8 × 256 | 143.0M | 3.11B | 3.5e-3 | **1.0949** | 297 |
-| q35_c2_b | 1e18 | 12 × 192 | 117.6M | 3.67B | 4e-3 | 1.0982 | 578 |
-
-同算力对比：Ling 1.2885 / 1.1660，dense 1.3056 / 1.2097（C1 / C2）。
-
-## 来源
-
-- [Qwen3.5-35B-A3B](https://huggingface.co/Qwen/Qwen3.5-35B-A3B)、[Transformers](https://github.com/huggingface/transformers)（模型源码 Apache-2.0，见 `q35/models/qwen3_5_moe/LICENSE` 与 `UPSTREAM.json`）
-- [Flash Linear Attention](https://github.com/fla-org/flash-linear-attention)、[Liger Kernel](https://github.com/linkedin/Liger-Kernel)
-- 词表来源见 `tokenizer/gzy_50k/README.md`、`tokenizer/gzy_30k/README.md`、`tokenizer/gzy_10k/README.md`
+模型 smoke 覆盖小模型前后向、Muon 更新和自定义 HF 导出加载；不进行完整训练或评测。

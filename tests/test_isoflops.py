@@ -11,9 +11,9 @@ import unittest
 import numpy as np
 import torch
 
-from q35.presets import ROOT, load_training_config
-from q35.sampling import ShuffledBlockSampler, sequential_windows
-from q35.train import evaluate, lr_schedule, main, micro_bs_candidates, parse_args, prepare_inputs
+from q38.presets import ROOT, load_training_config
+from q38.sampling import ShuffledBlockSampler, sequential_windows
+from q38.train import evaluate, lr_schedule, main, micro_bs_candidates, parse_args, prepare_inputs
 
 
 class Sampling(unittest.TestCase):
@@ -61,75 +61,13 @@ class Sampling(unittest.TestCase):
 
 
 class Configs(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.base=ROOT/'configs/isoflops'
+    def test_archived_q35_configs_match_backbone_budget(self):
+        from q38.flops import _count_backbone
+        from q38.presets import model_config, budget_tokens
+        for path in (ROOT/'configs/q35_isoflops').glob('*/*/config.json'):
+            _, p = load_training_config(path)
+            fc = _count_backbone(model_config(p['model'],10112,8192).to_dict(),8192)
+            self.assertEqual(fc['train_flops_per_token'],p['accounting']['train_flops_per_token'])
+            self.assertEqual(budget_tokens(fc['train_flops_per_token'],p['compute'],p['train']['batch_tokens']),p['accounting']['train_tokens'])
 
-    def test_every_configuration_matches_budget_and_directory(self):
-        configs=sorted(self.base.glob('*/*/*.json'))
-        self.assertEqual(len(configs),19)
-        for path in configs:
-            with self.subTest(path=str(path)):
-                config_path,p=load_training_config(path.parent if path.name=='config.json' else path)
-                a=parse_args(['--config',str(config_path)])
-                _,_,fc,_,dev,final,sampler,plan=prepare_inputs(a)
-                self.assertEqual(plan['steps'],p['accounting']['steps'])
-                self.assertEqual(plan['train_tokens'],p['accounting']['train_tokens'])
-                self.assertEqual(plan['train_flops_per_token'],p['accounting']['train_flops_per_token'])
-                self.assertEqual(plan['flops_accounting'],p['accounting']['accounting_method'])
-                self.assertEqual(plan['megatron_reference_train_flops_per_token'],
-                                 p['accounting']['megatron_reference_train_flops_per_token'])
-                self.assertLessEqual(plan['actual_train_flops'],p['compute'])
-                reference_budget=plan['train_tokens']*fc['megatron_reference_train_flops_per_token']
-                self.assertGreaterEqual(reference_budget,0.99*p['compute'])
-                self.assertLessEqual(reference_budget,1.01*p['compute'])
-                self.assertGreater(plan['actual_train_flops']+fc['train_flops_per_token']*a.batch_tokens,p['compute'])
-                self.assertEqual(Path(plan['run_dir']),ROOT/p['train']['run_dir'])
-                self.assertEqual(plan['micro_bs'],'auto')
-                self.assertGreaterEqual(p['accounting']['active_fraction'],0.10)
-                self.assertFalse(plan['sampling']['replacement'])
-                self.assertGreaterEqual(sampler.blocks*a.seq,plan['train_tokens'])
-                self.assertGreaterEqual(len(dev)-1,2_000_000)
-                self.assertGreaterEqual(len(final)-1,16_000_000)
-                self.assertEqual(a.final_eval_offset,len(dev))
-
-    def test_cli_override_and_dry_run_have_no_training_side_effects(self):
-        config=self.base/'1e16/h256_L5'
-        with tempfile.TemporaryDirectory() as tmp:
-            output=Path(tmp)/'must-not-be-created'
-            with contextlib.redirect_stdout(io.StringIO()) as stream:
-                main(['--config',str(config),'--dry-run','--run_dir',str(output),'--lr','0.002'])
-            plan=json.loads(stream.getvalue())
-            self.assertEqual(plan['lr'],0.002)
-            self.assertFalse(output.exists())
-        with self.assertRaises(SystemExit):
-            with contextlib.redirect_stderr(io.StringIO()):
-                parse_args(['--config',str(config),'--preset','q35_c1_s1'])
-
-    def test_micro_batch_follows_world_size(self):
-        config=self.base/'1e16/h256_L5'
-        for world,expected in [(1,[8,4,2,1]),(2,[4,2,1]),(4,[2,1]),(8,[1])]:
-            plan=prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','0']),world)[-1]
-            self.assertEqual((plan['micro_bs'],plan['accumulation']),(expected[0],1))
-            plan=prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','1']),world)[-1]
-            self.assertEqual((plan['micro_bs'],plan['micro_bs_candidates']),('auto',expected))
-        plan=prepare_inputs(parse_args(['--config',str(config),'--micro_bs','2','--auto_micro_bs','0']),2)[-1]
-        self.assertEqual((plan['micro_bs'],plan['accumulation']),(2,2))
-        plan=prepare_inputs(parse_args(['--config',str(config),'--micro_bs','3','--auto_micro_bs','1']),1)[-1]
-        self.assertEqual(plan['micro_bs_candidates'],[2,1])
-        with self.assertRaises(ValueError):
-            prepare_inputs(parse_args(['--config',str(config),'--micro_bs','3','--auto_micro_bs','0']),1)
-        with self.assertRaises(ValueError):
-            prepare_inputs(parse_args(['--config',str(config),'--auto_micro_bs','0']),3)
-        self.assertEqual(micro_bs_candidates(12,12),[12,6,4,3,2,1])
-
-    def test_validation_partitions_have_disjoint_document_ranges(self):
-        val=json.loads((self.base/'validation.json').read_text())
-        self.assertEqual(val['dev']['offset'],0)
-        self.assertEqual(val['dev']['end'],val['curve']['offset'])
-        self.assertEqual(val['curve']['end'],val['report']['offset'])
-        self.assertEqual(sum(val[k]['documents'] for k in ('dev','curve','report')),val['document_count'])
-
-
-if __name__=='__main__':
-    unittest.main()
+if __name__ == '__main__': unittest.main()

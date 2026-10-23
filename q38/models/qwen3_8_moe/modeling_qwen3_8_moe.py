@@ -1,5 +1,5 @@
 # Vendored from transformers 5.19.0 (text model only); this repository owns this editable copy.
-# Upstream generated this file from modular_qwen3_5_moe.py. This repository
+# The inherited Q35 backbone was generated from modular_qwen3_5_moe.py. This repository
 # does not run that generator: edit this file directly for model experiments.
 # See UPSTREAM.json for original hashes and LICENSE for Apache-2.0 terms.
 # Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
@@ -16,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -53,11 +55,11 @@ from transformers.utils import (
 )
 from transformers.utils.generic import merge_with_config_defaults
 from transformers.utils.output_capturing import OutputRecorder, capture_outputs
-from .configuration_qwen3_5_moe import Qwen3_5MoeTextConfig
+from .configuration_qwen3_8_moe import Qwen3_8MoeTextConfig
 
 
-class Qwen3_5MoeTextRotaryEmbedding(nn.Module):
-    def __init__(self, config: Qwen3_5MoeTextConfig, device=None):
+class Qwen3_8MoeTextRotaryEmbedding(nn.Module):
+    def __init__(self, config: Qwen3_8MoeTextConfig, device=None):
         super().__init__()
         self.max_seq_len_cached = config.max_position_embeddings
         self.original_max_seq_len = config.max_position_embeddings
@@ -76,7 +78,7 @@ class Qwen3_5MoeTextRotaryEmbedding(nn.Module):
 
     @staticmethod
     def compute_default_rope_parameters(
-        config: Qwen3_5MoeTextConfig, device=None, **kwargs
+        config: Qwen3_8MoeTextConfig, device=None, **kwargs
     ) -> tuple[torch.Tensor, float]:
         """
         Computes the inverse frequencies according to the original RoPE implementation
@@ -100,7 +102,7 @@ class Qwen3_5MoeTextRotaryEmbedding(nn.Module):
     @torch.no_grad()
     @dynamic_rope_update
     def forward(self, x, position_ids):
-        # In contrast to other models, Qwen3_5MoeText has different position ids for the grids
+        # In contrast to other models, Qwen3_8MoeText has different position ids for the grids
         # So position_ids is broadcast to (3, bs, positions) and freqs has shape (3, bs, positions, dim // 2)
         position_ids = position_ids.expand(3, -1, -1)
         freqs = position_ids[..., None].float() * self.inv_freq.to(device=x.device, dtype=torch.float)
@@ -125,7 +127,7 @@ class Qwen3_5MoeTextRotaryEmbedding(nn.Module):
 
 # NOTE: the FLA package does not re-cast to `input_dtype` in its implementation, maybe we should do the same
 @use_kernel_forward_from_hub("RMSNormGated")
-class Qwen3_5MoeRMSNormGated(nn.Module):
+class Qwen3_8MoeRMSNormGated(nn.Module):
     def __init__(self, hidden_size: int, eps: float = 1e-6, **kwargs) -> None:
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -407,12 +409,12 @@ def torch_recurrent_gated_delta_rule(
     return core_attn_out, last_recurrent_state
 
 
-@use_kernel_forward_from_hub("Qwen3_5GatedDeltaNet")
+@use_kernel_forward_from_hub("Qwen3_8GatedDeltaNet")
 @use_kernelized_func(
     [torch_recurrent_gated_delta_rule, torch_chunk_gated_delta_rule, causal_conv1d_fn, causal_conv1d_update]
 )
-class Qwen3_5MoeGatedDeltaNet(nn.Module):
-    def __init__(self, config: Qwen3_5MoeTextConfig, layer_idx: int):
+class Qwen3_8MoeGatedDeltaNet(nn.Module):
+    def __init__(self, config: Qwen3_8MoeTextConfig, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.num_v_heads = config.linear_num_value_heads
@@ -446,7 +448,7 @@ class Qwen3_5MoeGatedDeltaNet(nn.Module):
         A = torch.empty(self.num_v_heads).uniform_(0.01, 16)
         self.A_log = nn.Parameter(torch.log(A))
 
-        self.norm = Qwen3_5MoeRMSNormGated(self.head_v_dim, eps=self.layer_norm_epsilon)
+        self.norm = Qwen3_8MoeRMSNormGated(self.head_v_dim, eps=self.layer_norm_epsilon)
         self.out_proj = nn.Linear(self.value_dim, self.hidden_size, bias=False)
 
         self.layer_type = config.layer_types[layer_idx]
@@ -656,10 +658,10 @@ def eager_attention_forward(
     return attn_output, attn_weights
 
 
-class Qwen3_5MoeAttention(nn.Module):
+class Qwen3_8MoeAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    def __init__(self, config: Qwen3_5MoeTextConfig, layer_idx: int):
+    def __init__(self, config: Qwen3_8MoeTextConfig, layer_idx: int):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
@@ -680,8 +682,8 @@ class Qwen3_5MoeAttention(nn.Module):
         self.o_proj = nn.Linear(
             config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias
         )
-        self.q_norm = Qwen3_5MoeRMSNorm(self.head_dim, eps=config.rms_norm_eps)  # unlike olmo, only on the head dim!
-        self.k_norm = Qwen3_5MoeRMSNorm(
+        self.q_norm = Qwen3_8MoeRMSNorm(self.head_dim, eps=config.rms_norm_eps)  # unlike olmo, only on the head dim!
+        self.k_norm = Qwen3_8MoeRMSNorm(
             self.head_dim, eps=config.rms_norm_eps
         )  # thus post q_norm does not need reshape
 
@@ -733,8 +735,8 @@ class Qwen3_5MoeAttention(nn.Module):
         return attn_output, attn_weights
 
 
-class Qwen3_5MoeMLP(nn.Module):
-    def __init__(self, config: Qwen3_5MoeTextConfig, intermediate_size: int):
+class Qwen3_8MoeMLP(nn.Module):
+    def __init__(self, config: Qwen3_8MoeTextConfig, intermediate_size: int):
         super().__init__()
         self.config = config
         self.hidden_size = config.hidden_size
@@ -750,7 +752,7 @@ class Qwen3_5MoeMLP(nn.Module):
 
 
 @use_experts_implementation
-class Qwen3_5MoeExperts(nn.Module):
+class Qwen3_8MoeExperts(nn.Module):
     """Collection of expert weights stored as 3D tensors."""
 
     def __init__(self, config):
@@ -790,7 +792,7 @@ class Qwen3_5MoeExperts(nn.Module):
 
 
 @use_kernel_forward_from_hub("SoftmaxTopKRouter")
-class Qwen3_5MoeTopKRouter(nn.Module):
+class Qwen3_8MoeTopKRouter(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.top_k = config.num_experts_per_tok
@@ -809,12 +811,12 @@ class Qwen3_5MoeTopKRouter(nn.Module):
         return router_logits, router_scores, router_indices
 
 
-class Qwen3_5MoeSparseMoeBlock(nn.Module):
+class Qwen3_8MoeSparseMoeBlock(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.gate = Qwen3_5MoeTopKRouter(config)
-        self.experts = Qwen3_5MoeExperts(config)
-        self.shared_expert = Qwen3_5MoeMLP(config, intermediate_size=config.shared_expert_intermediate_size)
+        self.gate = Qwen3_8MoeTopKRouter(config)
+        self.experts = Qwen3_8MoeExperts(config)
+        self.shared_expert = Qwen3_8MoeMLP(config, intermediate_size=config.shared_expert_intermediate_size)
         self.shared_expert_gate = torch.nn.Linear(config.hidden_size, 1, bias=False)
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
@@ -832,7 +834,7 @@ class Qwen3_5MoeSparseMoeBlock(nn.Module):
 
 
 @use_kernel_forward_from_hub("RMSNormZeroCentered")
-class Qwen3_5MoeRMSNorm(nn.Module):
+class Qwen3_8MoeRMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
         self.eps = eps
@@ -843,7 +845,7 @@ class Qwen3_5MoeRMSNorm(nn.Module):
 
     def forward(self, x):
         output = self._norm(x.float())
-        # Llama does x.to(float16) * w whilst Qwen3_5Moe is (x * w).to(float16)
+        # Llama does x.to(float16) * w whilst Qwen3_8Moe is (x * w).to(float16)
         # See https://github.com/huggingface/transformers/pull/29402
         output = output * (1.0 + self.weight.float())
         return output.type_as(x)
@@ -852,18 +854,18 @@ class Qwen3_5MoeRMSNorm(nn.Module):
         return f"{tuple(self.weight.shape)}, eps={self.eps}"
 
 
-class Qwen3_5MoeDecoderLayer(GradientCheckpointingLayer):
-    def __init__(self, config: Qwen3_5MoeTextConfig, layer_idx: int):
+class Qwen3_8MoeDecoderLayer(GradientCheckpointingLayer):
+    def __init__(self, config: Qwen3_8MoeTextConfig, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.block_type = config.layer_types[layer_idx]
         if self.block_type == "linear_attention":
-            self.linear_attn = Qwen3_5MoeGatedDeltaNet(config, layer_idx)
+            self.linear_attn = Qwen3_8MoeGatedDeltaNet(config, layer_idx)
         elif self.block_type == "full_attention":
-            self.self_attn = Qwen3_5MoeAttention(config, layer_idx)
-        self.mlp = Qwen3_5MoeSparseMoeBlock(config)
-        self.input_layernorm = Qwen3_5MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = Qwen3_5MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+            self.self_attn = Qwen3_8MoeAttention(config, layer_idx)
+        self.mlp = Qwen3_8MoeSparseMoeBlock(config)
+        self.input_layernorm = Qwen3_8MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = Qwen3_8MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(
         self,
@@ -911,19 +913,19 @@ class Qwen3_5MoeDecoderLayer(GradientCheckpointingLayer):
         return hidden_states
 
 
-class Qwen3_5MoePreTrainedModel(PreTrainedModel):
-    config: Qwen3_5MoeTextConfig
+class Qwen3_8MoePreTrainedModel(PreTrainedModel):
+    config: Qwen3_8MoeTextConfig
     base_model_prefix = "model"
     supports_gradient_checkpointing = True
-    _no_split_modules = ["Qwen3_5MoeDecoderLayer"]
+    _no_split_modules = ["Qwen3_8MoeDecoderLayer"]
     _skip_keys_device_placement = ["past_key_values"]
     _supports_flash_attn = True
     _supports_sdpa = True
     _keys_to_ignore_on_load_unexpected = [r"^mtp.*"]
     _can_record_outputs = {
-        "router_logits": OutputRecorder(Qwen3_5MoeTopKRouter, index=0),
-        "hidden_states": Qwen3_5MoeDecoderLayer,
-        "attentions": Qwen3_5MoeAttention,
+        "router_logits": OutputRecorder(Qwen3_8MoeTopKRouter, index=0),
+        "hidden_states": Qwen3_8MoeDecoderLayer,
+        "attentions": Qwen3_8MoeAttention,
     }
     _is_stateful = True
     _can_compile_fullgraph = True
@@ -939,7 +941,7 @@ class Qwen3_5MoePreTrainedModel(PreTrainedModel):
     @torch.no_grad()
     def _init_weights(self, module):
         super()._init_weights(module)
-        if isinstance(module, Qwen3_5MoeGatedDeltaNet):
+        if isinstance(module, Qwen3_8MoeGatedDeltaNet):
             init.ones_(module.dt_bias)
             # Lower bound kept away from 0 so log(A) never becomes -inf
             init.copy_(
@@ -947,18 +949,17 @@ class Qwen3_5MoePreTrainedModel(PreTrainedModel):
                 torch.empty(module.num_v_heads, device=module.A_log.device).uniform_(0.01, 16).log_(),
             )
         # We initialize with 0s to be 1 centered as the RMSNorm here does (1 + weight)
-        elif isinstance(module, Qwen3_5MoeRMSNorm):
+        elif isinstance(module, Qwen3_8MoeRMSNorm):
             init.zeros_(module.weight)
-        elif isinstance(module, Qwen3_5MoeExperts):
+        elif isinstance(module, Qwen3_8MoeExperts):
             init.normal_(module.gate_up_proj, mean=0.0, std=self.config.initializer_range)
             init.normal_(module.down_proj, mean=0.0, std=self.config.initializer_range)
-        elif isinstance(module, Qwen3_5MoeSparseMoeBlock):
+        elif isinstance(module, Qwen3_8MoeSparseMoeBlock):
             init.normal_(module.gate.weight, mean=0.0, std=self.config.initializer_range)
 
 
-@auto_docstring
 @dataclass
-class Qwen3_5MoeModelOutputWithPast(BaseModelOutputWithPast):
+class Qwen3_8MoeModelOutputWithPast(BaseModelOutputWithPast):
     r"""
     rope_deltas (`torch.LongTensor` of shape `(batch_size, )`, *optional*):
         The rope index difference between sequence length and multimodal rope.
@@ -969,92 +970,284 @@ class Qwen3_5MoeModelOutputWithPast(BaseModelOutputWithPast):
     router_logits: tuple[torch.FloatTensor] | None = None
 
 
-class Qwen3_5MoeTextModel(Qwen3_5MoePreTrainedModel):
-    config: Qwen3_5MoeTextConfig
+from torch.nn.attention.flex_attention import flex_attention, BlockMask
+BLK = 64
+_flex = torch.compile(flex_attention, dynamic=False)
+_KO = {}
 
-    def __init__(self, config: Qwen3_5MoeTextConfig):
+
+def _causal(b, h, q, kv): return q >= kv
+
+
+# ---------------------------------------------------------------- 分支残差 (Hyper-Connections / mHC)
+def _sinkhorn(logits, iters=20):
+    P = torch.exp(logits - logits.amax(dim=(-2, -1), keepdim=True))
+    for _ in range(iters):
+        P = P / P.sum(-1, keepdim=True).clamp(min=1e-9); P = P / P.sum(-2, keepdim=True).clamp(min=1e-9)
+    return P
+
+
+def _coeffs(Xf, A, B, b_pre, b_post, b_res, alphas, n, iters):
+    """Xf: [B,S,n*h] 已 RMSNorm。dyn = tanh(B(A(Xf))) → (pre[B,S,n], post[B,S,n], res[B,S,n,n])。"""
+    z = torch.tanh(F.linear(F.linear(Xf, A), B).float())
+    zp, zq, zr = z[..., :n], z[..., n:2 * n], z[..., 2 * n:].reshape(*z.shape[:-1], n, n)
+    pre = torch.sigmoid(b_pre + alphas[0] * zp)
+    post = 2 * torch.sigmoid(b_post + alphas[1] * zq)
+    res = _sinkhorn(b_res + alphas[2] * zr, iters)
+    return pre, post, res
+
+
+def _agg(X, pre): return (pre.unsqueeze(-1) * X).sum(2)          # X [B,S,n,h] → [B,S,h]
+
+
+def _mix(X, res, post, y):                                        # X' = H_res X + H_post^T y
+    return torch.einsum("bsmn,bsnh->bsmh", res, X) + post.unsqueeze(-1) * y.float().unsqueeze(2)
+
+
+_agg_c = torch.compile(_agg); _mix_c = torch.compile(_mix); _coeffs_c = torch.compile(_coeffs)
+
+
+class MHC(nn.Module):
+    """一个子层(注意力/GDN 或 MoE)的分支残差系数。静态参数 + 动态部分(RMSNorm(flatten 4 路) → 低秩 r → 24 个系数, tanh 限幅)。
+    初始化 = 普通残差: 动态部分输出 0(B 零初始化); H_res≈I(对角 0/非对角 −8 过 Sinkhorn); H_pre 和为 1(本层"主读"的那路 0.7、其余 0.1);
+    H_post 全 1(每路都写子层输出)。embedding 复制 4 路时前向与普通残差一致(差异来自 Sinkhorn 的 ~1e-3 泄漏)。"""
+    def __init__(self, h, n=4, r=None, slot=0, iters=20):
+        super().__init__()
+        self.n, self.iters = n, iters; r = r or round(h / 8)
+        self.A = nn.Linear(n * h, r, bias=False); self.B = nn.Linear(r, 2 * n + n * n, bias=False)
+        nn.init.normal_(self.A.weight, std=0.02); nn.init.zeros_(self.B.weight)
+        pre = torch.full((n,), 0.1); pre[slot % n] = 0.7
+        self.b_pre = nn.Parameter(torch.log(pre / (1 - pre))); self.b_post = nn.Parameter(torch.zeros(n))
+        self.b_res = nn.Parameter(torch.full((n, n), -8.0) + 8.0 * torch.eye(n)); self.alphas = nn.Parameter(torch.full((3,), 0.1))
+
+    def n_params(self): return sum(p.numel() for p in self.parameters())
+
+    def pre(self, X):
+        X = X.float(); Xf = X.flatten(2); Xf = Xf * torch.rsqrt(Xf.pow(2).mean(-1, keepdim=True) + 1e-6)
+        with torch.autocast("cuda", enabled=False):
+            c = (_coeffs_c if Xf.is_cuda else _coeffs)(Xf, self.A.weight.float(), self.B.weight.float(), self.b_pre.float(), self.b_post.float(), self.b_res.float(), self.alphas.float(), self.n, self.iters)
+        return (_agg_c if X.is_cuda else _agg)(X, c[0]), (X,) + c
+
+    def post(self, X, y, c): return (_mix_c if X.is_cuda else _mix)(c[0], c[3], c[2], y)
+
+
+# ---------------------------------------------------------------- QSA: lightning indexer + 块稀疏注意力
+def _idx_score_fn(q, k, w, scale):
+    s = torch.matmul(q, k.transpose(-1, -2))                                  # [B,nh,S,S] bf16
+    return torch.einsum("bhts,bth->bts", F.relu(s.float()) * scale, w)
+
+
+_idx_score = torch.compile(_idx_score_fn)
+
+
+class Indexer(nn.Module):
+    """DSA 风格: MQA, n_ih 个 q 头 + 1 个共享 k 头, head_dim d_ih; 打分 I[t,s] = Σ_j w_j(t)·ReLU(q_j(t)·k(s)) (RoPE 同主干的 partial rope)。
+    只靠 KL 蒸馏训练(输入 detach, 不回传主干)。"""
+    def __init__(self, h, n_ih=4, d_ih=64):
+        super().__init__()
+        self.n_ih, self.d_ih = n_ih, d_ih
+        self.wq = nn.Linear(h, n_ih * d_ih, bias=False); self.wk = nn.Linear(h, d_ih, bias=False); self.ww = nn.Linear(h, n_ih, bias=False)
+
+    def forward(self, x, cos, sin):
+        B, S, _ = x.shape
+        q = self.wq(x).view(B, S, self.n_ih, self.d_ih).transpose(1, 2); k = self.wk(x).view(B, S, 1, self.d_ih).transpose(1, 2)
+        q, k = apply_rotary_pos_emb(q, k, cos, sin)                          # q [B,nh,S,d]  k [B,1,S,d]
+        w = self.ww(x).float() * (self.n_ih ** -0.5)                            # [B,S,nh]
+        return (_idx_score if q.is_cuda else _idx_score_fn)(q, k, w, self.d_ih ** -0.5)                           # [B,S,S]
+
+
+@torch.no_grad()
+def block_mass(q, k, scale, chunk=256):
+    """主注意力(稠密, 因果)在每个 64 块上的概率质量, 头平均: q [B,nq,S,d], k [B,nkv,S,d] → [B,S,nb] (fp32, detach)。"""
+    B, nq, S, d = q.shape; nkv = k.shape[1]; rep = nq // nkv; nb = S // BLK
+    qg = q.view(B, nkv, rep, S, d); out = []
+    kk = k[:, :, None]
+    cols = torch.arange(S, device=q.device)
+    for t0 in range(0, S, chunk):
+        sc = torch.matmul(qg[:, :, :, t0:t0 + chunk], kk.transpose(-1, -2)).float() * scale          # [B,nkv,rep,c,S]
+        rows = torch.arange(t0, min(S, t0 + chunk), device=q.device)
+        sc = sc.masked_fill(cols[None, :] > rows[:, None], float("-inf"))
+        p = torch.softmax(sc, dim=-1).view(B, nkv, rep, -1, nb, BLK).sum(-1)
+        out.append(p.mean(dim=(1, 2)))
+    return torch.cat(out, dim=1)
+
+
+def select_blocks(lp_blk, budget_blocks):
+    """lp_blk: [B,S,nb] indexer 在块上的 log 概率(−inf=非因果)。按 query 块首 token 的概率 → 每个 query 块 top-k 块, 总含当前块。
+    返回 BlockMask 需要的 (kv_num_blocks [B,1,nbq], kv_indices [B,1,nbq,k]) (int32)。"""
+    B, S, nb = lp_blk.shape; nbq = S // BLK; k = min(budget_blocks, nb)
+    # Select using the first query of each block: later tokens must not affect earlier outputs.
+    p = lp_blk.detach().exp().view(B, nbq, BLK, nb)[:, :, 0]
+    qb = torch.arange(nbq, device=p.device)[:, None]; kb = torch.arange(nb, device=p.device)[None, :]
+    p = torch.where(kb > qb, torch.full_like(p, -1.0), p)
+    p = torch.where(kb == qb, torch.full_like(p, 2.0), p)
+    idx = p.topk(k, dim=-1).indices
+    num = torch.clamp(qb[:, 0] + 1, max=k).to(torch.int32)[None].expand(B, -1)
+    full = torch.zeros(B, 1, nbq, nb, dtype=torch.int32, device=p.device); full[..., :k] = idx[:, None].to(torch.int32)   # from_kv_blocks 要求最后一维 = 块总数(尾部不读)
+    return num[:, None].contiguous(), full
+
+
+QSA_STAT = {}
+
+
+def qsa_attention(attn, x, cos, sin, indexer, budget_blocks, dense, want_kl):
+    """用 attn(Qwen3_5MoeAttention 的权重) 做注意力; dense=True 走全注意力(预热/测试), 否则 indexer 选块 + flex_attention。
+    返回 (输出, kl 或 None)。KL = mean_t Σ_blk P_main(blk|t)·(log P_main − log P_idx), P_main 为稠密主注意力(头平均, detach)。"""
+    B, S, _ = x.shape; hd = attn.head_dim
+    q, gate = torch.chunk(attn.q_proj(x).view(B, S, -1, hd * 2), 2, dim=-1); gate = gate.reshape(B, S, -1)
+    q = attn.q_norm(q).transpose(1, 2); k = attn.k_norm(attn.k_proj(x).view(B, S, -1, hd)).transpose(1, 2); v = attn.v_proj(x).view(B, S, -1, hd).transpose(1, 2)
+    q, k = apply_rotary_pos_emb(q, k, cos, sin)
+    kl = None; lp_blk = None
+    if indexer is not None and (want_kl or not dense):
+        I = indexer(x.detach(), cos, sin)
+        ar = torch.arange(S, device=x.device)
+        I = I.masked_fill(ar[None, :] > ar[:, None], -1e9)    # 有限大负数而非 -inf: 避免 logsumexp/log_softmax 反传出 NaN
+        lp = torch.log_softmax(I, dim=-1)
+        lp_blk = torch.logsumexp(lp.view(B, S, S // BLK, BLK), dim=-1)                  # [B,S,nb]
+        if want_kl:
+            P = block_mass(q.detach(), k.detach(), attn.scaling)
+            kl = torch.where(P > 0, P * (torch.log(P.clamp(min=1e-12)) - lp_blk), torch.zeros_like(P)).sum(-1).mean()
+            if QSA_STAT.get("on") and not dense:
+              with torch.no_grad():   # 统计: 稠密主注意力概率质量落在 indexer 选中块里的比例(recall), 对照"随机选同样多块"的期望
+                  num_, idx_ = select_blocks(lp_blk, budget_blocks); nbq_, nb_ = S // BLK, S // BLK
+                  sel = torch.zeros(B, nbq_, nb_, device=x.device).scatter_(-1, idx_[:, 0, :, :min(budget_blocks, nb_)].long(), 1.0)
+                  sel = sel * (torch.arange(nb_, device=x.device)[None, :] <= torch.arange(nbq_, device=x.device)[:, None])
+                  rec = (P.view(B, nbq_, BLK, nb_) * sel[:, :, None, :]).sum(-1).mean()
+                  QSA_STAT.setdefault("recall", []).append(rec.item())
+    if dense or indexer is None:
+        o = F.scaled_dot_product_attention(q, k, v, scale=attn.scaling, is_causal=True, enable_gqa=True)
+    else:
+        num, idx = select_blocks(lp_blk, budget_blocks)
+        bm = BlockMask.from_kv_blocks(num, idx, BLOCK_SIZE=BLK, mask_mod=_causal, seq_lengths=(S, S))
+        if not q.is_cuda:
+            nb = S // BLK
+            chosen = torch.zeros(B, nb, nb, dtype=torch.bool, device=x.device)
+            for j in range(nb):
+                count = min(j + 1, budget_blocks)
+                chosen[:, j].scatter_(1, idx[:, 0, j, :count].long(), True)
+            mask = chosen.repeat_interleave(BLK, 1).repeat_interleave(BLK, 2)
+            mask = mask & torch.ones(S, S, dtype=torch.bool, device=x.device).tril()
+            o = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None], scale=attn.scaling, enable_gqa=True)
+        else:
+            o = _flex(q, k, v, scale=attn.scaling, block_mask=bm, enable_gqa=True, kernel_options={"BLOCK_M": 64, "BLOCK_N": 64, "BLOCK_M1": 32, "BLOCK_N1": 64, "BLOCK_M2": 64, "BLOCK_N2": 32})
+    o = o.transpose(1, 2).reshape(B, S, -1) * torch.sigmoid(gate)
+    return attn.o_proj(o), kl
+
+
+
+P2 = (1000003, 998244353); P3 = (1000033, 998244353, 1000000007)
+MIX = 2654435761
+
+
+class NGramEmbedding(nn.Module):
+    def __init__(self, hidden, vocab, rows, eos_id, gate_bias=-1.0, init_std=0.02, norm_init=0.02):
+        super().__init__()
+        self.hidden, self.vocab, self.rows, self.eos_id = hidden, vocab, rows, eos_id
+        self.emb2 = nn.Embedding(rows, hidden); self.emb3 = nn.Embedding(rows, hidden)
+        nn.init.normal_(self.emb2.weight, std=init_std); nn.init.normal_(self.emb3.weight, std=init_std)
+        self.norm = nn.RMSNorm(hidden, eps=1e-6); nn.init.constant_(self.norm.weight, norm_init)   # e 的 RMS 起步 ≈ 嵌入量级, 不压过残差流
+        self.gate = nn.Linear(hidden, hidden, bias=True)
+        nn.init.normal_(self.gate.weight, std=0.02); nn.init.constant_(self.gate.bias, gate_bias)
+        self._ids = None; self.stat = {}
+
+    def table_params(self): return self.emb2.weight.numel() + self.emb3.weight.numel()
+    def gate_params(self): return sum(p.numel() for p in self.gate.parameters()) + self.norm.weight.numel()
+
+    def indices(self, x):
+        B, T = x.shape
+        pos = torch.arange(T, device=x.device).expand(B, T)
+        last = torch.cummax(torch.where(x == self.eos_id, pos, torch.full_like(pos, -1)), dim=1).values.clamp(min=0)
+        def prev(k):
+            xs = torch.cat([torch.full((B, k), self.vocab, device=x.device, dtype=x.dtype), x[:, :-k]], dim=1)
+            return torch.where((pos - k) >= last, xs, torch.full_like(xs, self.vocab))
+        a, b = prev(1), x
+        i2 = (a * P2[0]) ^ (b * P2[1])
+        c = prev(2)
+        i3 = (c * P3[0]) ^ (a * P3[1]) ^ (b * P3[2])
+        i2 = (i2 ^ (i2 >> 17)) * MIX; i3 = (i3 ^ (i3 >> 17)) * MIX
+        return (i2 % self.rows), (i3 % self.rows)
+
+    def delta(self, h, x):
+        """返回要加到残差流上的增量 g*e (h 只用来算门; 4 路分支残差下传各路的均值)。"""
+        return self.forward(h, x) - h
+
+    def forward(self, h, x):
+        i2, i3 = self.indices(x)
+        e = self.norm(self.emb2(i2) + self.emb3(i3)).to(h.dtype)
+        g = torch.sigmoid(self.gate(h))
+        with torch.no_grad():
+            self.stat = dict(gate_mean=g.float().mean().item(), gate_frac_lt01=(g < 0.1).float().mean().item(), gate_frac_gt09=(g > 0.9).float().mean().item(),
+                             ratio=((g * e).float().norm() / h.float().norm().clamp(min=1e-9)).item()) if getattr(self, "collect", False) else self.stat
+        return h + g * e
+
+
+class Qwen3_8MoeTextModel(Qwen3_8MoePreTrainedModel):
+    config: Qwen3_8MoeTextConfig
+
+    def __init__(self, config):
         super().__init__(config)
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
-        self.layers = nn.ModuleList(
-            [Qwen3_5MoeDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
-        )
-        self.norm = Qwen3_5MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.rotary_emb = Qwen3_5MoeTextRotaryEmbedding(config=config)
+        self.layers = nn.ModuleList([Qwen3_8MoeDecoderLayer(config, i) for i in range(config.num_hidden_layers)])
+        self.norm = Qwen3_8MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.rotary_emb = Qwen3_8MoeTextRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
-        # Initialize weights and apply final processing
         self.post_init()
+        h, L = config.hidden_size, config.num_hidden_layers
+        self.mhc = nn.ModuleList([MHC(h, config.n_branch, max(1, round(h / 8)), slot=i,
+                                      iters=config.mhc_iters) for i in range(2 * L)])
+        self.indexers = nn.ModuleDict({str(i): Indexer(h, config.indexer_heads, config.indexer_head_dim)
+                                     for i, kind in enumerate(config.layer_types) if kind == "full_attention"})
+        self.ngram = NGramEmbedding(h, config.vocab_size, config.ngram_rows, config.eos_token_id) if config.ngram_rows else None
+        for extra in (self.mhc, self.indexers, self.ngram):
+            if extra is not None:
+                for module in extra.modules():
+                    module._is_hf_initialized = True
+        self.qsa_dense = False
+
+    def trunk(self, ids):
+        # Packed prefill only. Right padding also covers short validation tails.
+        length = ids.shape[1]
+        if not length:
+            raise ValueError("Q38 requires at least one input token")
+        padding = (-length) % BLK
+        if padding:
+            ids = F.pad(ids, (0, padding), value=self.config.pad_token_id or 0)
+        e = self.embed_tokens(ids)
+        positions = torch.arange(ids.shape[1], device=ids.device).view(1, 1, -1).expand(3, ids.shape[0], -1)
+        cos, sin = self.rotary_emb(e, positions)
+        if self.config.indexer_head_dim != self.config.head_dim:
+            raise ValueError("Indexer and attention head dimensions must match for shared partial RoPE")
+        X = e.float().unsqueeze(2).expand(-1, -1, self.config.n_branch, -1).contiguous()
+        kls = []
+        for i, layer in enumerate(self.layers):
+            xin, state = self.mhc[2*i].pre(X)
+            x = layer.input_layernorm(xin).to(e.dtype)
+            if self.config.layer_types[i] == "linear_attention":
+                y = layer.linear_attn(hidden_states=x, cache_params=None, attention_mask=None)
+            else:
+                y, kl = qsa_attention(layer.self_attn, x, cos, sin, self.indexers[str(i)],
+                                      self.config.qsa_blocks, self.training and self.qsa_dense,
+                                      self.training and torch.is_grad_enabled())
+                if kl is not None:
+                    kls.append(kl)
+            X = self.mhc[2*i].post(X, y, state)
+            xin, state = self.mhc[2*i+1].pre(X)
+            y = layer.mlp(layer.post_attention_layernorm(xin).to(e.dtype))
+            X = self.mhc[2*i+1].post(X, y, state)
+            if i == 0 and self.ngram is not None:
+                X = X + self.ngram.delta(X.mean(2).to(e.dtype), ids).unsqueeze(2)
+        return X.sum(2)[:, :length].to(e.dtype), kls
 
     @merge_with_config_defaults
     @capture_outputs
-    @auto_docstring
-    def forward(
-        self,
-        input_ids: torch.LongTensor | None = None,
-        attention_mask: torch.Tensor | None = None,
-        position_ids: torch.LongTensor | None = None,
-        past_key_values: Cache | None = None,
-        inputs_embeds: torch.FloatTensor | None = None,
-        use_cache: bool | None = None,
-        **kwargs: Unpack[TransformersKwargs],
-    ) -> BaseModelOutputWithPast:
-        if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
-
-        if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids)
-
-        if use_cache and past_key_values is None:
-            past_key_values = DynamicCache(config=self.config)
-
-        # the hard coded `4` is for text, temporal, height and width.
-        if position_ids is None:
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            position_ids = torch.arange(inputs_embeds.shape[1], device=inputs_embeds.device) + past_seen_tokens
-            position_ids = position_ids.view(1, 1, -1).expand(4, inputs_embeds.shape[0], -1)
-        elif position_ids.ndim == 2:
-            position_ids = position_ids[None, ...].expand(4, position_ids.shape[0], -1)
-
-        if position_ids.ndim == 3 and position_ids.shape[0] == 4:
-            text_position_ids = position_ids[0]
-            position_ids = position_ids[1:]
-        else:
-            text_position_ids = None
-
-        if not isinstance(causal_mask_mapping := attention_mask, dict):
-            # Prepare mask arguments
-            mask_kwargs = {
-                "config": self.config,
-                "inputs_embeds": inputs_embeds,
-                "attention_mask": attention_mask,
-                "past_key_values": past_key_values,
-                "position_ids": text_position_ids,
-            }
-            # Create the masks
-            causal_mask_mapping = {
-                "full_attention": create_causal_mask(**mask_kwargs),
-                "linear_attention": create_recurrent_attention_mask(**mask_kwargs),
-            }
-
-        hidden_states = inputs_embeds
-        position_embeddings = self.rotary_emb(hidden_states, position_ids)
-
-        for i, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
-            hidden_states = decoder_layer(
-                hidden_states,
-                position_embeddings=position_embeddings,
-                attention_mask=causal_mask_mapping[self.config.layer_types[i]],
-                position_ids=text_position_ids,
-                past_key_values=past_key_values,
-                use_cache=use_cache,
-                **kwargs,
-            )
-
-        hidden_states = self.norm(hidden_states)
-
-        return Qwen3_5MoeModelOutputWithPast(
-            last_hidden_state=hidden_states,
-            past_key_values=past_key_values,
-        )
+    def forward(self, input_ids=None, attention_mask=None, position_ids=None, past_key_values=None,
+                inputs_embeds=None, use_cache=False, **kwargs):
+        if input_ids is None or inputs_embeds is not None:
+            raise ValueError("Q38 packed prefill requires input_ids")
+        if past_key_values is not None or use_cache or attention_mask is not None:
+            raise ValueError("Q38 supports uncached packed prefill without attention_mask")
+        hs, _ = self.trunk(input_ids)
+        return Qwen3_8MoeModelOutputWithPast(last_hidden_state=self.norm(hs))
 
 
 def load_balancing_loss_func(
@@ -1126,29 +1319,45 @@ def load_balancing_loss_func(
     return overall_loss * num_experts
 
 
-@auto_docstring
-class Qwen3_5MoeForCausalLM(Qwen3_5MoePreTrainedModel, GenerationMixin):
+class Qwen3_8MoeForCausalLM(Qwen3_8MoePreTrainedModel, GenerationMixin):
     _tied_weights_keys = {"lm_head.weight": "model.embed_tokens.weight"}
     _tp_plan = {"lm_head": "colwise_gather_output"}
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
     _fsdp_plan = {"lm_head": "keep_full_weight"}
-    config: Qwen3_5MoeTextConfig
+    config: Qwen3_8MoeTextConfig
     _keys_to_ignore_on_load_unexpected = [r"^mtp.*", r"^model.visual.*"]
 
     def __init__(self, config):
         super().__init__(config)
-        self.model = Qwen3_5MoeTextModel(config)
+        self.model = Qwen3_8MoeTextModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.router_aux_loss_coef = config.router_aux_loss_coef
         self.num_experts = config.num_experts
         self.num_experts_per_tok = config.num_experts_per_tok
 
+        self.mtp = None
+        if config.mtp:
+            mtp_config = copy.deepcopy(config)
+            mtp_config.layer_types = list(config.layer_types) + ["linear_attention"]
+            h = config.hidden_size
+            self.mtp = nn.ModuleDict(dict(
+                enorm=Qwen3_8MoeRMSNorm(h, eps=config.rms_norm_eps),
+                hnorm=Qwen3_8MoeRMSNorm(h, eps=config.rms_norm_eps),
+                proj=nn.Linear(2*h, h, bias=False),
+                block=Qwen3_8MoeDecoderLayer(mtp_config, config.num_hidden_layers),
+                norm=Qwen3_8MoeRMSNorm(h, eps=config.rms_norm_eps)))
+
         # Initialize weights and apply final processing
         self.post_init()
 
+    def mtp_hidden(self, hs, ids_next):
+        m = self.mtp
+        z = m["proj"](torch.cat([m["enorm"](self.model.embed_tokens(ids_next)), m["hnorm"](hs)], -1))
+        z = m["block"](z, position_embeddings=None, attention_mask=None)
+        return m["norm"](z)
+
     @can_return_tuple
-    @auto_docstring
     def forward(
         self,
         input_ids: torch.LongTensor | None = None,
@@ -1162,23 +1371,7 @@ class Qwen3_5MoeForCausalLM(Qwen3_5MoePreTrainedModel, GenerationMixin):
         logits_to_keep: int | torch.Tensor = 0,
         **kwargs: Unpack[TransformersKwargs],
     ) -> MoeCausalLMOutputWithPast:
-        r"""
-        Example:
-
-        ```python
-        >>> from transformers import AutoTokenizer, Qwen3_5MoeForCausalLM
-
-        >>> model = Qwen3_5MoeForCausalLM.from_pretrained("Qwen/Qwen3-Next-80B-A3B-Instruct")
-        >>> tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-Next-80B-A3B-Instruct")
-
-        >>> prompt = "Hey, are you conscious? Can you talk to me?"
-        >>> inputs = tokenizer(prompt, return_tensors="pt")
-
-        >>> # Generate
-        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
-        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
-        ```"""
+        """Main-head packed prefill; training auxiliary losses live in q38.train.LossModel."""
 
         output_router_logits = (
             output_router_logits if output_router_logits is not None else self.config.output_router_logits
@@ -1228,7 +1421,7 @@ class Qwen3_5MoeForCausalLM(Qwen3_5MoePreTrainedModel, GenerationMixin):
 
 
 __all__ = [
-    "Qwen3_5MoeTextModel",
-    "Qwen3_5MoeForCausalLM",
-    "Qwen3_5MoePreTrainedModel",
+    "Qwen3_8MoeTextModel",
+    "Qwen3_8MoeForCausalLM",
+    "Qwen3_8MoePreTrainedModel",
 ]

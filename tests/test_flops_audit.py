@@ -2,7 +2,7 @@
 import copy
 import unittest
 
-from q35.flops import count, validate_resume_accounting
+from q38.flops import _count_backbone as count, validate_resume_accounting
 from scripts.audit_flops import fla_chunk_gemm_ledger, reference_forward_terms, legacy_train_flops_per_token
 
 

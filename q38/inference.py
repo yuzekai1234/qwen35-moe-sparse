@@ -1,4 +1,4 @@
-"""Inference-only fast paths for the repository model, applied by q35.evaluate.
+"""Inference-only fast paths for the repository model, applied by q38.evaluate.
 
 The model source (shared with training and carried by HF exports) is unchanged; these
 replacements are forward-only and keep its numerics up to BF16 rounding order:
@@ -10,7 +10,7 @@ replacements are forward-only and keep its numerics up to BF16 rounding order:
   grouped-value heads replace the reference conv (two transposes) and repeat_interleave.
 - RMSNorm / gated RMSNorm: torch.compile fuses the FP32 elementwise chains.
 
-Keep _gdn_prefill_forward in sync with Qwen3_5MoeGatedDeltaNet.forward when editing the model.
+Keep _gdn_prefill_forward in sync with Qwen3_8MoeGatedDeltaNet.forward when editing the model.
 """
 import types
 
@@ -19,11 +19,11 @@ import torch.nn.functional as F
 import triton
 import triton.language as tl
 
-from .models.qwen3_5_moe.modeling_qwen3_5_moe import (
-    Qwen3_5MoeGatedDeltaNet, Qwen3_5MoeRMSNorm, Qwen3_5MoeRMSNormGated,
+from .models.qwen3_8_moe.modeling_qwen3_8_moe import (
+    Qwen3_8MoeGatedDeltaNet, Qwen3_8MoeRMSNorm, Qwen3_8MoeRMSNormGated,
 )
 
-EXPERTS_IMPLEMENTATION = "q35_triton"
+EXPERTS_IMPLEMENTATION = "q38_triton"
 
 
 @triton.jit
@@ -194,7 +194,7 @@ def compile_inference_norms(model):
     """Fuse normalization without tracing dynamic expert dispatch or the FLA kernels."""
     count = 0
     for module in model.modules():
-        if isinstance(module, (Qwen3_5MoeRMSNorm, Qwen3_5MoeRMSNormGated)):
+        if isinstance(module, (Qwen3_8MoeRMSNorm, Qwen3_8MoeRMSNormGated)):
             module.compile(
                 fullgraph=True, dynamic=True,
                 # Preserve intermediate BF16/FP16 rounding, including the gated norm's
@@ -213,7 +213,7 @@ def optimize_for_inference(model):
     model.set_experts_implementation(EXPERTS_IMPLEMENTATION)
     gdn = 0
     for module in model.modules():
-        if isinstance(module, Qwen3_5MoeGatedDeltaNet):
+        if isinstance(module, Qwen3_8MoeGatedDeltaNet):
             module._reference_forward = module.forward
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1

@@ -8,7 +8,7 @@ import tempfile
 import unittest
 import numpy as np
 
-from q35.data import (DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, ROOT, load_tokenizer, open_tokens,
+from q38.data import (DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, ROOT, load_tokenizer, open_tokens,
                       recorded_tokenizer_sha, tokenizer_sha256)
 
 
@@ -20,7 +20,7 @@ class Corpus(unittest.TestCase):
             source = data / "dolma3_mix_50B-00000.jsonl"
             source.write_text("".join(json.dumps({"text": f"Example document {i}: test English and 中文训练数据。"}) + "\n" for i in range(100)))
             output = Path(tmp) / "tokens"
-            cmd = [sys.executable, "-m", "q35.data", "corpus",
+            cmd = [sys.executable, "-m", "q38.data", "corpus",
                    "--tokenizer", str(ROOT / "tokenizer/gzy_10k"),
                    "--data_dir", str(data), "--out", str(output),
                    "--every", "2", "--sub", "2", "--workers", "2", "--val_tokens", "64"]

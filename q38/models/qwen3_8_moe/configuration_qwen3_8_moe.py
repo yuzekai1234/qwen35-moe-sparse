@@ -1,5 +1,5 @@
 # Vendored from transformers 5.19.0 (text model only); this repository owns this editable copy.
-# Upstream generated this file from modular_qwen3_5_moe.py. This repository
+# The inherited Q35 backbone was generated from modular_qwen3_5_moe.py. This repository
 # does not run that generator: edit this file directly for model experiments.
 # See UPSTREAM.json for original hashes and LICENSE for Apache-2.0 terms.
 # Copyright 2025 The Qwen Team and The HuggingFace Inc. team. All rights reserved.
@@ -22,37 +22,12 @@ from transformers.modeling_rope_utils import RopeParameters
 from transformers.utils import auto_docstring
 
 
-@auto_docstring(checkpoint="Qwen/Qwen3.5-35B-A3B")
 @strict
-class Qwen3_5MoeTextConfig(PreTrainedConfig):
-    r"""
-    linear_conv_kernel_dim (`int`, *optional*, defaults to 4):
-        Kernel size of the convolution used in linear attention layers.
-    linear_key_head_dim (`int`, *optional*, defaults to 128):
-        Dimension of each key head in linear attention.
-    linear_value_head_dim (`int`, *optional*, defaults to 128):
-        Dimension of each value head in linear attention.
-    linear_num_key_heads (`int`, *optional*, defaults to 16):
-        Number of key heads used in linear attention layers.
-    linear_num_value_heads (`int`, *optional*, defaults to 32):
-        Number of value heads used in linear attention layers.
-
-    ```python
-    >>> from transformers import Qwen3_5MoeTextModel, Qwen3_5MoeTextConfig
-
-    >>> # Initializing a Qwen3.5-MoE style configuration
-    >>> configuration =  Qwen3_5MoeTextConfig()
-
-    >>> # Initializing a model from the Qwen3.5-35B-A3B style configuration
-    >>> model = Qwen3_5MoeTextModel(configuration)
-
-    >>> # Accessing the model configuration
-    >>> configuration = model.config
-    ```
-    """
+class Qwen3_8MoeTextConfig(PreTrainedConfig):
+    """Q38 text config: inherited GDN/MoE plus QSA, mHC, N-gram and MTP fields."""
 
     # A distinct type prevents AutoModel silently falling back to the stock model.
-    model_type = "qwen35_moe_sparse"
+    model_type = "qwen38_moe_sparse"
     keys_to_ignore_at_inference = ["past_key_values"]
 
     base_model_tp_plan = {
@@ -94,8 +69,8 @@ class Qwen3_5MoeTextConfig(PreTrainedConfig):
     max_position_embeddings: int = 32768
     initializer_range: float = 0.02
     rms_norm_eps: float = 1e-6
-    use_cache: bool = True
-    tie_word_embeddings: bool = False
+    use_cache: bool = False
+    tie_word_embeddings: bool = True
     rope_parameters: RopeParameters | dict | None = None
     attention_bias: bool = False
     attention_dropout: float | int = 0.0
@@ -107,8 +82,15 @@ class Qwen3_5MoeTextConfig(PreTrainedConfig):
     linear_num_value_heads: int = 32
     moe_intermediate_size: int = 512
     shared_expert_intermediate_size: int = 512
-    num_experts_per_tok: int = 8
+    num_experts_per_tok: int = 5
     num_experts: int = 256
+    n_branch: int = 4
+    mhc_iters: int = 20
+    qsa_blocks: int = 8
+    indexer_heads: int = 4
+    indexer_head_dim: int = 64
+    ngram_rows: int = 0
+    mtp: bool = True
     output_router_logits: bool = False
     router_aux_loss_coef: float = 0.001
     layer_types: list[str] | None = None
@@ -130,4 +112,4 @@ class Qwen3_5MoeTextConfig(PreTrainedConfig):
         super().__post_init__(**kwargs)
 
 
-__all__ = ["Qwen3_5MoeTextConfig"]
+__all__ = ["Qwen3_8MoeTextConfig"]

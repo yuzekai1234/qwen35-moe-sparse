@@ -8,6 +8,8 @@
 set -euo pipefail
 export GPUS=${GPUS:-0,1,2,3,4,5,6,7}
 source "$(dirname "$0")/env.sh"
+echo "Q35 IsoFLOPs configs are archived at configs/q35_isoflops; run them from the Q35 baseline commit." >&2
+exit 1
 EVAL=${EVAL:-1}
 PER_JOB=${PER_JOB:-2}
 ((NPROC % PER_JOB == 0)) || { echo "PER_JOB=$PER_JOB must divide the $NPROC GPUs in GPUS=$GPUS" >&2; exit 1; }
@@ -21,7 +23,7 @@ trap 'kill 0' INT TERM
 import json, sys
 from pathlib import Path
 jobs = []
-for path in Path("configs/isoflops").glob("*/h*/*.json"):
+for path in Path("configs/q35_isoflops").glob("*/h*/*.json"):
     c = json.loads(path.read_text()); e = c["experiment"]
     if len(sys.argv) == 1 or e["budget"] in sys.argv[1:]:
         jobs.append((-c["compute"], c["accounting"]["active_nonvocab_params"], e["model"], path.stem, e["budget"], c["train"]["run_dir"]))

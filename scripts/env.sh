@@ -1,7 +1,9 @@
 # Shared environment for scripts/*.sh (sourced). Overridable: PY, LIBCUDA, GPUS.
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
-PY=${PY:-$ROOT/.venv_q35/bin/python}
+DEFAULT_PY="$ROOT/.venv_q38/bin/python"
+[[ -x "$DEFAULT_PY" ]] || DEFAULT_PY="$ROOT/.venv_q35/bin/python"
+PY=${PY:-$DEFAULT_PY}
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export TRITON_LIBCUDA_PATH=${LIBCUDA:-$ROOT/libcuda}
 export LIBRARY_PATH="$TRITON_LIBCUDA_PATH${LIBRARY_PATH:+:$LIBRARY_PATH}"

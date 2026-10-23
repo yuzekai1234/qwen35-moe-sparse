@@ -2,10 +2,12 @@
 # GPUS=0 [VARIANT=config] bash scripts/train_isoflops.sh 1e16 h256_L5 [args...]
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
+echo "Q35 IsoFLOPs configs are archived at configs/q35_isoflops; run them from the Q35 baseline commit." >&2
+exit 1
 BUDGET=${1:?usage: scripts/train_isoflops.sh <budget> <h...> [args...]}
 MODEL=${2:?usage: scripts/train_isoflops.sh <budget> <h...> [args...]}
 shift 2
-CONFIG="$ROOT/configs/isoflops/$BUDGET/$MODEL/${VARIANT:-config}.json"
+CONFIG="$ROOT/configs/q35_isoflops/$BUDGET/$MODEL/${VARIANT:-config}.json"
 test -f "$CONFIG" || { echo "Missing config: $CONFIG" >&2; exit 1; }
 DRY=0
 for arg in "$@"; do

@@ -1,7 +1,7 @@
-"""Pretrain the scaled Qwen3.5-MoE text model (single GPU or torchrun DDP).
+"""Pretrain the scaled Qwen3.8-MoE text model (single GPU or torchrun DDP).
 
-  python -m q35.train --preset q35_c2_m                                    # 单卡
-  torchrun --standalone --nproc_per_node=2 -m q35.train --preset q35_c2_m  # 多卡, 全局 batch 不变
+  python -m q38.train --preset q38_c2_m                                    # 单卡
+  torchrun --standalone --nproc_per_node=2 -m q38.train --preset q38_c2_m  # 多卡, 全局 batch 不变
 预设 configs/<name>.json 给出模型形状和学习率等默认值, 命令行参数覆盖预设。--tokens 缺省时按预设算力预算
 和实际词表/序列长度重新核算(向下取整到完整全局 batch); --warmup 缺省为 1% 步数(至少 10)。
 默认 --resume 1: 重跑同一命令从 run_dir/ckpt.pt 续训; 改模型/数据/预算/学习率策略时用新的 --run_dir。
@@ -32,23 +32,24 @@ import torch.distributed as dist
 
 from .data import DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, TOKEN_DTYPE, load_tokenizer, open_tokens, tokenizer_sha256
 from .flops import count as count_flops, validate_resume_accounting
-from .models.qwen3_5_moe import Qwen3_5MoeForCausalLM, source_info
-from .models.qwen3_5_moe import modeling_qwen3_5_moe as M
+from .models.qwen3_8_moe import Qwen3_8MoeForCausalLM, source_info
+from .models.qwen3_8_moe import modeling_qwen3_8_moe as M
 from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_training_config, model_config
 from .sampling import ShuffledBlockSampler, sequential_windows
 
 TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_VAL_DATA), tokenizer=str(DEFAULT_TOKENIZER),
-                      seq=8192, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
+                      seq=2048, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
                       warmup=0, wd=0.1, clip=1.0, seed=0, log_every=10, eval_every=500, eval_tokens=2_000_000,
                       ckpt_every=200, resume=1, max_steps=0, tensorboard=1,
                       warmup_ratio=0.01, warmup_min=10, data_sampling="random", data_seed=-1,
                       eval_sampling="random", eval_offset=0, final_eval_tokens=0, final_eval_offset=0,
-                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92)
+                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92, mtp_coef=0.3, kl_coef=0.05, muon=1, dense_warmup=1)
 # A resumed run must agree on everything that shapes the model, data stream or LR schedule.
 RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts",
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
                "batch_tokens", "seed", "data", "val_data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip",
                "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")
+RESUME_KEYS += ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "ngram_rows", "mtp", "mtp_coef", "kl_coef", "muon", "dense_warmup")
 NEW_RESUME_DEFAULTS = {k: TRAIN_DEFAULTS[k] for k in (
     "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")}
 
@@ -201,22 +202,40 @@ def prepare_inputs(a, world=1):
 
 
 class LossModel(torch.nn.Module):
-    """Fused-linear CE over the backbone + router load-balancing loss; DDP wraps this whole computation.
+    """Fused-linear main/MTP CE, indexer KL and router balancing; DDP wraps all losses.
 
-    It bypasses Qwen3_5MoeForCausalLM.forward() to avoid materialising logits; change it together with
-    the output head or the routing auxiliary loss."""
+    It uses the Q38 trunk directly to avoid materialising vocabulary logits."""
 
-    def __init__(self, lm, experts, topk):
+    def __init__(self, lm, experts, topk, ce=None):
         super().__init__()
-        from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+        if ce is None:
+            from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+            ce = LigerFusedLinearCrossEntropyLoss()
         self.lm, self.experts, self.topk = lm, experts, topk
-        self.ce = LigerFusedLinearCrossEntropyLoss()
+        self.ce = ce
 
     def forward(self, x, y):
-        out = self.lm.model(input_ids=x, output_router_logits=True)
-        h = out.last_hidden_state
-        ce = self.ce(self.lm.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
-        return ce, M.load_balancing_loss_func(out.router_logits, self.experts, self.topk)
+        m = self.lm
+        router = []
+        handles = [layer.mlp.gate.register_forward_hook(lambda mod, args, out: router.append(out[0]))
+                   for layer in list(m.model.layers) + ([m.mtp["block"]] if m.mtp else [])]
+        try:
+            hs, kls = m.model.trunk(x)
+            h = m.model.norm(hs)
+            ce = self.ce(m.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
+            mtp_loss = ce.new_zeros(())
+            if m.mtp is not None:
+                target = torch.cat([y[:, 1:], torch.full_like(y[:, :1], -100)], 1)
+                target = target.masked_fill(y == m.config.eos_token_id, -100)
+                mh = m.mtp_hidden(hs, y)
+                if torch.any(target != -100):
+                    mtp_loss = self.ce(m.lm_head.weight, mh.reshape(-1, mh.size(-1)), target.reshape(-1))
+            kl = torch.stack(kls).mean() if kls else ce.new_zeros(())
+            aux = M.load_balancing_loss_func(tuple(router), self.experts, self.topk)
+            return ce, aux, mtp_loss, kl
+        finally:
+            for handle in handles:
+                handle.remove()
 
 
 def gdn_kernel():
@@ -240,7 +259,7 @@ def _autocast_grouped_mm(input, weight, offs):
 def install_fast_paths(model):
     """Training fast paths with the model's numerics up to BF16 rounding order (see tests/test_model.py):
     grouped_mm experts (no per-expert host syncs) in the autocast dtype, FLA's Triton causal conv1d and
-    grouped-value heads in Gated DeltaNet (shared with q35.inference), compiled RMSNorm / gated RMSNorm."""
+    grouped-value heads in Gated DeltaNet (shared with q38.inference), compiled RMSNorm / gated RMSNorm."""
     import types
     import transformers.integrations.moe as moe
     from .inference import _gdn_prefill_forward, compile_inference_norms
@@ -249,7 +268,7 @@ def install_fast_paths(model):
     model.set_experts_implementation("grouped_mm")
     gdn = 0
     for module in model.modules():
-        if isinstance(module, M.Qwen3_5MoeGatedDeltaNet):
+        if isinstance(module, M.Qwen3_8MoeGatedDeltaNet):
             module._reference_forward = module.forward
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
@@ -282,9 +301,9 @@ def probe_micro_bs(lm, model, train_data, a, dev, world, ddp, log0):
             for _ in range(2):   # the second pass accumulates into existing gradients, as in training
                 x, y = sample_batch(prng, train_data, m, a.seq, dev)
                 with torch.autocast("cuda", dtype=torch.bfloat16):
-                    ce, aux = lm(x, y)
-                (ce + a.aux_coef * aux).backward()
-                del x, y, ce, aux
+                    ce, aux, mtp_loss, kl = lm(x, y)
+                (ce + a.aux_coef * aux + a.mtp_coef * mtp_loss + a.kl_coef * kl).backward()
+                del x, y, ce, aux, mtp_loss, kl
             torch.cuda.synchronize(dev)
             peak = torch.cuda.max_memory_allocated(dev)
         except torch.cuda.OutOfMemoryError:
@@ -373,13 +392,13 @@ def main(argv=None):
     # Tokenizer, data and budget were validated before allocating the GPU model.
     tok_sha = tokenizer_sha256(a.tokenizer)
     log0(f"Tokenizer: {a.tokenizer}, vocab={len(tok)}, bos={tok.bos_token_id}, eos={tok.eos_token_id}, pad={tok.pad_token_id}")
-    model = Qwen3_5MoeForCausalLM(cfg).to(dev, dtype=torch.float32)
+    model = Qwen3_8MoeForCausalLM(cfg).to(dev, dtype=torch.float32)
     log0("Model source:", M.__file__)
     assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "embeddings are not tied"
     log0("GDN kernel:", gdn_kernel())
     log0("Fast paths:", install_fast_paths(model))
     n_all = sum(p.numel() for p in model.parameters()); n_total_nv = n_all - model.get_input_embeddings().weight.numel()
-    n_active_nv = n_total_nv - a.layers * (a.experts - a.topk) * 3 * a.hidden * a.moe_ffn
+    n_active_nv = fc["active_nonvocab_params"]
     flops_per_token = fc["train_flops_per_token"]
     assert (fc["total_nonvocab_params"], fc["active_nonvocab_params"]) == (n_total_nv, n_active_nv), "flops.py param count drifted from the model"
     log0(f"层型 {cfg.layer_types}\n参数 总={n_all/1e6:.2f}M 非词表 总={n_total_nv/1e6:.2f}M 激活={n_active_nv/1e6:.3f}M (每 token) | "
@@ -414,10 +433,8 @@ def main(argv=None):
 
     if ddp:
         lm = torch.nn.parallel.DistributedDataParallel(lm, device_ids=[local_rank], find_unused_parameters=True)
-    decay = [p for p in model.parameters() if p.dim() >= 2]
-    no_decay = [p for p in model.parameters() if p.dim() < 2]
-    opt = torch.optim.AdamW([{"params": decay, "weight_decay": a.wd}, {"params": no_decay, "weight_decay": 0.0}],
-                            lr=a.lr, betas=(0.9, 0.95), eps=1e-8, fused=True)
+    from .muon import HybridOptimizer
+    opt = HybridOptimizer(model, lr=a.lr, weight_decay=a.wd, muon=bool(a.muon))
     lr_at = lr_schedule(a, steps)
 
     ckpt_path = f"{a.run_dir}/ckpt.pt"; resuming = a.resume and os.path.exists(ckpt_path)
@@ -483,22 +500,24 @@ def main(argv=None):
 
     log0(f"steps {steps} accum {accum} micro_bs {a.micro_bs} warmup {a.warmup} lr {a.lr}")
     for step in range(start_step, stop_step):
+        model.model.qsa_dense = bool(a.dense_warmup and step < a.warmup)
         for g in opt.param_groups: g["lr"] = lr_at(step)
-        loss_acc = aux_acc = 0.0
+        loss_acc = aux_acc = mtp_acc = kl_acc = 0.0
         for mi in range(accum):
             offsets = sampler.micro_offsets(step, mi, rank, world, a.micro_bs, a.batch_tokens) if sampler else None
             x, y = sample_batch(rng, train_data, a.micro_bs, a.seq, dev, offsets=offsets)
             sync = lm.no_sync() if (ddp and mi < accum - 1) else contextlib.nullcontext()
             with sync, torch.autocast("cuda", dtype=torch.bfloat16):
-                ce, aux = lm(x, y)
-                loss = (ce + a.aux_coef * aux) / accum
+                ce, aux, mtp_loss, kl = lm(x, y)
+                loss = (ce + a.aux_coef * aux + a.mtp_coef * mtp_loss + a.kl_coef * kl) / accum
             loss.backward(); loss_acc += ce.item() / accum; aux_acc += float(aux) / accum
+            mtp_acc += float(mtp_loss.detach()) / accum; kl_acc += float(kl.detach()) / accum
         gn = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip).item()
         opt.step(); opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
         if ddp:
             la = torch.tensor(loss_acc, device=dev); dist.all_reduce(la); loss_acc = la.item() / world
         if tb:
-            for k, v in (("loss", loss_acc), ("aux", aux_acc), ("lr", lr_at(step)), ("grad_norm", gn), ("tokens", tok_seen)):
+            for k, v in (("loss", loss_acc), ("aux", aux_acc), ("mtp_loss", mtp_acc), ("indexer_kl", kl_acc), ("lr", lr_at(step)), ("grad_norm", gn), ("tokens", tok_seen)):
                 tb.add_scalar(f"train/{k}", v, step)
         if a.ckpt_every and step > 0 and step % a.ckpt_every == 0: save_ckpt(step)
         if (step % a.log_every == 0 or step == stop_step - 1) and rank == 0:
@@ -506,7 +525,7 @@ def main(argv=None):
             vl = evaluate(model, eval_data, a.seq, dev, a.eval_sampling) if (step % a.eval_every == 0 and step > 0) or step == stop_step - 1 else ""
             metrics.writerow([step, tok_seen, f"{loss_acc:.8f}", f"{aux_acc:.8f}", f"{lr_at(step):.8e}", f"{gn:.6f}", f"{tps:.0f}",
                               f"{now-t0:.3f}", f"{vl:.8f}" if vl != "" else "", n_active_nv, n_total_nv])
-            print(f"step {step}/{steps} tok {tok_seen/1e6:.0f}M loss {loss_acc:.4f} aux {aux_acc:.3f} lr {lr_at(step):.2e} gn {gn:.2f} "
+            print(f"step {step}/{steps} tok {tok_seen/1e6:.0f}M loss {loss_acc:.4f} mtp {mtp_acc:.3f} kl {kl_acc:.4f} aux {aux_acc:.3f} lr {lr_at(step):.2e} gn {gn:.2f} "
                   f"{tps:.0f} tok/s {(now-t0)/60:.1f}min mem {torch.cuda.max_memory_allocated(dev)/2**30:.1f}G"
                   + (f" | val {vl:.4f}" if vl != "" else ""), flush=True)
             if tb:

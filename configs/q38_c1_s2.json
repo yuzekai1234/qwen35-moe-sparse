@@ -1,0 +1,38 @@
+{
+  "compute": 3e+17,
+  "model": {
+    "layers": 8,
+    "hidden": 192,
+    "heads": 8,
+    "kv_heads": 2,
+    "head_dim": 64,
+    "lin_k_heads": 2,
+    "lin_v_heads": 6,
+    "lin_head_dim": 64,
+    "experts": 256,
+    "topk": 5,
+    "moe_ffn": 48,
+    "shared_ffn": 48,
+    "layer_types": "",
+    "aux_coef": 0.001,
+    "rope_theta": 10000000.0,
+    "partial_rotary": 0.25,
+    "experts_impl": "eager",
+    "n_branch": 4,
+    "mhc_iters": 20,
+    "qsa_blocks": 8,
+    "indexer_heads": 4,
+    "indexer_head_dim": 64,
+    "ngram_rows": -1,
+    "mtp": 1
+  },
+  "train": {
+    "lr": 0.004,
+    "micro_bs": 8,
+    "experts_impl": "grouped_mm",
+    "seq": 2048,
+    "mtp_coef": 0.3,
+    "kl_coef": 0.05,
+    "muon": 1
+  }
+}

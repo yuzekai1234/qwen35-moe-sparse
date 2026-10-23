@@ -1,10 +1,10 @@
 """Single-node, multi-GPU Transformers evaluation: JSONL -> packing -> bpb/EvalTime.
 
-torchrun --standalone --nproc_per_node=<gpus> -m q35.evaluate --dataset-path <eval.jsonl> --model-path runs/<run>/hf
+torchrun --standalone --nproc_per_node=<gpus> -m q38.evaluate --dataset-path <eval.jsonl> --model-path runs/<run>/hf
 (scripts/eval.sh wraps this.)  Imports the repository model implementation, not the exported remote code.
 
 BF16 and SDPA are example choices; adapt them for the submitted model.
-Forward-only fast paths from q35.inference (Triton experts, FLA GatedDeltaNet prefill,
+Forward-only fast paths from q38.inference (Triton experts, FLA GatedDeltaNet prefill,
 compiled norms) are always installed; their compilation happens during warmup.
 Warms each batch shape five times before one complete evaluation.
 EvalTime counts only forward (including the vocabulary projection), in
@@ -74,19 +74,11 @@ def packed_batch(tokens, is_text, start, stop, sequence_length, pad_token_id):
 def active_parameter_count(model):
     """Count N_a excluding input/output vocabulary parameters.
 
-    q35 修改: Qwen3.5-MoE 每 token 每层恰好激活 top-k 个路由专家(静态 top-k, 无丢弃/无动态深度),
+    q38 修改: Qwen3.8-MoE 每 token 每层恰好激活 top-k 个路由专家(静态 top-k, 无丢弃/无动态深度),
     按路由统计的平均激活参数 = 非词表总参数 - 每层 (num_experts - top_k) 个专家参数, 与实际路由平均严格相等。
     """
-    excluded = set()
-    for module in (model.get_input_embeddings(), model.get_output_embeddings()):
-        if module is not None:
-            excluded.update(id(p) for p in module.parameters())
-    total = sum(p.numel() for p in model.parameters() if id(p) not in excluded)
-    c = model.config
-    E = getattr(c, "num_experts", None) or 0
-    if E > 1:
-        total -= c.num_hidden_layers * (E - c.num_experts_per_tok) * 3 * c.hidden_size * c.moe_intermediate_size
-    return total
+    from .flops import count
+    return count(model.config.to_dict(), 2048)["active_nonvocab_params"]
 
 
 def parse_args():
@@ -94,7 +86,7 @@ def parse_args():
     parser.add_argument("--dataset-path", type=Path, required=True, help="JSONL with a text field")
     parser.add_argument("--model-path", required=True, help="Local Transformers checkpoint")
     parser.add_argument("--batch-size", type=int, default=1, help="Sequences per GPU")
-    parser.add_argument("--sequence-length", type=int, default=8192)
+    parser.add_argument("--sequence-length", type=int, default=2048)
     parser.add_argument("--output", type=Path, default=Path("result.json"))
     parser.add_argument("--profile-dir", type=Path, help="Export a short forward-only CPU/CUDA trace before evaluation")
     parser.add_argument("--profile-only", action="store_true", help="Stop after profiling; do not compute bpb/EvalTime")
@@ -157,7 +149,7 @@ def main():
     import torch.nn.functional as F
     from transformers import PreTrainedTokenizerFast, set_seed
     from .inference import optimize_for_inference
-    from .models.qwen3_5_moe import Qwen3_5MoeTextConfig, Qwen3_5MoeForCausalLM
+    from .models.qwen3_8_moe import Qwen3_8MoeTextConfig, Qwen3_8MoeForCausalLM
 
     rank = int(os.environ["LOCAL_RANK"])
     device = torch.device("cuda", rank)
@@ -172,7 +164,7 @@ def main():
     if rank == 0:
         temporary = tempfile.TemporaryDirectory(prefix=".eval-", dir=args.output.parent)
         cache_dir = Path(temporary.name).resolve()
-        # q35 修改: AutoTokenizer 会对 Qwen3.5 类模型强制换成 Qwen3_5Tokenizer, 用 Qwen 的预分词正则+NFC 覆盖
+        # q38 修改: AutoTokenizer 会对 Qwen3.8 类模型强制换成 Qwen3_8Tokenizer, 用 Qwen 的预分词正则+NFC 覆盖
         # tokenizer.json 自带的预分词, 切出的 token 与训练数据不同(EXAONE 上多约 14%), bpb 虚高。这里按 tokenizer.json 原样加载。
         tokenizer = PreTrainedTokenizerFast.from_pretrained(args.model_path, local_files_only=True)
         metadata = pack_jsonl(args.dataset_path, tokenizer, cache_dir)
@@ -186,10 +178,10 @@ def main():
     global_batch_size = args.batch_size * dist.get_world_size()
     num_steps = math.ceil(num_sequences / global_batch_size)
 
-    config = Qwen3_5MoeTextConfig.from_pretrained(args.model_path, local_files_only=True)
+    config = Qwen3_8MoeTextConfig.from_pretrained(args.model_path, local_files_only=True)
     config = config.get_text_config()
     # Example precision and attention implementation; teams may change both.
-    model, loading_info = Qwen3_5MoeForCausalLM.from_pretrained(
+    model, loading_info = Qwen3_8MoeForCausalLM.from_pretrained(
         args.model_path, config=config, dtype=torch.bfloat16, attn_implementation="sdpa",
         local_files_only=True, output_loading_info=True,
     )
