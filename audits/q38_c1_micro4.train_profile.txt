@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                                              aten::bmm         1.42%       6.506ms         2.27%      10.400ms      24.469us      62.397ms        16.03%      69.500ms     163.528us           425
+                                            aten::copy_         1.27%       5.817ms        25.73%     117.897ms     112.604us      60.527ms        15.55%      60.527ms      57.810us          1047
+                                               aten::mm         4.25%      19.450ms         6.54%      29.961ms      32.744us      36.316ms         9.33%      37.331ms      40.799us           915
+                               Optimizer.step#Muon.step         0.00%       0.000us         0.00%       0.000us       0.000us      27.453ms         7.05%      27.453ms      27.453ms             1
+                                              aten::mul         0.76%       3.479ms         2.08%       9.544ms      28.574us      24.141ms         6.20%      24.141ms      72.278us           334
+void at::native::unrolled_elementwise_kernel<at::nat...         0.00%       0.000us         0.00%       0.000us       0.000us      22.018ms         5.66%      22.018ms      61.503us           358
+                         Memcpy DtoD (Device -> Device)         0.00%       0.000us         0.00%       0.000us       0.000us      18.347ms         4.71%      18.347ms     173.083us           106
+                                              aten::sum         0.54%       2.485ms         2.58%      11.826ms      71.240us      17.262ms         4.44%      17.285ms     104.124us           166
+                                         aten::_softmax         0.10%     450.389us         0.14%     661.404us      12.719us      14.342ms         3.69%      14.342ms     275.803us            52
+                                     aten::masked_fill_         0.06%     275.917us         0.11%     514.730us      13.198us      14.278ms         3.67%      14.278ms     366.113us            39
+void at::native::(anonymous namespace)::cunn_SoftMax...         0.00%       0.000us         0.00%       0.000us       0.000us      14.219ms         3.65%      14.219ms     444.347us            32
+void at::native::elementwise_kernel<128, 2, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us      12.886ms         3.31%      12.886ms     402.673us            32
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us      12.834ms         3.30%      12.834ms     213.898us            60
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us      12.544ms         3.22%      12.544ms     261.336us            48
+                    ChunkGatedDeltaRuleFunctionBackward         2.09%       9.573ms         3.29%      15.091ms       1.886ms      11.585ms         2.98%      13.651ms       1.706ms             8
+                                             aten::add_         0.26%       1.184ms         0.46%       2.125ms      11.182us      11.415ms         2.93%      11.415ms      60.078us           190
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us      11.111ms         2.85%      11.111ms      67.340us           165
+                                 aten::_index_put_impl_         0.25%       1.127ms         2.25%      10.330ms     313.029us      10.644ms         2.73%      11.055ms     334.988us            33
+void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_...         0.00%       0.000us         0.00%       0.000us       0.000us      10.348ms         2.66%      10.348ms     449.925us            23
+void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_...         0.00%       0.000us         0.00%       0.000us       0.000us      10.173ms         2.61%      10.173ms     565.148us            18
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+Self CPU time total: 458.120ms
+Self CUDA time total: 389.193ms

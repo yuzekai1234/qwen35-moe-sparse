@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                               Optimizer.step#Muon.step         0.00%       0.000us         0.00%       0.000us       0.000us      33.812ms        86.19%      33.812ms      33.812ms             1
+                                               aten::mm         9.08%      19.148ms        14.06%      29.667ms      28.581us       7.297ms        18.60%       7.840ms       7.553us          1038
+                                            aten::copy_         2.72%       5.742ms         5.69%      12.010ms      11.049us       4.864ms        12.40%       4.864ms       4.475us          1087
+                                              aten::bmm         3.57%       7.534ms         5.26%      11.088ms      38.498us       4.368ms        11.13%       4.556ms      15.820us           288
+void at::native::unrolled_elementwise_kernel<at::nat...         0.00%       0.000us         0.00%       0.000us       0.000us       2.400ms         6.12%       2.400ms       6.839us           351
+                  triton_red_fused_linalg_vector_norm_0         0.07%     144.139us         0.12%     250.193us      41.699us       2.272ms         5.79%       2.272ms     378.645us             6
+                  triton_red_fused_linalg_vector_norm_0         0.00%       0.000us         0.00%       0.000us       0.000us       2.272ms         5.79%       2.272ms     378.645us             6
+                              Optimizer.step#AdamW.step         0.00%       0.000us         0.00%       0.000us       0.000us       1.478ms         3.77%       1.478ms       1.478ms             1
+                    ChunkGatedDeltaRuleFunctionBackward         2.36%       4.989ms         2.96%       6.251ms       1.563ms       1.250ms         3.19%       1.410ms     352.608us             4
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       1.207ms         3.08%       1.207ms       3.071us           393
+void gemmk1_kernel<int, float, 256, 5, false, false,...         0.00%       0.000us         0.00%       0.000us       0.000us       1.108ms         2.82%       1.108ms      69.230us            16
+                                              aten::sum         0.64%       1.357ms         0.97%       2.056ms      23.100us       1.086ms         2.77%       1.102ms      12.387us            89
+                                             aten::add_         0.65%       1.361ms         1.08%       2.285ms      10.831us       1.060ms         2.70%       1.060ms       5.024us           211
+                                              aten::mul         1.00%       2.103ms         1.54%       3.254ms      17.781us       1.053ms         2.68%       1.053ms       5.755us           183
+void at_cuda_detail::cub::DeviceRadixSortOnesweepKer...         0.00%       0.000us         0.00%       0.000us       0.000us       1.028ms         2.62%       1.028ms      10.075us           102
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       1.002ms         2.56%       1.002ms       5.089us           197
+                   LigerFusedLinearCrossEntropyFunction         7.99%      16.848ms        19.48%      41.093ms      20.546ms     944.192us         2.41%       6.688ms       3.344ms             2
+                             liger_cross_entropy_kernel         0.00%       0.000us         0.00%       0.000us       0.000us     944.192us         2.41%     944.192us       7.376us           128
+                        ampere_sgemm_32x32_sliced1x4_nt         0.00%       0.000us         0.00%       0.000us       0.000us     909.471us         2.32%     909.471us     113.684us             8
+ampere_bf16_s16816gemm_bf16_128x64_ldg8_f2f_stages_3...         0.00%       0.000us         0.00%       0.000us       0.000us     881.498us         2.25%     881.498us       6.628us           133
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+Self CPU time total: 210.985ms
+Self CUDA time total: 39.231ms

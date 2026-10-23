@@ -1,0 +1,26 @@
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+                               Optimizer.step#Muon.step         0.00%       0.000us         0.00%       0.000us       0.000us      41.403ms        27.87%      41.403ms      41.403ms             1
+                                              aten::bmm         2.70%       8.111ms         4.16%      12.506ms      29.425us      24.302ms        16.36%      27.911ms      65.673us           425
+                                            aten::copy_         2.07%       6.208ms         7.51%      22.555ms      21.584us      22.511ms        15.15%      22.511ms      21.542us          1045
+                                               aten::mm         6.35%      19.071ms         9.01%      27.076ms      29.591us      14.445ms         9.72%      14.871ms      16.252us           915
+void at::native::unrolled_elementwise_kernel<at::nat...         0.00%       0.000us         0.00%       0.000us       0.000us       8.554ms         5.76%       8.554ms      23.894us           358
+                                              aten::mul         1.19%       3.582ms         1.83%       5.489ms      16.434us       7.037ms         4.74%       7.037ms      21.069us           334
+                         Memcpy DtoD (Device -> Device)         0.00%       0.000us         0.00%       0.000us       0.000us       5.328ms         3.59%       5.328ms      50.262us           106
+                                              aten::sum         0.82%       2.453ms         1.20%       3.596ms      21.664us       5.162ms         3.47%       5.182ms      31.218us           166
+                               triton_tem_fused_zeros_1         0.01%      39.318us         0.02%      49.077us      24.538us       4.631ms         3.12%       4.631ms       2.315ms             2
+                               triton_tem_fused_zeros_1         0.00%       0.000us         0.00%       0.000us       0.000us       4.631ms         3.12%       4.631ms       2.315ms             2
+void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us       4.395ms         2.96%       4.395ms      12.310us           357
+                    ChunkGatedDeltaRuleFunctionBackward         3.20%       9.619ms         4.05%      12.175ms       1.522ms       4.180ms         2.81%       4.805ms     600.619us             8
+                              Optimizer.step#AdamW.step         0.00%       0.000us         0.00%       0.000us       0.000us       4.044ms         2.72%       4.044ms       4.044ms             1
+                                         aten::_softmax         0.15%     454.907us         0.23%     679.438us      13.066us       3.818ms         2.57%       3.818ms      73.418us            52
+void at::native::(anonymous namespace)::cunn_SoftMax...         0.00%       0.000us         0.00%       0.000us       0.000us       3.749ms         2.52%       3.749ms     117.167us            32
+                                     aten::masked_fill_         0.09%     271.749us         0.17%     517.554us      13.271us       3.593ms         2.42%       3.593ms      92.125us            39
+void at::native::reduce_kernel<512, 1, at::native::R...         0.00%       0.000us         0.00%       0.000us       0.000us       3.492ms         2.35%       3.492ms      58.199us            60
+                                             aten::add_         0.41%       1.228ms         0.69%       2.065ms      10.868us       3.354ms         2.26%       3.354ms      17.651us           190
+void at::native::elementwise_kernel<128, 2, at::nati...         0.00%       0.000us         0.00%       0.000us       0.000us       3.327ms         2.24%       3.327ms     103.956us            32
+                                 aten::_index_put_impl_         0.38%       1.147ms         1.62%       4.857ms     147.182us       3.264ms         2.20%       3.626ms     109.891us            33
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------
+Self CPU time total: 300.392ms
+Self CUDA time total: 148.555ms

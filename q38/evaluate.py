@@ -78,7 +78,7 @@ def active_parameter_count(model):
     按路由统计的平均激活参数 = 非词表总参数 - 每层 (num_experts - top_k) 个专家参数, 与实际路由平均严格相等。
     """
     from .flops import count
-    return count(model.config.to_dict(), 2048)["active_nonvocab_params"]
+    return count(model.config.to_dict(), 4096)["active_nonvocab_params"]
 
 
 def parse_args():
@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument("--dataset-path", type=Path, required=True, help="JSONL with a text field")
     parser.add_argument("--model-path", required=True, help="Local Transformers checkpoint")
     parser.add_argument("--batch-size", type=int, default=1, help="Sequences per GPU")
-    parser.add_argument("--sequence-length", type=int, default=2048)
+    parser.add_argument("--sequence-length", type=int, default=4096)
     parser.add_argument("--output", type=Path, default=Path("result.json"))
     parser.add_argument("--profile-dir", type=Path, help="Export a short forward-only CPU/CUDA trace before evaluation")
     parser.add_argument("--profile-only", action="store_true", help="Stop after profiling; do not compute bpb/EvalTime")

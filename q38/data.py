@@ -1,12 +1,12 @@
 """Token corpora: little-endian uint32 token files with EOS between documents (any vocabulary size).
 
-默认训练 / 验证语料是共享目录里用 gzy 50K 词表分好的语料 (DEFAULT_DATA / DEFAULT_VAL_DATA), 无需本地准备;
+默认训练 / 验证语料是共享目录里用 gzy 10K 词表分好的语料 (DEFAULT_DATA / DEFAULT_VAL_DATA), 无需本地准备;
 下面的 corpus 命令用于为其他词表或抽样规则自行准备语料。
-python -m q38.data corpus --out data/corpus_gzy50k [--data_dir /home/shared/data --every 12 --sub 6 --workers 8]
+python -m q38.data corpus --out data/corpus_gzy10k [--data_dir /home/shared/data --every 12 --sub 6 --workers 8]
     从 8 个官方训练分片均匀抽取 1/every 文档 -> 分词 -> 每个子任务各写一个 .bin -> 按随机顺序拼成 train.bin，
     第一块切出 val.bin。分片可以是 dolma3_mix_50B-*.jsonl.zst 或 .jsonl。--every 12 ≈ 1/12 文档；--every 1 为全量。
     子任务结果落盘而不是经进程间管道传回（大对象经管道会把 Pool 弄死），已完成的分片可续跑。
-python -m q38.data sample --out data/smoke_gzy50k/train.bin [--tokens 262144]
+python -m q38.data sample --out data/smoke_gzy10k/train.bin [--tokens 262144]
     从一个训练分片开头取少量 token 供 smoke 测试；不读取官方评测数据。
 """
 import argparse
@@ -23,10 +23,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 TOKEN_DTYPE = np.dtype("<u4")
-DEFAULT_TOKENIZER = ROOT / "tokenizer/gzy_50k"
-SHARED_CACHE = Path("/home/shared/llm_pt_ablation/cache")
-DEFAULT_DATA = SHARED_CACHE / "ling-no-mtp-c1-global-pruned50k-scale-isoflops-v1/train.bin"
-DEFAULT_VAL_DATA = SHARED_CACHE / "ling-no-mtp-c1-holdout-pruned50k-scale-isoflops-v1/valid.bin"
+DEFAULT_TOKENIZER = ROOT / "tokenizer/gzy_10k"
+SHARED_CACHE = Path("/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1")
+DEFAULT_DATA = SHARED_CACHE / "train.bin"
+DEFAULT_VAL_DATA = SHARED_CACHE / "valid.bin"
 CHUNK_CHARS = 100_000   # 超长文档按 10 万字符切块再分词(内容不变; HF 分词器对单篇数 MB 文本极慢)
 
 

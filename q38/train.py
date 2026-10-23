@@ -9,7 +9,7 @@
 --micro_bs 是每卡 micro batch, 超过每卡序列数 batch_tokens/(seq×卡数) 时取后者。
 --auto_micro_bs 1: 训练前从 --micro_bs 往小探测能放下的最大 micro batch (显存占用 ≤ --probe_mem_frac),
 结果缓存到 run_dir/micro_bs_probe.json, 卡型/卡数/模型不变时续训直接复用。
-默认数据: 共享 gzy 50K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
+默认数据: 共享 gzy 10K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
 --val_data "" 时改为从 train.bin 末尾留出 --eval_tokens。
 输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, tb/ (TensorBoard, --tensorboard 0 关闭),
 run_config.json, summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
@@ -38,7 +38,7 @@ from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_trai
 from .sampling import ShuffledBlockSampler, sequential_windows
 
 TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_VAL_DATA), tokenizer=str(DEFAULT_TOKENIZER),
-                      seq=2048, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
+                      seq=4096, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
                       warmup=0, wd=0.1, clip=1.0, seed=0, log_every=10, eval_every=500, eval_tokens=2_000_000,
                       ckpt_every=200, resume=1, max_steps=0, tensorboard=1,
                       warmup_ratio=0.01, warmup_min=10, data_sampling="random", data_seed=-1,
@@ -201,6 +201,11 @@ def prepare_inputs(a, world=1):
     return tok, cfg, fc, train, dev, final, sampler, plan
 
 
+class _LinearCESum(torch.nn.Module):
+    def forward(self, weight, hidden, target):
+        return torch.nn.functional.cross_entropy(torch.nn.functional.linear(hidden, weight), target, reduction="sum")
+
+
 class LossModel(torch.nn.Module):
     """Fused-linear main/MTP CE, indexer KL and router balancing; DDP wraps all losses.
 
@@ -213,29 +218,39 @@ class LossModel(torch.nn.Module):
             ce = LigerFusedLinearCrossEntropyLoss()
         self.lm, self.experts, self.topk = lm, experts, topk
         self.ce = ce
+        self._router = []
+        self._router_hooks = [layer.mlp.gate.register_forward_hook(self._record_router)
+                              for layer in list(lm.model.layers) + ([lm.mtp["block"]] if lm.mtp else [])]
+        if lm.mtp is not None:
+            if type(ce).__name__ == "LigerFusedLinearCrossEntropyLoss":
+                from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+                self.mtp_ce = LigerFusedLinearCrossEntropyLoss(reduction="sum")
+            else:
+                self.mtp_ce = _LinearCESum()
+
+    def _record_router(self, module, args, output):
+        if self.training and torch.is_grad_enabled():
+            self._router.append(output[0])
 
     def forward(self, x, y):
         m = self.lm
-        router = []
-        handles = [layer.mlp.gate.register_forward_hook(lambda mod, args, out: router.append(out[0]))
-                   for layer in list(m.model.layers) + ([m.mtp["block"]] if m.mtp else [])]
-        try:
-            hs, kls = m.model.trunk(x)
-            h = m.model.norm(hs)
-            ce = self.ce(m.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
-            mtp_loss = ce.new_zeros(())
-            if m.mtp is not None:
-                target = torch.cat([y[:, 1:], torch.full_like(y[:, :1], -100)], 1)
-                target = target.masked_fill(y == m.config.eos_token_id, -100)
-                mh = m.mtp_hidden(hs, y)
-                if torch.any(target != -100):
-                    mtp_loss = self.ce(m.lm_head.weight, mh.reshape(-1, mh.size(-1)), target.reshape(-1))
-            kl = torch.stack(kls).mean() if kls else ce.new_zeros(())
-            aux = M.load_balancing_loss_func(tuple(router), self.experts, self.topk)
-            return ce, aux, mtp_loss, kl
-        finally:
-            for handle in handles:
-                handle.remove()
+        router = self._router
+        router.clear()
+        hs, kls = m.model.trunk(x)
+        h = m.model.norm(hs)
+        ce = self.ce(m.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
+        mtp_loss = ce.new_zeros(())
+        if m.mtp is not None:
+            target = torch.cat([y[:, 1:], torch.full_like(y[:, :1], -100)], 1)
+            target = target.masked_fill(y == m.config.eos_token_id, -100)
+            mh = m.mtp_hidden(hs, y)
+            # Sum / clamped count handles all-EOS batches without a GPU->CPU branch.
+            valid = (target != -100).sum()
+            mtp_loss = self.mtp_ce(m.lm_head.weight, mh.reshape(-1, mh.size(-1)), target.reshape(-1)) / valid.clamp_min(1)
+        kl = torch.stack(kls).mean() if kls else ce.new_zeros(())
+        aux = M.load_balancing_loss_func(tuple(router), self.experts, self.topk)
+        router.clear()
+        return ce, aux, mtp_loss, kl
 
 
 def gdn_kernel():
@@ -258,21 +273,28 @@ def _autocast_grouped_mm(input, weight, offs):
 
 def install_fast_paths(model):
     """Training fast paths with the model's numerics up to BF16 rounding order (see tests/test_model.py):
-    grouped_mm experts (no per-expert host syncs) in the autocast dtype, FLA's Triton causal conv1d and
+    native grouped_mm on supported GPUs, padded batched GEMMs on older A100 Torch, FLA causal conv1d and
     grouped-value heads in Gated DeltaNet (shared with q38.inference), compiled RMSNorm / gated RMSNorm."""
     import types
     import transformers.integrations.moe as moe
-    from .inference import _gdn_prefill_forward, compile_inference_norms
+    from .inference import _gdn_prefill_forward, compile_inference_norms, padded_batched_experts_forward
     if moe._grouped_mm is not _autocast_grouped_mm:
         _autocast_grouped_mm.original, moe._grouped_mm = moe._grouped_mm, _autocast_grouped_mm
-    model.set_experts_implementation("grouped_mm")
+    from transformers.integrations.moe import ALL_EXPERTS_FUNCTIONS
+    ALL_EXPERTS_FUNCTIONS.register("q38_batched_mm", padded_batched_experts_forward)
+    parameter = next(model.parameters())
+    native_grouped = parameter.is_cuda and (
+        torch.cuda.get_device_capability(parameter.device)[0] >= 9
+        or tuple(int(v) for v in torch.__version__.split("+")[0].split(".")[:2]) >= (2, 9))
+    implementation = "grouped_mm" if native_grouped or os.environ.get("Q38_GROUPED_BASELINE") == "1" else "q38_batched_mm"
+    model.set_experts_implementation(implementation)
     gdn = 0
     for module in model.modules():
         if isinstance(module, M.Qwen3_8MoeGatedDeltaNet):
             module._reference_forward = module.forward
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
-    return dict(experts="grouped_mm(autocast)", gated_deltanet=gdn, norms=compile_inference_norms(model))
+    return dict(experts=implementation, gated_deltanet=gdn, norms=compile_inference_norms(model))
 
 
 def sample_batch(rng, src, bs, seq, dev, offsets=None):
@@ -461,7 +483,7 @@ def main(argv=None):
                    "config": cfg.to_dict()}, open(f"{a.run_dir}/run_config.json", "w"), indent=1, ensure_ascii=False)
     metrics = csv.writer(open(f"{a.run_dir}/training_metrics.csv", "a" if resuming else "w", newline="")) if rank == 0 else None
     if metrics and not resuming:
-        metrics.writerow(["step", "tokens", "loss", "aux", "lr", "grad_norm", "tok_per_s", "elapsed_s", "val_loss", "active_nonvocab", "total_nonvocab"])
+        metrics.writerow(["step", "tokens", "loss", "aux", "lr", "grad_norm", "tok_per_s", "elapsed_s", "val_loss", "active_nonvocab", "total_nonvocab", "mtp_loss", "indexer_kl"])
 
     model.train(); t0 = time.time(); t_last = t0; tok_seen = 0; start_step = 0
     if resuming:
@@ -502,7 +524,7 @@ def main(argv=None):
     for step in range(start_step, stop_step):
         model.model.qsa_dense = bool(a.dense_warmup and step < a.warmup)
         for g in opt.param_groups: g["lr"] = lr_at(step)
-        loss_acc = aux_acc = mtp_acc = kl_acc = 0.0
+        totals = torch.zeros(4, dtype=torch.float32, device=dev)
         for mi in range(accum):
             offsets = sampler.micro_offsets(step, mi, rank, world, a.micro_bs, a.batch_tokens) if sampler else None
             x, y = sample_batch(rng, train_data, a.micro_bs, a.seq, dev, offsets=offsets)
@@ -510,12 +532,15 @@ def main(argv=None):
             with sync, torch.autocast("cuda", dtype=torch.bfloat16):
                 ce, aux, mtp_loss, kl = lm(x, y)
                 loss = (ce + a.aux_coef * aux + a.mtp_coef * mtp_loss + a.kl_coef * kl) / accum
-            loss.backward(); loss_acc += ce.item() / accum; aux_acc += float(aux) / accum
-            mtp_acc += float(mtp_loss.detach()) / accum; kl_acc += float(kl.detach()) / accum
-        gn = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip).item()
+            loss.backward()
+            totals += torch.stack([ce.detach(), torch.as_tensor(aux, device=dev).detach(),
+                                   mtp_loss.detach(), kl.detach()]).float() / accum
+        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip)
         opt.step(); opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
         if ddp:
-            la = torch.tensor(loss_acc, device=dev); dist.all_reduce(la); loss_acc = la.item() / world
+            dist.all_reduce(totals); totals /= world
+        # One host transfer per optimizer step, rather than four synchronizations per micro batch.
+        loss_acc, aux_acc, mtp_acc, kl_acc, gn = torch.cat([totals, grad_norm.detach().reshape(1)]).tolist()
         if tb:
             for k, v in (("loss", loss_acc), ("aux", aux_acc), ("mtp_loss", mtp_acc), ("indexer_kl", kl_acc), ("lr", lr_at(step)), ("grad_norm", gn), ("tokens", tok_seen)):
                 tb.add_scalar(f"train/{k}", v, step)
@@ -524,7 +549,8 @@ def main(argv=None):
             now = time.time(); tps = min(a.log_every, step - start_step + 1) * accum * per_micro / max(1e-6, now - t_last); t_last = now
             vl = evaluate(model, eval_data, a.seq, dev, a.eval_sampling) if (step % a.eval_every == 0 and step > 0) or step == stop_step - 1 else ""
             metrics.writerow([step, tok_seen, f"{loss_acc:.8f}", f"{aux_acc:.8f}", f"{lr_at(step):.8e}", f"{gn:.6f}", f"{tps:.0f}",
-                              f"{now-t0:.3f}", f"{vl:.8f}" if vl != "" else "", n_active_nv, n_total_nv])
+                              f"{now-t0:.3f}", f"{vl:.8f}" if vl != "" else "", n_active_nv, n_total_nv,
+                              f"{mtp_acc:.8f}", f"{kl_acc:.8f}"])
             print(f"step {step}/{steps} tok {tok_seen/1e6:.0f}M loss {loss_acc:.4f} mtp {mtp_acc:.3f} kl {kl_acc:.4f} aux {aux_acc:.3f} lr {lr_at(step):.2e} gn {gn:.2f} "
                   f"{tps:.0f} tok/s {(now-t0)/60:.1f}min mem {torch.cuda.max_memory_allocated(dev)/2**30:.1f}G"
                   + (f" | val {vl:.4f}" if vl != "" else ""), flush=True)
@@ -533,6 +559,8 @@ def main(argv=None):
                 tb.add_scalar("perf/max_mem_gib", torch.cuda.max_memory_allocated(dev) / 2**30, step)
                 if vl != "": tb.add_scalar("val/loss", vl, step)
                 tb.flush()
+            # Validation latency belongs to evaluation, not the next training throughput interval.
+            t_last = time.time()
 
     # Every rank participates; save FP32 master weights before the BF16 export.
     if stop_step > start_step: save_ckpt(stop_step - 1)

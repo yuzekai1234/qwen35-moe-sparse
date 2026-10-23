@@ -218,3 +218,32 @@ def optimize_for_inference(model):
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
     return dict(experts=model.config._experts_implementation, gated_deltanet=gdn, norms=compile_inference_norms(model))
+
+
+def padded_batched_experts_forward(self, hidden_states, top_k_index, top_k_weights):
+    """Differentiable tensor-core expert GEMMs on SM80 with older Torch.
+
+    Torch <=2.8's grouped_mm is Hopper-only and otherwise launches one GEMM per
+    expert. Pack exact routed rows into a padded batch instead. Capacity is the
+    actual maximum expert load, rounded to 16; no token is dropped or rerouted.
+    The one scalar read per layer replaces the grouped fallback's forward and
+    backward host offset reads and hundreds of tiny GEMM launches.
+    """
+    tokens, hidden = hidden_states.shape
+    top_k = top_k_index.shape[1]
+    ids = top_k_index.reshape(-1)
+    sorted_ids, permutation = torch.sort(ids, stable=True)
+    counts = torch.bincount(ids, minlength=self.num_experts)
+    capacity = ((int(counts.max()) + 15) // 16) * 16
+    starts = counts.cumsum(0) - counts
+    local = torch.arange(ids.numel(), device=ids.device) - starts[sorted_ids]
+    padded_rows = sorted_ids * capacity + local
+    rows = hidden_states[permutation // top_k]
+    padded = hidden_states.new_zeros(self.num_experts * capacity, hidden)
+    padded = padded.index_copy(0, padded_rows, rows).view(self.num_experts, capacity, hidden)
+    gate, up = torch.bmm(padded, self.gate_up_proj.transpose(1, 2)).chunk(2, dim=-1)
+    activated = self.act_fn(gate) * up
+    raw = torch.bmm(activated, self.down_proj.transpose(1, 2))
+    routed = raw.reshape(-1, hidden)[padded_rows] * top_k_weights.reshape(-1)[permutation, None]
+    output = routed.new_zeros(ids.numel(), hidden).index_copy(0, permutation, routed)
+    return output.view(tokens, top_k, hidden).sum(1).to(hidden_states.dtype)

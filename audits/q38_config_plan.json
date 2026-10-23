@@ -1,0 +1,755 @@
+{
+  "pdf": {
+    "path": "2030以赛代评.pdf",
+    "sha256": "6780a0485ddc22b62bbdc5ef32496b1c9d04470393fc7e79b0ba545bc744e0ef",
+    "pages": {
+      "budgets_activation_same_architecture": 3,
+      "flops": 4,
+      "evaluation": 5,
+      "hardware": 6
+    },
+    "budgets": {
+      "c1": 300000000000000000,
+      "c2": 1000000000000000000,
+      "c3": 3000000000000000000,
+      "c4": 10000000000000000000
+    },
+    "activation_rule": "Na/N >= 10%; both exclude only input/output vocabulary parameters",
+    "requested_seq": 4096,
+    "batch_note": "4096 is sequence length per user clarification; global batch is separate."
+  },
+  "source_runs": [
+    {
+      "budget": "1e16",
+      "model": "h128_L4",
+      "compute": 9998715272036352,
+      "active_params": 1043416,
+      "train_tokens": 359923712,
+      "bpb": 1.3971651111487968,
+      "loss": 3.5392174927010505,
+      "source": "runs/1e16/h128_L4/summary.json",
+      "eval_source": "runs/1e16/h128_L4/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e16",
+      "model": "h192_L4",
+      "compute": 9998841101156352,
+      "active_params": 2304548,
+      "train_tokens": 216858624,
+      "bpb": 1.3731266767743737,
+      "loss": 3.477275279691345,
+      "source": "runs/1e16/h192_L4/summary.json",
+      "eval_source": "runs/1e16/h192_L4/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e16",
+      "model": "h256_L5",
+      "compute": 9998749296230400,
+      "active_params": 5099968,
+      "train_tokens": 134348800,
+      "bpb": 1.4801844887568818,
+      "loss": 3.749568059803783,
+      "source": "runs/1e16/h256_L5/summary.json",
+      "eval_source": "runs/1e16/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e16",
+      "model": "h320_L6",
+      "compute": 9993477811077120,
+      "active_params": 9546468,
+      "train_tokens": 88408064,
+      "bpb": 1.583124282835797,
+      "loss": 4.014424831623735,
+      "source": "runs/1e16/h320_L6/summary.json",
+      "eval_source": "runs/1e16/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e17",
+      "model": "h256_L5",
+      "compute": 99997247839666176,
+      "active_params": 5099968,
+      "train_tokens": 1343619072,
+      "bpb": 1.2065675275558712,
+      "loss": 3.0411486958315432,
+      "source": "runs/1e17/h256_L5/summary.json",
+      "eval_source": "runs/1e17/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e17",
+      "model": "h320_L6",
+      "compute": 99994042619658240,
+      "active_params": 9546468,
+      "train_tokens": 884604928,
+      "bpb": 1.2108720506697548,
+      "loss": 3.051015545190627,
+      "source": "runs/1e17/h320_L6/summary.json",
+      "eval_source": "runs/1e17/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e17",
+      "model": "h384_L8",
+      "compute": 99978217040904192,
+      "active_params": 18092176,
+      "train_tokens": 466354176,
+      "bpb": 1.2017006123906206,
+      "loss": 3.028930602340302,
+      "source": "runs/1e17/h384_L8/summary.json",
+      "eval_source": "runs/1e17/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e17",
+      "model": "h448_L9",
+      "compute": 99985518955069440,
+      "active_params": 27719556,
+      "train_tokens": 343408640,
+      "bpb": 1.2102189305896474,
+      "loss": 3.0513702924675576,
+      "source": "runs/1e17/h448_L9/summary.json",
+      "eval_source": "runs/1e17/h448_L9/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "1e17",
+      "model": "h512_L10",
+      "compute": 99966900070514688,
+      "active_params": 40387072,
+      "train_tokens": 258605056,
+      "bpb": 1.2343311685137015,
+      "loss": 3.114834510558455,
+      "source": "runs/1e17/h512_L10/summary.json",
+      "eval_source": "runs/1e17/h512_L10/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e16",
+      "model": "h192_L4",
+      "compute": 29999545014288384,
+      "active_params": 2304548,
+      "train_tokens": 650641408,
+      "bpb": 1.301538053736911,
+      "loss": 3.2884973406131603,
+      "source": "runs/3e16/h192_L4/summary.json",
+      "eval_source": "runs/3e16/h192_L4/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e16",
+      "model": "h256_L5",
+      "compute": 29996247888691200,
+      "active_params": 5099968,
+      "train_tokens": 403046400,
+      "bpb": 1.2780316894202635,
+      "loss": 3.2281063856042262,
+      "source": "runs/3e16/h256_L5/summary.json",
+      "eval_source": "runs/3e16/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e16",
+      "model": "h320_L6",
+      "compute": 29995249560453120,
+      "active_params": 9546468,
+      "train_tokens": 265355264,
+      "bpb": 1.33520737168224,
+      "loss": 3.3737708808538063,
+      "source": "runs/3e16/h320_L6/summary.json",
+      "eval_source": "runs/3e16/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e16",
+      "model": "h384_L8",
+      "compute": 29996275067781120,
+      "active_params": 18092176,
+      "train_tokens": 139919360,
+      "bpb": 1.3705837308081845,
+      "loss": 3.469623263783785,
+      "source": "runs/3e16/h384_L8/summary.json",
+      "eval_source": "runs/3e16/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h320_L6",
+      "compute": 299996943986196480,
+      "active_params": 9546468,
+      "train_tokens": 2653945856,
+      "bpb": 1.1238933183951343,
+      "loss": 2.826166321939812,
+      "source": "runs/3e17/h320_L6/summary.json",
+      "eval_source": "runs/3e17/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h384_L8",
+      "compute": 299990850232909824,
+      "active_params": 18092176,
+      "train_tokens": 1399324672,
+      "bpb": 1.1170717626827067,
+      "loss": 2.8083445237130413,
+      "source": "runs/3e17/h384_L8/summary.json",
+      "eval_source": "runs/3e17/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h448_L9",
+      "compute": 299994719277023232,
+      "active_params": 27719556,
+      "train_tokens": 1030356992,
+      "bpb": 1.112110885166078,
+      "loss": 2.7961497653625798,
+      "source": "runs/3e17/h448_L9/summary.json",
+      "eval_source": "runs/3e17/h448_L9/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h512_L10",
+      "compute": 299951367672299520,
+      "active_params": 40387072,
+      "train_tokens": 775946240,
+      "bpb": 1.1122246538708818,
+      "loss": 2.7963561063248203,
+      "source": "runs/3e17/h512_L10/summary.json",
+      "eval_source": "runs/3e17/h512_L10/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h576_L11",
+      "compute": 299956167902232576,
+      "active_params": 56231428,
+      "train_tokens": 598212608,
+      "bpb": 1.1244708483213668,
+      "loss": 2.82850320833374,
+      "source": "runs/3e17/h576_L11/summary.json",
+      "eval_source": "runs/3e17/h576_L11/eval_dolma3_mix_100M_a_seq8192.json"
+    },
+    {
+      "budget": "3e17",
+      "model": "h640_L12",
+      "compute": 299925263666380800,
+      "active_params": 75058600,
+      "train_tokens": 431226880,
+      "bpb": 1.149806281666211,
+      "loss": 2.8935759711233793,
+      "source": "runs/3e17/h640_L12/summary.json",
+      "eval_source": "runs/3e17/h640_L12/eval_dolma3_mix_100M_a_seq8192.json"
+    }
+  ],
+  "budget_fits": [
+    {
+      "budget": "1e16",
+      "compute": 9997445870125056.0,
+      "quadratic_coefficients": [
+        0.3626245919143226,
+        -4.509593418706566,
+        15.398855412584563
+      ],
+      "active_opt": 1651930.2965132874,
+      "tokens_opt": 269844806.08267707,
+      "bpb_opt": 1.378548147511884,
+      "inside_grid": true,
+      "residual_rmse": 0.010464575131018694,
+      "measured_best": {
+        "budget": "1e16",
+        "model": "h192_L4",
+        "compute": 9998841101156352,
+        "active_params": 2304548,
+        "train_tokens": 216858624,
+        "bpb": 1.3731266767743737,
+        "loss": 3.477275279691345,
+        "source": "runs/1e16/h192_L4/summary.json",
+        "eval_source": "runs/1e16/h192_L4/eval_dolma3_mix_100M_a_seq8192.json"
+      },
+      "points": [
+        {
+          "budget": "1e16",
+          "model": "h128_L4",
+          "compute": 9998715272036352,
+          "active_params": 1043416,
+          "train_tokens": 359923712,
+          "bpb": 1.3971651111487968,
+          "loss": 3.5392174927010505,
+          "source": "runs/1e16/h128_L4/summary.json",
+          "eval_source": "runs/1e16/h128_L4/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e16",
+          "model": "h192_L4",
+          "compute": 9998841101156352,
+          "active_params": 2304548,
+          "train_tokens": 216858624,
+          "bpb": 1.3731266767743737,
+          "loss": 3.477275279691345,
+          "source": "runs/1e16/h192_L4/summary.json",
+          "eval_source": "runs/1e16/h192_L4/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e16",
+          "model": "h256_L5",
+          "compute": 9998749296230400,
+          "active_params": 5099968,
+          "train_tokens": 134348800,
+          "bpb": 1.4801844887568818,
+          "loss": 3.749568059803783,
+          "source": "runs/1e16/h256_L5/summary.json",
+          "eval_source": "runs/1e16/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e16",
+          "model": "h320_L6",
+          "compute": 9993477811077120,
+          "active_params": 9546468,
+          "train_tokens": 88408064,
+          "bpb": 1.583124282835797,
+          "loss": 4.014424831623735,
+          "source": "runs/1e16/h320_L6/summary.json",
+          "eval_source": "runs/1e16/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+        }
+      ]
+    },
+    {
+      "budget": "3e16",
+      "compute": 2.9996829382803456e+16,
+      "quadratic_coefficients": [
+        0.1877895967513756,
+        -2.47025414412515,
+        9.412700658789264
+      ],
+      "active_opt": 3777337.720678971,
+      "tokens_opt": 500299066.80812144,
+      "bpb_opt": 1.2890404000071456,
+      "inside_grid": true,
+      "residual_rmse": 0.01109538609866454,
+      "measured_best": {
+        "budget": "3e16",
+        "model": "h256_L5",
+        "compute": 29996247888691200,
+        "active_params": 5099968,
+        "train_tokens": 403046400,
+        "bpb": 1.2780316894202635,
+        "loss": 3.2281063856042262,
+        "source": "runs/3e16/h256_L5/summary.json",
+        "eval_source": "runs/3e16/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+      },
+      "points": [
+        {
+          "budget": "3e16",
+          "model": "h192_L4",
+          "compute": 29999545014288384,
+          "active_params": 2304548,
+          "train_tokens": 650641408,
+          "bpb": 1.301538053736911,
+          "loss": 3.2884973406131603,
+          "source": "runs/3e16/h192_L4/summary.json",
+          "eval_source": "runs/3e16/h192_L4/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e16",
+          "model": "h256_L5",
+          "compute": 29996247888691200,
+          "active_params": 5099968,
+          "train_tokens": 403046400,
+          "bpb": 1.2780316894202635,
+          "loss": 3.2281063856042262,
+          "source": "runs/3e16/h256_L5/summary.json",
+          "eval_source": "runs/3e16/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e16",
+          "model": "h320_L6",
+          "compute": 29995249560453120,
+          "active_params": 9546468,
+          "train_tokens": 265355264,
+          "bpb": 1.33520737168224,
+          "loss": 3.3737708808538063,
+          "source": "runs/3e16/h320_L6/summary.json",
+          "eval_source": "runs/3e16/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e16",
+          "model": "h384_L8",
+          "compute": 29996275067781120,
+          "active_params": 18092176,
+          "train_tokens": 139919360,
+          "bpb": 1.3705837308081845,
+          "loss": 3.469623263783785,
+          "source": "runs/3e16/h384_L8/summary.json",
+          "eval_source": "runs/3e16/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+        }
+      ]
+    },
+    {
+      "budget": "1e17",
+      "compute": 9.998438530516254e+16,
+      "quadratic_coefficients": [
+        0.0832078521566473,
+        -1.169322943188674,
+        5.309778878426842
+      ],
+      "active_opt": 10629626.583124045,
+      "tokens_opt": 759239505.1563886,
+      "bpb_opt": 1.2016445196246517,
+      "inside_grid": true,
+      "residual_rmse": 0.005831577800972897,
+      "measured_best": {
+        "budget": "1e17",
+        "model": "h384_L8",
+        "compute": 99978217040904192,
+        "active_params": 18092176,
+        "train_tokens": 466354176,
+        "bpb": 1.2017006123906206,
+        "loss": 3.028930602340302,
+        "source": "runs/1e17/h384_L8/summary.json",
+        "eval_source": "runs/1e17/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+      },
+      "points": [
+        {
+          "budget": "1e17",
+          "model": "h256_L5",
+          "compute": 99997247839666176,
+          "active_params": 5099968,
+          "train_tokens": 1343619072,
+          "bpb": 1.2065675275558712,
+          "loss": 3.0411486958315432,
+          "source": "runs/1e17/h256_L5/summary.json",
+          "eval_source": "runs/1e17/h256_L5/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e17",
+          "model": "h320_L6",
+          "compute": 99994042619658240,
+          "active_params": 9546468,
+          "train_tokens": 884604928,
+          "bpb": 1.2108720506697548,
+          "loss": 3.051015545190627,
+          "source": "runs/1e17/h320_L6/summary.json",
+          "eval_source": "runs/1e17/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e17",
+          "model": "h384_L8",
+          "compute": 99978217040904192,
+          "active_params": 18092176,
+          "train_tokens": 466354176,
+          "bpb": 1.2017006123906206,
+          "loss": 3.028930602340302,
+          "source": "runs/1e17/h384_L8/summary.json",
+          "eval_source": "runs/1e17/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e17",
+          "model": "h448_L9",
+          "compute": 99985518955069440,
+          "active_params": 27719556,
+          "train_tokens": 343408640,
+          "bpb": 1.2102189305896474,
+          "loss": 3.0513702924675576,
+          "source": "runs/1e17/h448_L9/summary.json",
+          "eval_source": "runs/1e17/h448_L9/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "1e17",
+          "model": "h512_L10",
+          "compute": 99966900070514688,
+          "active_params": 40387072,
+          "train_tokens": 258605056,
+          "bpb": 1.2343311685137015,
+          "loss": 3.114834510558455,
+          "source": "runs/1e17/h512_L10/summary.json",
+          "eval_source": "runs/1e17/h512_L10/eval_dolma3_mix_100M_a_seq8192.json"
+        }
+      ]
+    },
+    {
+      "budget": "3e17",
+      "compute": 2.999692187895071e+17,
+      "quadratic_coefficients": [
+        0.12625663167944395,
+        -1.8559800260101922,
+        7.930216904276152
+      ],
+      "active_opt": 22388750.732004613,
+      "tokens_opt": 1235554175.5498295,
+      "bpb_opt": 1.1094625978914197,
+      "inside_grid": true,
+      "residual_rmse": 0.004846707239594853,
+      "measured_best": {
+        "budget": "3e17",
+        "model": "h448_L9",
+        "compute": 299994719277023232,
+        "active_params": 27719556,
+        "train_tokens": 1030356992,
+        "bpb": 1.112110885166078,
+        "loss": 2.7961497653625798,
+        "source": "runs/3e17/h448_L9/summary.json",
+        "eval_source": "runs/3e17/h448_L9/eval_dolma3_mix_100M_a_seq8192.json"
+      },
+      "points": [
+        {
+          "budget": "3e17",
+          "model": "h320_L6",
+          "compute": 299996943986196480,
+          "active_params": 9546468,
+          "train_tokens": 2653945856,
+          "bpb": 1.1238933183951343,
+          "loss": 2.826166321939812,
+          "source": "runs/3e17/h320_L6/summary.json",
+          "eval_source": "runs/3e17/h320_L6/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e17",
+          "model": "h384_L8",
+          "compute": 299990850232909824,
+          "active_params": 18092176,
+          "train_tokens": 1399324672,
+          "bpb": 1.1170717626827067,
+          "loss": 2.8083445237130413,
+          "source": "runs/3e17/h384_L8/summary.json",
+          "eval_source": "runs/3e17/h384_L8/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e17",
+          "model": "h448_L9",
+          "compute": 299994719277023232,
+          "active_params": 27719556,
+          "train_tokens": 1030356992,
+          "bpb": 1.112110885166078,
+          "loss": 2.7961497653625798,
+          "source": "runs/3e17/h448_L9/summary.json",
+          "eval_source": "runs/3e17/h448_L9/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e17",
+          "model": "h512_L10",
+          "compute": 299951367672299520,
+          "active_params": 40387072,
+          "train_tokens": 775946240,
+          "bpb": 1.1122246538708818,
+          "loss": 2.7963561063248203,
+          "source": "runs/3e17/h512_L10/summary.json",
+          "eval_source": "runs/3e17/h512_L10/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e17",
+          "model": "h576_L11",
+          "compute": 299956167902232576,
+          "active_params": 56231428,
+          "train_tokens": 598212608,
+          "bpb": 1.1244708483213668,
+          "loss": 2.82850320833374,
+          "source": "runs/3e17/h576_L11/summary.json",
+          "eval_source": "runs/3e17/h576_L11/eval_dolma3_mix_100M_a_seq8192.json"
+        },
+        {
+          "budget": "3e17",
+          "model": "h640_L12",
+          "compute": 299925263666380800,
+          "active_params": 75058600,
+          "train_tokens": 431226880,
+          "bpb": 1.149806281666211,
+          "loss": 2.8935759711233793,
+          "source": "runs/3e17/h640_L12/summary.json",
+          "eval_source": "runs/3e17/h640_L12/eval_dolma3_mix_100M_a_seq8192.json"
+        }
+      ]
+    }
+  ],
+  "power_laws": {
+    "active_log10_slope": 0.7767049368579917,
+    "active_log10_intercept": -6.2079390478776775,
+    "tokens_log10_slope": 0.4360744976716432,
+    "tokens_log10_intercept": 1.4764160194714908
+  },
+  "leave_one_budget_out": [
+    {
+      "omitted_budget": "1e16",
+      "active_exponent": 0.7742209118512834,
+      "c4_active_prediction": 350646387.87512356
+    },
+    {
+      "omitted_budget": "3e16",
+      "active_exponent": 0.7728100337586415,
+      "c4_active_prediction": 350929145.03161794
+    },
+    {
+      "omitted_budget": "1e17",
+      "active_exponent": 0.7673429231445597,
+      "c4_active_prediction": 329072327.4684774
+    },
+    {
+      "omitted_budget": "3e17",
+      "active_exponent": 0.8093008972728994,
+      "c4_active_prediction": 433228107.83089167
+    }
+  ],
+  "models": [
+    {
+      "name": "c1",
+      "compute": 300000000000000000,
+      "hidden": 448,
+      "layers": 9,
+      "accounting_method": "q38_sparse_mhc_ngram_mtp_v2",
+      "vocab_size": 10112,
+      "compute_reserve_fraction": 0.005,
+      "total_params": 167752070,
+      "total_nonvocab_params": 163221894,
+      "active_nonvocab_params": 27118882,
+      "active_fraction": 0.1661473307006228,
+      "ngram_params": 44040192,
+      "mtp_params": 12133348,
+      "train_flops_per_token": 291721216,
+      "train_tokens": 1023148032,
+      "steps": 7806,
+      "actual_train_flops": 298473988043046912,
+      "compute_shortfall_fraction": 0.005086706523176998,
+      "tokens_per_active_param": 37.72825266174321,
+      "global_batch_sequences": 32,
+      "counted_compute_target": 298500000000000000,
+      "omitted_operation_bounds": {
+        "dense_warmup_extra_train_flops_per_token": 391808.68870099925,
+        "dense_warmup_fraction": 0.0013430928818732172,
+        "mhc_unlisted_pointwise_train_flops_per_token_bound": 2280960,
+        "mhc_unlisted_pointwise_fraction_bound": 0.007818971932435657,
+        "combined_fraction_bound": 0.009162064814308875,
+        "excludes": "Does not bound every other unlisted non-GEMM operation; not organizer-reviewed."
+      },
+      "prior": {
+        "source_architecture": "Q35, seq8192, GZY10K",
+        "target_active_params": 23260942.767313335,
+        "target_train_tokens": 1252399516.7540958,
+        "chosen_active_over_target": 1.1658548095525993,
+        "chosen_tokens_over_target": 0.8169501970519296,
+        "objective": "log(Na/Na_prior)^2 + log(D/D_prior)^2",
+        "extrapolated": false,
+        "runner_up_hidden": 384,
+        "selection_score": 0.06442389968266053
+      }
+    },
+    {
+      "name": "c2",
+      "compute": 1000000000000000000,
+      "hidden": 576,
+      "layers": 11,
+      "accounting_method": "q38_sparse_mhc_ngram_mtp_v2",
+      "vocab_size": 10112,
+      "compute_reserve_fraction": 0.005,
+      "total_params": 326609782,
+      "total_nonvocab_params": 320785270,
+      "active_nonvocab_params": 52250764,
+      "active_fraction": 0.16288392543710004,
+      "ngram_params": 87293952,
+      "mtp_params": 19749738,
+      "train_flops_per_token": 486353152,
+      "train_tokens": 2045771776,
+      "steps": 7804,
+      "actual_train_flops": 994967551530237952,
+      "compute_shortfall_fraction": 0.00503244846976203,
+      "tokens_per_active_param": 39.152954318524415,
+      "global_batch_sequences": 64,
+      "counted_compute_target": 995000000000000000,
+      "omitted_operation_bounds": {
+        "dense_warmup_extra_train_flops_per_token": 538875.013839057,
+        "dense_warmup_fraction": 0.001107991202736272,
+        "mhc_unlisted_pointwise_train_flops_per_token_bound": 3463680,
+        "mhc_unlisted_pointwise_fraction_bound": 0.007121738567451496,
+        "combined_fraction_bound": 0.008229729770187768,
+        "excludes": "Does not bound every other unlisted non-GEMM operation; not organizer-reviewed."
+      },
+      "prior": {
+        "source_architecture": "Q35, seq8192, GZY10K",
+        "target_active_params": 59258385.5890816,
+        "target_train_tokens": 2117176074.6514115,
+        "chosen_active_over_target": 0.88174464222372,
+        "chosen_tokens_over_target": 0.9662738023982402,
+        "objective": "log(Na/Na_prior)^2 + log(D/D_prior)^2",
+        "extrapolated": true,
+        "runner_up_hidden": 640,
+        "selection_score": 0.01701596578259972
+      }
+    },
+    {
+      "name": "c3",
+      "compute": 3000000000000000000,
+      "hidden": 768,
+      "layers": 15,
+      "accounting_method": "q38_sparse_mhc_ngram_mtp_v2",
+      "vocab_size": 10112,
+      "compute_reserve_fraction": 0.005,
+      "total_params": 778030326,
+      "total_nonvocab_params": 770264310,
+      "active_nonvocab_params": 129407610,
+      "active_fraction": 0.16800416210378488,
+      "ngram_params": 213909504,
+      "mtp_params": 35453052,
+      "train_flops_per_token": 1057826304,
+      "train_tokens": 2821718016,
+      "steps": 10764,
+      "actual_train_flops": 2984887539795492864,
+      "compute_shortfall_fraction": 0.005037486734835728,
+      "tokens_per_active_param": 21.80488470500305,
+      "global_batch_sequences": 64,
+      "counted_compute_target": 2985000000000000000,
+      "omitted_operation_bounds": {
+        "dense_warmup_extra_train_flops_per_token": 1032731.397993311,
+        "dense_warmup_fraction": 0.0009762769124649325,
+        "mhc_unlisted_pointwise_train_flops_per_token_bound": 6105600,
+        "mhc_unlisted_pointwise_fraction_bound": 0.005771836053719458,
+        "combined_fraction_bound": 0.006748112966184391,
+        "excludes": "Does not bound every other unlisted non-GEMM operation; not organizer-reviewed."
+      },
+      "prior": {
+        "source_architecture": "Q35, seq8192, GZY10K",
+        "target_active_params": 139101639.76255536,
+        "target_train_tokens": 3418356781.578997,
+        "chosen_active_over_target": 0.9303097376917846,
+        "chosen_tokens_over_target": 0.8254603589671528,
+        "objective": "log(Na/Na_prior)^2 + log(D/D_prior)^2",
+        "extrapolated": true,
+        "runner_up_hidden": 704,
+        "selection_score": 0.04201090981513414
+      }
+    },
+    {
+      "name": "c4",
+      "compute": 10000000000000000000,
+      "hidden": 1024,
+      "layers": 20,
+      "accounting_method": "q38_sparse_mhc_ngram_mtp_v2",
+      "vocab_size": 10112,
+      "compute_reserve_fraction": 0.005,
+      "total_params": 1804657560,
+      "total_nonvocab_params": 1794302872,
+      "active_nonvocab_params": 300243466,
+      "active_fraction": 0.16733154178443516,
+      "ngram_params": 503316480,
+      "mtp_params": 62755214,
+      "train_flops_per_token": 2284543232,
+      "train_tokens": 4355260416,
+      "steps": 8307,
+      "actual_train_flops": 9949780706970304512,
+      "compute_shortfall_fraction": 0.005021929302969519,
+      "tokens_per_active_param": 14.505762520074292,
+      "global_batch_sequences": 128,
+      "counted_compute_target": 9950000000000000000,
+      "omitted_operation_bounds": {
+        "dense_warmup_extra_train_flops_per_token": 2326191.7515348503,
+        "dense_warmup_fraction": 0.0010182305674725136,
+        "mhc_unlisted_pointwise_train_flops_per_token_bound": 10598400,
+        "mhc_unlisted_pointwise_fraction_bound": 0.0046391768172938655,
+        "combined_fraction_bound": 0.005657407384766378,
+        "excludes": "Does not bound every other unlisted non-GEMM operation; not organizer-reviewed."
+      },
+      "prior": {
+        "source_architecture": "Q35, seq8192, GZY10K",
+        "target_active_params": 354368208.01202345,
+        "target_train_tokens": 5778717650.210069,
+        "chosen_active_over_target": 0.8472641145895711,
+        "chosen_tokens_over_target": 0.7536724719266527,
+        "objective": "log(Na/Na_prior)^2 + log(D/D_prior)^2",
+        "extrapolated": true,
+        "runner_up_hidden": 960,
+        "selection_score": 0.10744504417196768
+      }
+    }
+  ],
+  "limitations": [
+    "Q35-to-Q38 architecture transfer is an unvalidated warm-start prior.",
+    "Only C1 lies at a measured compute budget; C2–C4 extrapolate beyond all Q35 sweep data.",
+    "FLOPs are the implemented convention, with omitted-op bounds listed; no organizer audit.",
+    "Q38 model quality and optimality require actual training; no Q38 bpb is predicted here."
+  ]
+}

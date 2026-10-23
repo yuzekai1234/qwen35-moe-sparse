@@ -4,7 +4,7 @@
 架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。
 
 模型包含每四层三层 Gated DeltaNet、一层 QSA；QSA 使用 64-token 块、默认选 8 块、4 头 MQA indexer 和 KL 蒸馏。
-MoE 默认 256 专家选 5，加一个共享专家，专家宽 h/4；其余组件为第二层前注入的 bigram/trigram 哈希嵌入、4 路 mHC/Sinkhorn 残差、训练专用一层 MTP。
+MoE 默认 64 专家选 5，加一个共享专家，专家宽 h/4；其余组件为第二层前注入的 bigram/trigram 哈希嵌入、4 路 mHC/Sinkhorn 残差、训练专用一层 MTP。
 训练使用 Muon + AdamW，损失为主 CE + 0.001 router auxiliary + 0.3 MTP CE + 0.05 indexer KL。保留 DDP、断点恢复、数据采样和 TensorBoard。
 
 Q38 是这里的本地缩小版实现，继承的 GDN/MoE 基础代码来自 Transformers 5.19 的 Qwen3.5。
@@ -18,16 +18,17 @@ N-gram 不跨 EOS；序列开头不足的前文使用独立占位 ID。模型只
 bash scripts/setup_env.sh
 
 # 单卡；GPUS=0,1 可用 DDP
-GPUS=0 bash scripts/train.sh q38_c2_m --run_dir runs/q38_c2_m
+GPUS=0 bash scripts/train.sh q38_c2 --run_dir runs/q38_c2
 
 # 模型参数及预算
-.venv_q35/bin/python -m q38.flops q38_c2_m --seq 2048
+.venv_q35/bin/python -m q38.flops q38_c2 --seq 4096
 
 # 评估 HF 导出
-GPUS=0 bash scripts/eval.sh runs/q38_c2_m/hf /path/to/eval.jsonl 2048 1
+GPUS=0 bash scripts/eval.sh runs/q38_c2/hf /path/to/eval.jsonl 4096 1
 ```
 
-默认训练 seq=2048，沿用现有 GZY tokenizer 和 token 数据，无需重新分词。参考仓库的 16k tokenizer 未替换进来。
+默认训练 seq=4096，使用 GZY 10K tokenizer（实际 10112 token）及共享 16B token 训练池，无需重新分词。
+4096 是序列长度；`batch_tokens` 为每步全局 token 数，`micro_bs` 为每卡序列数。
 入口为 `python -m q38.train`、`python -m q38.evaluate`、`python -m q38.data`。
 配置新增 `n_branch`、`mhc_iters`、`qsa_blocks`、`indexer_heads`、`indexer_head_dim`、`ngram_rows`、`mtp`；`ngram_rows=-1` 自动按非词表参数规模选择行数，`0` 关闭哈希表。
 训练参数可设置 `--muon 0`、`--mtp_coef`、`--kl_coef` 和 `--dense_warmup`。QSA 在学习率 warmup 阶段使用 dense attention。
@@ -38,9 +39,13 @@ HF 导出包含全部自定义模型代码、N-gram 表和 MTP 权重；可用 `
 ## 核算与验证
 
 `q38/flops.py` 在原 Megatron GDN 约定上计入 QSA 实际选块、indexer 投影/打分、KL 目标、mHC、N-gram 门和训练 MTP；优化器与 dense warmup 开销不计。
+Indexer 输入已 detach，投影的前反向矩阵计算按前向的 2 倍计；打分矩阵计算仍按 3 倍计。
 非词表总参数包含完整 N-gram 表与 MTP；激活参数采用主头评估口径，只计每 token 访问的两条 N-gram 行，排除训练专用 MTP。
-参考的 256 选 5 配置不承诺满足比赛 10% 激活比例，生成器不再按旧 Q35 比例筛选。
-`audits/` 与 `scripts/audit_flops.py` 仅保留继承的 Q35 backbone 核算历史，不代表 Q38 全模型核算。
+C1–C4 预设采用同一 64 选 5 缩放规则，非词表激活比例按包含完整 N-gram 表和 MTP 的分母计算，均大于 10%。
+参数/数据配比依据本地 Q35 IsoFLOPs 结果外推，再按 Q38 的计算开销重算 token 预算；这些配置尚未完成 Q38 训练。
+预设显式固定 `tokens` 并预留 0.5% 预算，改模型形状或序列长度请重新运行生成器；`--tokens 0` 会按完整预算重算且不保留该预留。
+四档参数、数据配比与拟合依据见 [配置推导](audits/q38_config_plan.md)，可用 `python scripts/make_q38_configs.py --check` 复核。
+`audits/flops_audit*.json` 与 `scripts/audit_flops.py` 保留继承的 Q35 backbone 核算历史，不代表 Q38 全模型核算。
 
 快速检查：
 
@@ -49,3 +54,11 @@ HF 导出包含全部自定义模型代码、N-gram 表和 MTP 权重；可用 `
 ```
 
 模型 smoke 覆盖小模型前后向、Muon 更新和自定义 HF 导出加载；不进行完整训练或评测。
+
+性能复现（使用一张 GPU，首次调用会触发编译；稳定吞吐与首次编译耗时分开记录）：
+
+```bash
+GPUS=0 bash -c 'source scripts/env.sh; "$PY" scripts/profile_q38.py --preset q38_c1 --seq 4096 --micro-bs 4 --output audits/q38_c1_local.json --profile'
+```
+
+性能及显存适用范围见 [GPU profiling 报告](audits/q38_performance.md)。C2–C4 的质量为外推起点，C4 大模型的训练显存需求还需结合目标 GPU 评估；普通 DDP 不分摊权重和优化器状态。

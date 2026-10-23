@@ -3,7 +3,7 @@
 A preset holds the model shape, preset-specific training defaults, the compute
 budget and training defaults.  Everything else uses the shared
 defaults below, which reproduce the original scaling rules:
-  每 4 层 [lin, lin, lin, full]，层数非 4 的倍数时余下接 lin；256 选 5 路由专家 + 共享专家；
+  每 4 层 [lin, lin, lin, full]，层数非 4 的倍数时余下接 lin；64 选 5 路由专家 + 共享专家；
   全注意力 head_dim 64、输出门、partial_rotary 0.25、rope_theta 1e7；绑定嵌入。
 """
 import json
@@ -17,7 +17,7 @@ PRESET_DIR = ROOT / "configs"
 
 # Model-shape arguments shared by train.py and the presets.
 MODEL_DEFAULTS = dict(layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64, lin_k_heads=1, lin_v_heads=2,
-                      lin_head_dim=64, experts=256, topk=5, moe_ffn=24, shared_ffn=24, layer_types="",
+                      lin_head_dim=64, experts=64, topk=5, moe_ffn=24, shared_ffn=24, layer_types="",
                       aux_coef=0.001, rope_theta=1e7, partial_rotary=0.25, experts_impl="eager",
                       n_branch=4, mhc_iters=20, qsa_blocks=8, indexer_heads=4, indexer_head_dim=64,
                       ngram_rows=-1, mtp=1)
@@ -86,8 +86,11 @@ def budget_tokens(train_flops_per_token, compute, batch_tokens):
     return int(compute) // (train_flops_per_token * batch_tokens) * batch_tokens
 
 
-def preset_budget(name, vocab_size, seq=2048, batch_tokens=524288):
+def preset_budget(name, vocab_size, seq=None, batch_tokens=None):
     """Recalculate a preset's token budget for another vocabulary / sequence length."""
     preset = load_preset(name)
+    seq = seq if seq is not None else preset["train"].get("seq", 4096)
+    batch_tokens = batch_tokens if batch_tokens is not None else preset["train"].get("batch_tokens", 524288)
     fc = count(model_config(preset["model"], vocab_size, seq).to_dict(), seq)
-    return budget_tokens(fc["train_flops_per_token"], preset["compute"], batch_tokens), fc
+    reserve = preset.get("accounting", {}).get("compute_reserve_fraction", 0.0)
+    return budget_tokens(fc["train_flops_per_token"], int(preset["compute"] * (1-reserve)), batch_tokens), fc

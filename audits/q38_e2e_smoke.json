@@ -1,0 +1,46 @@
+{
+  "summary": {
+    "tokens_trained": 131072,
+    "train_flops": 38236483223552,
+    "active_nonvocab": 27118882,
+    "flops_accounting": "q38_sparse_mhc_ngram_mtp_v2",
+    "total_nonvocab": 163221894,
+    "elapsed_s": 55.89643883705139,
+    "world": 1,
+    "completed_budget": false,
+    "final_eval_loss": null,
+    "sampling": {
+      "version": "pcg64-shuffled-disjoint-sequence-blocks-v1",
+      "seed": 0,
+      "blocks": 3906253,
+      "sequence_length": 4096,
+      "order_sha256": "09cbaea18e90ed26a62cc4e888f9083fa5d7da23126f853d8b16f6d365163ea7",
+      "replacement": false
+    }
+  },
+  "metrics": [
+    {
+      "step": "0",
+      "tokens": "131072",
+      "loss": "9.28717327",
+      "aux": "5.01153898",
+      "lr": "2.61282051e-05",
+      "grad_norm": "1.057526",
+      "tok_per_s": "2922",
+      "elapsed_s": "44.851",
+      "val_loss": "9.28834438",
+      "active_nonvocab": "27118882",
+      "total_nonvocab": "163221894",
+      "mtp_loss": "9.30932903",
+      "indexer_kl": "0.00107851"
+    }
+  ],
+  "seq": 4096,
+  "micro_bs": 4,
+  "batch_tokens": 131072,
+  "accum": 8,
+  "vocab": 10112,
+  "checkpoint_exists": true,
+  "hf_config_exists": true,
+  "note": "Single real-data step; throughput includes cold JIT, not steady-state benchmark."
+}

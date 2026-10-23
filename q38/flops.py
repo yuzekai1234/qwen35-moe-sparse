@@ -2,7 +2,7 @@
 
 Inherited GDN terms use the contest-pinned Megatron convention. Q38 adds
 sparse QSA, indexer/KL, mHC, N-gram gates and training-only MTP.
-Usage: python -m q38.flops q38_c2_m --seq 2048
+Usage: python -m q38.flops q38_c2 --seq 4096
 """
 import argparse
 import json
@@ -92,13 +92,16 @@ def count(c, seq):
     active = r["active_nonvocab_params"] + ip + mp + gp + (2*h if rows else 0)
     total = r["total_nonvocab_params"] + ip + mp + gp + tables + mtp_params
     fwd = sum(bd.values())
-    r.update(accounting_method="q38_sparse_mhc_ngram_mtp_v1", breakdown=bd,
+    # Indexer inputs are detached: projections need only forward and weight
+    # gradients (2x), while the score GEMMs still backpropagate to both operands.
+    train = 3*fwd - bd["indexer_projections"] + distill
+    r.update(accounting_method="q38_sparse_mhc_ngram_mtp_v2", breakdown=bd,
              active_nonvocab_params=active, nonvocab_params=active, total_nonvocab_params=total,
              total_params_all=total+r["embed_params"], ngram_params=tables, ngram_rows=rows,
              indexer_params=ip, mhc_params=mp, mtp_params=mtp_params,
              mtp_active_params=mtp_active, distill_target_flops=distill,
              fwd_flops_per_token=fwd, main_fwd_flops_per_token=fwd-bd.get("mtp", 0),
-             train_flops_per_token=3*fwd+distill)
+             train_flops_per_token=train)
     return r
 
 
@@ -114,9 +117,9 @@ def main():
     from .presets import preset_budget, preset_names
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("target", help="preset name or config.json")
-    ap.add_argument("--seq", type=int, default=2048)
+    ap.add_argument("--seq", type=int, default=4096)
     ap.add_argument("--tokens", type=float, default=0)
-    ap.add_argument("--batch_tokens", type=int, default=524288)
+    ap.add_argument("--batch_tokens", type=int, default=None)
     ap.add_argument("--tokenizer", default=str(DEFAULT_TOKENIZER))
     a = ap.parse_args()
     if a.target in preset_names():

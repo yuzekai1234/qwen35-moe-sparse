@@ -3,7 +3,7 @@
 # Writes runs/<run>/eval_<dataset>_seq<seq>.json.
 set -euo pipefail
 MODEL=$(realpath "${1:?usage: scripts/eval.sh <model_dir> [dataset] [seq] [batch]}")
-DATASET=$(realpath "${2:-/home/shared/data/dolma3_mix_100M_a.jsonl}"); SEQ=${3:-2048}; BS=${4:-2}
+DATASET=$(realpath "${2:-/home/shared/data/dolma3_mix_100M_a.jsonl}"); SEQ=${3:-4096}; BS=${4:-2}
 source "$(dirname "$0")/env.sh"
 OUT=$(dirname "$MODEL")/eval_$(basename "$DATASET" .jsonl)_seq$SEQ.json
 rm -f "$OUT"

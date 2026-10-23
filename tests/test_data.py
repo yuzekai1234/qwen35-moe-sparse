@@ -76,9 +76,9 @@ class Corpus(unittest.TestCase):
         sha = tokenizer_sha256(DEFAULT_TOKENIZER)
         for path in (DEFAULT_DATA, DEFAULT_VAL_DATA):
             with self.subTest(path=str(path)):
-                self.assertEqual(recorded_tokenizer_sha(json.loads((path.parent / "manifest.json").read_text())), sha)
+                self.assertEqual(recorded_tokenizer_sha(json.loads((path.parent / "meta.json").read_text())), sha)
                 tokens = open_tokens(path, sha)
-                self.assertLess(int(np.asarray(tokens[:1_000_000]).max()), 50048)
+                self.assertLess(int(np.asarray(tokens[:1_000_000]).max()), 10112)
 
 
 if __name__ == "__main__":

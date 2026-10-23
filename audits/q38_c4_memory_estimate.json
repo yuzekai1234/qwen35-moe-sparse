@@ -1,0 +1,14 @@
+{
+  "total_parameters": 1804657560,
+  "adam_parameters": 516400024,
+  "muon_parameters": 1288257536,
+  "fp32_weights_and_gradients_bytes": 14437260480,
+  "adam_two_moment_bytes": 4131200192,
+  "muon_momentum_bytes": 5153030144,
+  "persistent_training_bytes": 23721490816,
+  "all_adam_upper_bound_bytes": 28874520960,
+  "ns_chunk_max_elements": 67108864,
+  "ns_extra_peak_headroom_recommended_bytes": 2147483648,
+  "activation_and_ddp_not_included": true,
+  "measured": false
+}

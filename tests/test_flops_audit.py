@@ -2,7 +2,7 @@
 import copy
 import unittest
 
-from q38.flops import _count_backbone as count, validate_resume_accounting
+from q38.flops import _count_backbone as count, count as count_q38, validate_resume_accounting
 from scripts.audit_flops import fla_chunk_gemm_ledger, reference_forward_terms, legacy_train_flops_per_token
 
 
@@ -74,6 +74,46 @@ class AccountingAudit(unittest.TestCase):
         previous['flops_accounting']='different_convention'
         with self.assertRaisesRegex(ValueError,'FLOPs accounting changed'):
             validate_resume_accounting(previous,current)
+
+
+class Q38IndexerAccounting(unittest.TestCase):
+    def test_detached_projection_accounting_matches_autograd_gemms(self):
+        import torch
+        from torch.profiler import ProfilerActivity, profile
+        from q38.models.qwen3_8_moe.modeling_qwen3_8_moe import Indexer
+
+        c = config()
+        seq = 64
+        indexer = Indexer(c['hidden_size'], 4, 64)
+        x = torch.randn(1, seq, c['hidden_size'], requires_grad=True)
+        cos, sin = torch.ones(1, seq, 16), torch.zeros(1, seq, 16)
+        with profile(activities=[ProfilerActivity.CPU], with_flops=True) as trace:
+            indexer(x.detach(), cos, sin).square().mean().backward()
+        # Linear projections use mm; indexer score/aggregation use bmm.
+        projection_train = sum(e.flops for e in trace.key_averages() if e.key == 'aten::mm') // seq
+        self.assertIsNone(x.grad)
+        for projection in (indexer.wq, indexer.wk, indexer.ww):
+            self.assertIsNotNone(projection.weight.grad)
+        for mtp in (False, True):
+            with self.subTest(mtp=mtp):
+                result = count_q38(dict(c, mtp=mtp), seq)
+                projection_fwd = result['breakdown']['indexer_projections']
+                self.assertEqual(projection_train, 2 * projection_fwd)
+                self.assertEqual(result['train_flops_per_token'],
+                                 3 * (result['fwd_flops_per_token'] - projection_fwd)
+                                 + projection_train + result['distill_target_flops'])
+                # The core continues to use the pinned Megatron convention.
+                self.assertEqual(result['breakdown']['gdn_core'], count(c, seq)['breakdown']['gdn_core'])
+
+    def test_resume_rejects_previous_q38_accounting(self):
+        current = count_q38(config(), 4096)
+        previous = dict(flops_accounting='q38_sparse_mhc_ngram_mtp_v1',
+                        flops_per_token=current['train_flops_per_token']
+                        + current['breakdown']['indexer_projections'])
+        with self.assertRaisesRegex(ValueError, 'FLOPs accounting changed'):
+            validate_resume_accounting(previous, current)
+        validate_resume_accounting(dict(flops_accounting=current['accounting_method'],
+                                       flops_per_token=current['train_flops_per_token']), current)
 
 
 if __name__=='__main__':

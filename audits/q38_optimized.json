@@ -1,0 +1,74 @@
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu126",
+  "shape": {
+    "hidden": 128,
+    "layers": 4,
+    "heads": 4,
+    "kv_heads": 2,
+    "lin_k_heads": 2,
+    "lin_v_heads": 6,
+    "experts": 64,
+    "topk": 5,
+    "moe_ffn": 32,
+    "shared_ffn": 32,
+    "ngram_rows": 4096,
+    "experts_impl": "grouped_mm"
+  },
+  "seq": 4096,
+  "micro_bs": 1,
+  "warmup": 2,
+  "repeat": 3,
+  "training": {
+    "forward_ms": 65.10990799870342,
+    "backward_ms": 66.5503210038878,
+    "optimizer_ms": 27.049889002228156,
+    "total_ms": 158.55558501789346,
+    "loss": 11.34350299835205,
+    "tokens_per_second": 25833.211737938807
+  },
+  "inference": {
+    "median_ms": 19.188751000910997,
+    "tokens_per_second": 213458.39548418447
+  },
+  "training_peak_bytes": 1203185152,
+  "fast_paths": {
+    "experts": "q38_batched_mm",
+    "gated_deltanet": 4,
+    "norms": 20
+  },
+  "inference_fast_paths": {
+    "experts": "q38_triton",
+    "gated_deltanet": 4,
+    "norms": 20
+  },
+  "wall_seconds": 45.2211892940104,
+  "raw_training": [
+    {
+      "forward_ms": 65.16160001046956,
+      "backward_ms": 66.5503210038878,
+      "optimizer_ms": 26.843664003536105,
+      "total_ms": 158.55558501789346,
+      "loss": 11.56647777557373
+    },
+    {
+      "forward_ms": 65.10990799870342,
+      "backward_ms": 67.02945797587745,
+      "optimizer_ms": 28.011914022499695,
+      "total_ms": 160.15127999708056,
+      "loss": 11.34350299835205
+    },
+    {
+      "forward_ms": 64.33036000817083,
+      "backward_ms": 63.91479799640365,
+      "optimizer_ms": 27.049889002228156,
+      "total_ms": 155.29504700680263,
+      "loss": 11.127374649047852
+    }
+  ],
+  "raw_inference_ms": [
+    19.484399002976716,
+    19.18192600714974,
+    19.188751000910997
+  ]
+}

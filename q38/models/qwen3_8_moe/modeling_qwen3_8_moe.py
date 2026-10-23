@@ -18,6 +18,7 @@
 
 import copy
 import math
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -972,6 +973,15 @@ class Qwen3_8MoeModelOutputWithPast(BaseModelOutputWithPast):
 
 from torch.nn.attention.flex_attention import flex_attention, BlockMask
 BLK = 64
+# Torch 2.7 validates its default tile *before* reading kernel_options. Its
+# A100 defaults use 128-wide tiles and reject the model's 64-token blocks.
+# Keep the compatibility adjustment scoped to that pinned Torch release.
+if torch.__version__.startswith("2.7."):
+    import torch._inductor.lowering  # initialize Inductor before its kernel modules
+    import torch._inductor.kernel.flex_attention as _flex_codegen
+    _flex_codegen._get_default_config_fwd = lambda query: (64, 64, 4, 3)
+    _flex_codegen._get_default_config_bwd = lambda query: (32, 64, 4, 3)
+
 _flex = torch.compile(flex_attention, dynamic=False)
 _KO = {}
 
@@ -1007,6 +1017,17 @@ def _mix(X, res, post, y):                                        # X' = H_res X
 _agg_c = torch.compile(_agg); _mix_c = torch.compile(_mix); _coeffs_c = torch.compile(_coeffs)
 
 
+def _mhc_pre(X, A, B, b_pre, b_post, b_res, alphas, n, iters):
+    X = X.float()
+    Xf = X.flatten(2)
+    Xf = Xf * torch.rsqrt(Xf.pow(2).mean(-1, keepdim=True) + 1e-6)
+    coeffs = _coeffs(Xf, A.float(), B.float(), b_pre.float(), b_post.float(), b_res.float(), alphas.float(), n, iters)
+    return _agg(X, coeffs[0]), (X,) + coeffs
+
+
+_mhc_pre_c = torch.compile(_mhc_pre)
+
+
 class MHC(nn.Module):
     """一个子层(注意力/GDN 或 MoE)的分支残差系数。静态参数 + 动态部分(RMSNorm(flatten 4 路) → 低秩 r → 24 个系数, tanh 限幅)。
     初始化 = 普通残差: 动态部分输出 0(B 零初始化); H_res≈I(对角 0/非对角 −8 过 Sinkhorn); H_pre 和为 1(本层"主读"的那路 0.7、其余 0.1);
@@ -1023,10 +1044,10 @@ class MHC(nn.Module):
     def n_params(self): return sum(p.numel() for p in self.parameters())
 
     def pre(self, X):
-        X = X.float(); Xf = X.flatten(2); Xf = Xf * torch.rsqrt(Xf.pow(2).mean(-1, keepdim=True) + 1e-6)
+        fn = _mhc_pre_c if X.is_cuda else _mhc_pre
         with torch.autocast("cuda", enabled=False):
-            c = (_coeffs_c if Xf.is_cuda else _coeffs)(Xf, self.A.weight.float(), self.B.weight.float(), self.b_pre.float(), self.b_post.float(), self.b_res.float(), self.alphas.float(), self.n, self.iters)
-        return (_agg_c if X.is_cuda else _agg)(X, c[0]), (X,) + c
+            return fn(X, self.A.weight, self.B.weight, self.b_pre, self.b_post,
+                      self.b_res, self.alphas, self.n, self.iters)
 
     def post(self, X, y, c): return (_mix_c if X.is_cuda else _mix)(c[0], c[3], c[2], y)
 
@@ -1048,11 +1069,13 @@ class Indexer(nn.Module):
         self.n_ih, self.d_ih = n_ih, d_ih
         self.wq = nn.Linear(h, n_ih * d_ih, bias=False); self.wk = nn.Linear(h, d_ih, bias=False); self.ww = nn.Linear(h, n_ih, bias=False)
 
-    def forward(self, x, cos, sin):
+    def forward(self, x, cos, sin, block_queries=False):
         B, S, _ = x.shape
         q = self.wq(x).view(B, S, self.n_ih, self.d_ih).transpose(1, 2); k = self.wk(x).view(B, S, 1, self.d_ih).transpose(1, 2)
-        q, k = apply_rotary_pos_emb(q, k, cos, sin)                          # q [B,nh,S,d]  k [B,1,S,d]
+        q, k = apply_rotary_pos_emb(q, k, cos.to(q.dtype), sin.to(q.dtype))                          # q [B,nh,S,d]  k [B,1,S,d]
         w = self.ww(x).float() * (self.n_ih ** -0.5)                            # [B,S,nh]
+        if block_queries:
+            q, w = q[:, :, ::BLK], w[:, ::BLK]
         return (_idx_score if q.is_cuda else _idx_score_fn)(q, k, w, self.d_ih ** -0.5)                           # [B,S,S]
 
 
@@ -1075,9 +1098,9 @@ def block_mass(q, k, scale, chunk=256):
 def select_blocks(lp_blk, budget_blocks):
     """lp_blk: [B,S,nb] indexer 在块上的 log 概率(−inf=非因果)。按 query 块首 token 的概率 → 每个 query 块 top-k 块, 总含当前块。
     返回 BlockMask 需要的 (kv_num_blocks [B,1,nbq], kv_indices [B,1,nbq,k]) (int32)。"""
-    B, S, nb = lp_blk.shape; nbq = S // BLK; k = min(budget_blocks, nb)
+    B, queries, nb = lp_blk.shape; nbq = nb; k = min(budget_blocks, nb)
     # Select using the first query of each block: later tokens must not affect earlier outputs.
-    p = lp_blk.detach().exp().view(B, nbq, BLK, nb)[:, :, 0]
+    p = lp_blk.detach().exp() if queries == nb else lp_blk.detach().exp().view(B, nbq, BLK, nb)[:, :, 0]
     qb = torch.arange(nbq, device=p.device)[:, None]; kb = torch.arange(nb, device=p.device)[None, :]
     p = torch.where(kb > qb, torch.full_like(p, -1.0), p)
     p = torch.where(kb == qb, torch.full_like(p, 2.0), p)
@@ -1096,14 +1119,16 @@ def qsa_attention(attn, x, cos, sin, indexer, budget_blocks, dense, want_kl):
     B, S, _ = x.shape; hd = attn.head_dim
     q, gate = torch.chunk(attn.q_proj(x).view(B, S, -1, hd * 2), 2, dim=-1); gate = gate.reshape(B, S, -1)
     q = attn.q_norm(q).transpose(1, 2); k = attn.k_norm(attn.k_proj(x).view(B, S, -1, hd)).transpose(1, 2); v = attn.v_proj(x).view(B, S, -1, hd).transpose(1, 2)
-    q, k = apply_rotary_pos_emb(q, k, cos, sin)
+    q, k = apply_rotary_pos_emb(q, k, cos.to(q.dtype), sin.to(q.dtype))
     kl = None; lp_blk = None
     if indexer is not None and (want_kl or not dense):
-        I = indexer(x.detach(), cos, sin)
+        block_queries = not want_kl and not bool(os.environ.get("Q38_INDEXER_BASELINE"))
+        I = indexer(x.detach(), cos, sin, block_queries=block_queries)
         ar = torch.arange(S, device=x.device)
-        I = I.masked_fill(ar[None, :] > ar[:, None], -1e9)    # 有限大负数而非 -inf: 避免 logsumexp/log_softmax 反传出 NaN
+        query_positions = ar[::BLK] if block_queries else ar
+        I = I.masked_fill(ar[None, :] > query_positions[:, None], -1e9)    # 有限大负数而非 -inf: 避免 logsumexp/log_softmax 反传出 NaN
         lp = torch.log_softmax(I, dim=-1)
-        lp_blk = torch.logsumexp(lp.view(B, S, S // BLK, BLK), dim=-1)                  # [B,S,nb]
+        lp_blk = torch.logsumexp(lp.view(B, I.shape[1], S // BLK, BLK), dim=-1)                  # [B,S,nb]
         if want_kl:
             P = block_mass(q.detach(), k.detach(), attn.scaling)
             kl = torch.where(P > 0, P * (torch.log(P.clamp(min=1e-12)) - lp_blk), torch.zeros_like(P)).sum(-1).mean()

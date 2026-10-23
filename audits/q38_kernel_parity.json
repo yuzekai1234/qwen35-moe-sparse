@@ -1,0 +1,23 @@
+{
+  "torch.float32": {
+    "output": 3.4924596548080444e-10,
+    "input_grad": 1.1368683772161603e-12,
+    "routing_grad": 9.094947017729282e-12,
+    "gate_weight_grad": 7.275957614183426e-11,
+    "down_weight_grad": 1.6370904631912708e-11
+  },
+  "torch.bfloat16": {
+    "output": 8.925620932132006e-06,
+    "input_grad": 1.0281564755132422e-07,
+    "routing_grad": 1.5461955626960844e-07,
+    "gate_weight_grad": 4.856643499806523e-06,
+    "down_weight_grad": 4.973153409082443e-07
+  },
+  "muon_single_step_max_abs": 3.093574196100235e-05,
+  "muon_forced_chunk_max_abs": 3.981590270996094e-05,
+  "muon_chunk_momentum_buffers_identical": true,
+  "indexer_first_query_max_abs": 0.0,
+  "qsa_selected_blocks_identical": true,
+  "qsa_output_max_abs": 0.0,
+  "all_ignored_mtp_sum_loss": 0.0
+}

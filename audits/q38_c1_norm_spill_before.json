@@ -1,0 +1,87 @@
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu126",
+  "shape": {
+    "layers": 9,
+    "hidden": 448,
+    "heads": 16,
+    "kv_heads": 2,
+    "head_dim": 64,
+    "lin_k_heads": 6,
+    "lin_v_heads": 18,
+    "lin_head_dim": 64,
+    "experts": 64,
+    "topk": 5,
+    "moe_ffn": 112,
+    "shared_ffn": 112,
+    "layer_types": "",
+    "aux_coef": 0.001,
+    "rope_theta": 10000000.0,
+    "partial_rotary": 0.25,
+    "experts_impl": "grouped_mm",
+    "n_branch": 4,
+    "mhc_iters": 20,
+    "qsa_blocks": 8,
+    "indexer_heads": 4,
+    "indexer_head_dim": 64,
+    "ngram_rows": 49152,
+    "mtp": 1
+  },
+  "seq": 4096,
+  "micro_bs": 1,
+  "warmup": 2,
+  "repeat": 3,
+  "training": {
+    "forward_ms": 88.23218199540861,
+    "backward_ms": 103.67031098576263,
+    "optimizer_ms": 71.01360699743964,
+    "total_ms": 262.8182089829352,
+    "loss": 10.60163402557373,
+    "tokens_per_second": 15584.91710239892
+  },
+  "inference": {
+    "median_ms": 40.9059560042806,
+    "tokens_per_second": 100132.11766940185
+  },
+  "training_peak_bytes": 7421309440,
+  "fast_paths": {
+    "experts": "q38_batched_mm",
+    "gated_deltanet": 8,
+    "norms": 36
+  },
+  "inference_fast_paths": {
+    "experts": "q38_triton",
+    "gated_deltanet": 8,
+    "norms": 36
+  },
+  "wall_seconds": 126.6873197289824,
+  "raw_training": [
+    {
+      "forward_ms": 88.23218199540861,
+      "backward_ms": 104.58848398411646,
+      "optimizer_ms": 71.40185200842097,
+      "total_ms": 264.22251798794605,
+      "loss": 11.329030990600586
+    },
+    {
+      "forward_ms": 88.11888200580142,
+      "backward_ms": 103.48585600149818,
+      "optimizer_ms": 71.01360699743964,
+      "total_ms": 262.61834500473924,
+      "loss": 10.60163402557373
+    },
+    {
+      "forward_ms": 88.26010199845769,
+      "backward_ms": 103.67031098576263,
+      "optimizer_ms": 70.88779599871486,
+      "total_ms": 262.8182089829352,
+      "loss": 10.113272666931152
+    }
+  ],
+  "raw_inference_ms": [
+    41.1478900059592,
+    40.9059560042806,
+    40.78374500386417
+  ],
+  "stage": "Before moving large NS normalization outside compiled polynomial graph"
+}

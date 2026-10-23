@@ -1,0 +1,75 @@
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu126",
+  "shape": {
+    "hidden": 128,
+    "layers": 4,
+    "heads": 4,
+    "kv_heads": 2,
+    "lin_k_heads": 2,
+    "lin_v_heads": 6,
+    "experts": 64,
+    "topk": 5,
+    "moe_ffn": 32,
+    "shared_ffn": 32,
+    "ngram_rows": 4096,
+    "experts_impl": "grouped_mm"
+  },
+  "seq": 4096,
+  "micro_bs": 1,
+  "warmup": 2,
+  "repeat": 3,
+  "training": {
+    "forward_ms": 68.22618399746716,
+    "backward_ms": 87.10899300058372,
+    "optimizer_ms": 64.7712420031894,
+    "total_ms": 220.53051998955198,
+    "loss": 11.34333324432373,
+    "tokens_per_second": 18573.392926267326
+  },
+  "inference": {
+    "median_ms": 20.614921988453716,
+    "tokens_per_second": 198691.0259613955
+  },
+  "training_peak_bytes": 1121758720,
+  "fast_paths": {
+    "experts": "grouped_mm",
+    "gated_deltanet": 4,
+    "norms": 20
+  },
+  "inference_fast_paths": {
+    "experts": "q38_triton",
+    "gated_deltanet": 4,
+    "norms": 20
+  },
+  "wall_seconds": 115.40039695700398,
+  "raw_training": [
+    {
+      "forward_ms": 68.85715600219555,
+      "backward_ms": 87.10899300058372,
+      "optimizer_ms": 64.7712420031894,
+      "total_ms": 220.73739100596868,
+      "loss": 11.566261291503906
+    },
+    {
+      "forward_ms": 68.19040401023813,
+      "backward_ms": 84.94279699516483,
+      "optimizer_ms": 63.08605000958778,
+      "total_ms": 216.21925101499073,
+      "loss": 11.34333324432373
+    },
+    {
+      "forward_ms": 68.22618399746716,
+      "backward_ms": 87.14203300769441,
+      "optimizer_ms": 65.16230298439041,
+      "total_ms": 220.53051998955198,
+      "loss": 11.127646446228027
+    }
+  ],
+  "raw_inference_ms": [
+    20.776545017724857,
+    20.60859600896947,
+    20.614921988453716
+  ],
+  "baseline_notes": "Correctness fixes (RoPE dtype and Torch2.7 tile compatibility) are common to both versions. Baseline measures grouped_mm fallback, eager Muon and full-token inference indexer; hook registration and MTP normalization were already improved."
+}
