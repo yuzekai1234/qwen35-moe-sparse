@@ -1,0 +1,91 @@
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu126",
+  "shape": {
+    "layers": 20,
+    "hidden": 1024,
+    "heads": 38,
+    "kv_heads": 2,
+    "head_dim": 64,
+    "lin_k_heads": 13,
+    "lin_v_heads": 39,
+    "lin_head_dim": 64,
+    "experts": 64,
+    "topk": 5,
+    "moe_ffn": 256,
+    "shared_ffn": 256,
+    "layer_types": "",
+    "aux_coef": 0.001,
+    "rope_theta": 10000000.0,
+    "partial_rotary": 0.25,
+    "experts_impl": "grouped_mm",
+    "n_branch": 4,
+    "mhc_iters": 20,
+    "qsa_blocks": 8,
+    "indexer_heads": 4,
+    "indexer_head_dim": 64,
+    "ngram_rows": 245760,
+    "mtp": 1
+  },
+  "seq": 4096,
+  "micro_bs": 2,
+  "grad_ckpt": true,
+  "warmup": 1,
+  "repeat": 2,
+  "training": {
+    "forward_ms": 557.5168935029069,
+    "backward_ms": 1055.7456009992165,
+    "optimizer_ms": 243.36195149226114,
+    "total_ms": 1856.6244459943846,
+    "loss": 11.872637271881104,
+    "tokens_per_second": 4412.308594597045
+  },
+  "inference": {
+    "median_ms": 143.13265751115978,
+    "tokens_per_second": 57233.61909465899
+  },
+  "training_peak_bytes": 27053838848,
+  "optimizer_step_every_microbatch": true,
+  "includes_data_loading": false,
+  "includes_gradient_clipping": false,
+  "fast_paths": {
+    "experts": "q38_batched_mm",
+    "gated_deltanet": 16,
+    "norms": 72
+  },
+  "inference_fast_paths": {
+    "experts": "q38_triton",
+    "gated_deltanet": 16,
+    "norms": 72
+  },
+  "wall_seconds": 80.97456188499928,
+  "warmup_training": [
+    {
+      "forward_ms": 24266.17944400641,
+      "backward_ms": 39383.27236499754,
+      "optimizer_ms": 1676.9014569872525,
+      "total_ms": 65326.3532659912,
+      "loss": 12.277636528015137
+    }
+  ],
+  "raw_training": [
+    {
+      "forward_ms": 535.8564399939496,
+      "backward_ms": 1008.4684180037584,
+      "optimizer_ms": 243.4202739968896,
+      "total_ms": 1787.7451319945976,
+      "loss": 12.03746509552002
+    },
+    {
+      "forward_ms": 579.1773470118642,
+      "backward_ms": 1103.0227839946747,
+      "optimizer_ms": 243.3036289876327,
+      "total_ms": 1925.5037599941716,
+      "loss": 11.707809448242188
+    }
+  ],
+  "raw_inference_ms": [
+    145.32166501157917,
+    140.94365001074038
+  ]
+}

@@ -41,6 +41,21 @@ GPU小case：FP32 experts输出max误差3.49e-10，输入/权重梯度约1e-11�
 
 不能由持久状态断言40GB可训练C4；按C1激活体积粗略外推，C4连micro1都可能超过40GB。应先在80GB设备从micro1实测。普通DDP不分摊每卡参数/optimizer状态。当前trunk没有执行activation checkpointing，继承的supports_gradient_checkpointing标记不能节省显存；若仍不足需另行实现并验证checkpointing/FSDP。本次没有扩大范围实现这些机制。
 
+## C4 activation checkpointing 实测（临时措施）
+
+单卡 A100-40GB、seq 4096 实测：不开 checkpointing 时 C4 micro1 前向即 OOM（已分配 38.35 GiB）。按 2/4 层截断测得每层前向保存激活约 1.11 GiB/序列，20 层约 22.6 GiB，加持久状态 22.1 GiB 超出 40GB。
+
+`--grad_ckpt 1` 对每个 decoder 层做非 reentrant checkpointing，层间只保存 mHC 残差流，router aux 只在前向记录、不重复计入重算。C1 形状、真实 FLA/Triton kernel 下开关前后 4 项 loss 相同、梯度相对差 0，C1 micro2 峰值 10.71→4.07 GiB。C4 结果（每 micro 做一次 optimizer step，峰值含优化器状态，不含 DDP buckets）：
+
+| C4 grad_ckpt | 峰值 allocated | 整步 ms | 训练 tok/s |
+|---|---:|---:|---:|
+| micro1 | 23.73 GiB | 1192 | 3.44K |
+| micro2 | 25.20 GiB | 1857 | 4.41K |
+| micro4 | 29.28 GiB | 3088 | 5.31K |
+| micro8 | 38.03 GiB | 5736 | 5.71K |
+
+原始数据见 q38_c4_ckpt_micro{1,2,4,8}.json。重算约多一次前向，只影响墙钟时间，**不计入 FLOPs 核算**。这是为在 40GB 卡上放下 C4 训练的临时措施，正式提交代码前需改回（C4 预设 `grad_ckpt` 置 0 或移除）。普通 DDP 每卡另有约 6.7 GiB 梯度 bucket，多卡 micro_bs 以 `--auto_micro_bs` 探测为准。
+
 ## 复现与范围
 
 ```bash

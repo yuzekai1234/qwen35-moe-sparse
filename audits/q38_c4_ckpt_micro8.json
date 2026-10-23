@@ -1,0 +1,91 @@
+{
+  "device": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu126",
+  "shape": {
+    "layers": 20,
+    "hidden": 1024,
+    "heads": 38,
+    "kv_heads": 2,
+    "head_dim": 64,
+    "lin_k_heads": 13,
+    "lin_v_heads": 39,
+    "lin_head_dim": 64,
+    "experts": 64,
+    "topk": 5,
+    "moe_ffn": 256,
+    "shared_ffn": 256,
+    "layer_types": "",
+    "aux_coef": 0.001,
+    "rope_theta": 10000000.0,
+    "partial_rotary": 0.25,
+    "experts_impl": "grouped_mm",
+    "n_branch": 4,
+    "mhc_iters": 20,
+    "qsa_blocks": 8,
+    "indexer_heads": 4,
+    "indexer_head_dim": 64,
+    "ngram_rows": 245760,
+    "mtp": 1
+  },
+  "seq": 4096,
+  "micro_bs": 8,
+  "grad_ckpt": true,
+  "warmup": 1,
+  "repeat": 2,
+  "training": {
+    "forward_ms": 1904.2350405070465,
+    "backward_ms": 3590.534963499522,
+    "optimizer_ms": 241.50027849827893,
+    "total_ms": 5736.270282504847,
+    "loss": 12.046592235565186,
+    "tokens_per_second": 5712.422599740411
+  },
+  "inference": {
+    "median_ms": 488.77021099906415,
+    "tokens_per_second": 67041.72894051994
+  },
+  "training_peak_bytes": 40831148032,
+  "optimizer_step_every_microbatch": true,
+  "includes_data_loading": false,
+  "includes_gradient_clipping": false,
+  "fast_paths": {
+    "experts": "q38_batched_mm",
+    "gated_deltanet": 16,
+    "norms": 72
+  },
+  "inference_fast_paths": {
+    "experts": "q38_triton",
+    "gated_deltanet": 16,
+    "norms": 72
+  },
+  "wall_seconds": 103.27266863599652,
+  "warmup_training": [
+    {
+      "forward_ms": 25913.461062009446,
+      "backward_ms": 50639.827589999186,
+      "optimizer_ms": 1444.2942939931527,
+      "total_ms": 77997.58294600178,
+      "loss": 12.262089729309082
+    }
+  ],
+  "raw_training": [
+    {
+      "forward_ms": 1897.3712690058164,
+      "backward_ms": 3748.1706289981958,
+      "optimizer_ms": 241.36358499526978,
+      "total_ms": 5886.905482999282,
+      "loss": 12.12360668182373
+    },
+    {
+      "forward_ms": 1911.0988120082766,
+      "backward_ms": 3432.899298000848,
+      "optimizer_ms": 241.6369720012881,
+      "total_ms": 5585.635082010413,
+      "loss": 11.96957778930664
+    }
+  ],
+  "raw_inference_ms": [
+    488.7906160147395,
+    488.7498059833888
+  ]
+}

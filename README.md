@@ -39,6 +39,7 @@ HF 导出包含全部自定义模型代码、N-gram 表和 MTP 权重；可用 `
 ## 核算与验证
 
 `q38/flops.py` 在原 Megatron GDN 约定上计入 QSA 实际选块、indexer 投影/打分、KL 目标、mHC、N-gram 门和训练 MTP；优化器与 dense warmup 开销不计。
+**临时措施：** C4 预设开启 `grad_ckpt: 1`（按层 activation checkpointing），反向时重算各层前向。重算只为在 40GB A100 上放下 C4 训练，不计入 FLOPs 核算，也不改变模型数值（与关闭时 loss/梯度逐位一致）。这是本地训练的临时措施，正式提交代码前需改回（`grad_ckpt` 置 0 或移除）。
 Indexer 输入已 detach，投影的前反向矩阵计算按前向的 2 倍计；打分矩阵计算仍按 3 倍计。
 非词表总参数包含完整 N-gram 表与 MTP；激活参数采用主头评估口径，只计每 token 访问的两条 N-gram 行，排除训练专用 MTP。
 C1–C4 预设采用同一 64 选 5 缩放规则，非词表激活比例按包含完整 N-gram 表和 MTP 的分母计算，均大于 10%。
@@ -61,4 +62,4 @@ C1–C4 预设采用同一 64 选 5 缩放规则，非词表激活比例按包�
 GPUS=0 bash -c 'source scripts/env.sh; "$PY" scripts/profile_q38.py --preset q38_c1 --seq 4096 --micro-bs 4 --output audits/q38_c1_local.json --profile'
 ```
 
-性能及显存适用范围见 [GPU profiling 报告](audits/q38_performance.md)。C2–C4 的质量为外推起点，C4 大模型的训练显存需求还需结合目标 GPU 评估；普通 DDP 不分摊权重和优化器状态。
+性能及显存适用范围见 [GPU profiling 报告](audits/q38_performance.md)。C2–C4 的质量为外推起点。C4 在 40GB A100 上不开 checkpointing 时 micro1 即 OOM，开启后单卡 micro1–8 峰值 23.7–38.0 GiB；普通 DDP 不分摊权重和优化器状态。

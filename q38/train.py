@@ -7,6 +7,8 @@
 默认 --resume 1: 重跑同一命令从 run_dir/ckpt.pt 续训; 改模型/数据/预算/学习率策略时用新的 --run_dir。
 --max_steps N 只把此次运行截止到绝对第 N 步, 不改变原预算的学习率曲线。
 --micro_bs 是每卡 micro batch, 超过每卡序列数 batch_tokens/(seq×卡数) 时取后者。
+--grad_ckpt 1: 按层 activation checkpointing, 层间只保存 mHC 残差流, 反向时重算各层 (约多一次前向, 重算不计入 FLOPs)。
+  仅为在 40GB 卡上放下 C4 的临时措施, 正式提交代码前需改回。
 --auto_micro_bs 1: 训练前从 --micro_bs 往小探测能放下的最大 micro batch (显存占用 ≤ --probe_mem_frac),
 结果缓存到 run_dir/micro_bs_probe.json, 卡型/卡数/模型不变时续训直接复用。
 默认数据: 共享 gzy 10K 语料 train.bin 全部用于训练, 过程验证取独立留出集 --val_data 的前 --eval_tokens;
@@ -43,7 +45,8 @@ TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_V
                       ckpt_every=200, resume=1, max_steps=0, tensorboard=1,
                       warmup_ratio=0.01, warmup_min=10, data_sampling="random", data_seed=-1,
                       eval_sampling="random", eval_offset=0, final_eval_tokens=0, final_eval_offset=0,
-                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92, mtp_coef=0.3, kl_coef=0.05, muon=1, dense_warmup=1)
+                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92, mtp_coef=0.3, kl_coef=0.05, muon=1, dense_warmup=1,
+                      grad_ckpt=0)
 # A resumed run must agree on everything that shapes the model, data stream or LR schedule.
 RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts",
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
@@ -91,6 +94,8 @@ def parse_args(argv=None):
     for name in ("layers", "hidden", "seq", "batch_tokens", "micro_bs", "log_every", "eval_every"):
         if getattr(a, name) <= 0:
             ap.error(f"--{name} must be positive")
+    if a.grad_ckpt not in (0, 1):
+        ap.error("--grad_ckpt must be 0 or 1")
     if a.auto_micro_bs not in (0, 1) or not 0 < a.probe_mem_frac <= 1:
         ap.error("--auto_micro_bs must be 0 or 1; --probe_mem_frac must be in (0,1]")
     if a.tokens < 0 or a.max_steps < 0 or a.ckpt_every < 0:
@@ -218,7 +223,7 @@ class LossModel(torch.nn.Module):
             ce = LigerFusedLinearCrossEntropyLoss()
         self.lm, self.experts, self.topk = lm, experts, topk
         self.ce = ce
-        self._router = []
+        self._router, self._recording = [], False
         self._router_hooks = [layer.mlp.gate.register_forward_hook(self._record_router)
                               for layer in list(lm.model.layers) + ([lm.mtp["block"]] if lm.mtp else [])]
         if lm.mtp is not None:
@@ -229,21 +234,26 @@ class LossModel(torch.nn.Module):
                 self.mtp_ce = _LinearCESum()
 
     def _record_router(self, module, args, output):
-        if self.training and torch.is_grad_enabled():
+        # _recording excludes activation-checkpoint recomputation, which reruns the gates during backward.
+        if self._recording and self.training and torch.is_grad_enabled():
             self._router.append(output[0])
 
     def forward(self, x, y):
         m = self.lm
         router = self._router
         router.clear()
-        hs, kls = m.model.trunk(x)
+        self._recording = True
+        try:
+            hs, kls = m.model.trunk(x)
+            mh = m.mtp_hidden(hs, y) if m.mtp is not None else None
+        finally:
+            self._recording = False
         h = m.model.norm(hs)
         ce = self.ce(m.lm_head.weight, h.reshape(-1, h.size(-1)), y.reshape(-1))
         mtp_loss = ce.new_zeros(())
         if m.mtp is not None:
             target = torch.cat([y[:, 1:], torch.full_like(y[:, :1], -100)], 1)
             target = target.masked_fill(y == m.config.eos_token_id, -100)
-            mh = m.mtp_hidden(hs, y)
             # Sum / clamped count handles all-EOS batches without a GPU->CPU branch.
             valid = (target != -100).sum()
             mtp_loss = self.mtp_ce(m.lm_head.weight, mh.reshape(-1, mh.size(-1)), target.reshape(-1)) / valid.clamp_min(1)
@@ -415,6 +425,7 @@ def main(argv=None):
     tok_sha = tokenizer_sha256(a.tokenizer)
     log0(f"Tokenizer: {a.tokenizer}, vocab={len(tok)}, bos={tok.bos_token_id}, eos={tok.eos_token_id}, pad={tok.pad_token_id}")
     model = Qwen3_8MoeForCausalLM(cfg).to(dev, dtype=torch.float32)
+    model.model.gradient_checkpointing = bool(a.grad_ckpt)
     log0("Model source:", M.__file__)
     assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "embeddings are not tied"
     log0("GDN kernel:", gdn_kernel())
@@ -431,7 +442,7 @@ def main(argv=None):
     if a.auto_micro_bs:
         gpu = torch.cuda.get_device_properties(dev)
         key = dict(world=world, gpu=gpu.name, gpu_bytes=gpu.total_memory, torch=torch.__version__, fast_paths=1,
-                   probe_mem_frac=a.probe_mem_frac, max_micro_bs=a.micro_bs, seq=a.seq, batch_tokens=a.batch_tokens,
+                   probe_mem_frac=a.probe_mem_frac, grad_ckpt=a.grad_ckpt, max_micro_bs=a.micro_bs, seq=a.seq, batch_tokens=a.batch_tokens,
                    model_sha256=hashlib.sha256(json.dumps(cfg.to_dict(), sort_keys=True).encode()).hexdigest())
         probe_path = Path(a.run_dir) / "micro_bs_probe.json"
         cached = torch.tensor(0, device=dev)

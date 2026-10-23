@@ -44,4 +44,27 @@ class Model(unittest.TestCase):
             torch.testing.assert_close(actual,expected,rtol=0,atol=0)
             self.assertEqual(loaded.config.model_type,"qwen38_moe_sparse")
 
+    def test_gradient_checkpointing_matches(self):
+        torch.manual_seed(0)
+        cfg = model_config(dict(layers=4, hidden=32, heads=2, kv_heads=1, lin_k_heads=1,
+            lin_v_heads=2, experts=8, topk=2, moe_ffn=8, shared_ffn=8, ngram_rows=64, qsa_blocks=1),
+            128, 128, eos_token_id=0)
+        model = Qwen3_8MoeForCausalLM(cfg).train()
+        wrapped = LossModel(model,8,2,ce=CE())
+        ids = torch.randint(1,128,(1,128))
+        runs = []
+        for ckpt in (False, True):
+            model.model.gradient_checkpointing = ckpt
+            losses = wrapped(ids,ids.roll(-1,1))
+            (losses[0] + .001*losses[1] + .3*losses[2] + .05*losses[3]).backward()
+            self.assertEqual(wrapped._router, [])   # recomputation must not leak router logits
+            runs.append(([l.detach() for l in losses], {n: p.grad.clone() for n, p in model.named_parameters() if p.grad is not None}))
+            model.zero_grad(set_to_none=True)
+        (plain, plain_grads), (ckpt, ckpt_grads) = runs
+        for a, b in zip(plain, ckpt):
+            torch.testing.assert_close(b, a, rtol=0, atol=0)
+        self.assertEqual(plain_grads.keys(), ckpt_grads.keys())
+        for n in plain_grads:
+            torch.testing.assert_close(ckpt_grads[n], plain_grads[n], rtol=1e-5, atol=1e-6, msg=n)
+
 if __name__ == "__main__": unittest.main()

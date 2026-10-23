@@ -24,6 +24,7 @@ from dataclasses import dataclass
 
 import torch
 import torch.nn.functional as F
+import torch.utils.checkpoint
 from torch import nn
 
 from transformers import initialization as init
@@ -1244,24 +1245,34 @@ class Qwen3_8MoeTextModel(Qwen3_8MoePreTrainedModel):
             raise ValueError("Indexer and attention head dimensions must match for shared partial RoPE")
         X = e.float().unsqueeze(2).expand(-1, -1, self.config.n_branch, -1).contiguous()
         kls = []
-        for i, layer in enumerate(self.layers):
-            xin, state = self.mhc[2*i].pre(X)
-            x = layer.input_layernorm(xin).to(e.dtype)
-            if self.config.layer_types[i] == "linear_attention":
-                y = layer.linear_attn(hidden_states=x, cache_params=None, attention_mask=None)
+        # Per-layer activation checkpointing keeps only the n_branch residual stream between layers.
+        ckpt = self.gradient_checkpointing and self.training and torch.is_grad_enabled()
+        for i in range(len(self.layers)):
+            if ckpt:
+                X, kl = torch.utils.checkpoint.checkpoint(self._layer, i, X, ids, cos, sin, e.dtype, use_reentrant=False)
             else:
-                y, kl = qsa_attention(layer.self_attn, x, cos, sin, self.indexers[str(i)],
-                                      self.config.qsa_blocks, self.training and self.qsa_dense,
-                                      self.training and torch.is_grad_enabled())
-                if kl is not None:
-                    kls.append(kl)
-            X = self.mhc[2*i].post(X, y, state)
-            xin, state = self.mhc[2*i+1].pre(X)
-            y = layer.mlp(layer.post_attention_layernorm(xin).to(e.dtype))
-            X = self.mhc[2*i+1].post(X, y, state)
-            if i == 0 and self.ngram is not None:
-                X = X + self.ngram.delta(X.mean(2).to(e.dtype), ids).unsqueeze(2)
+                X, kl = self._layer(i, X, ids, cos, sin, e.dtype)
+            if kl is not None:
+                kls.append(kl)
         return X.sum(2)[:, :length].to(e.dtype), kls
+
+    def _layer(self, i, X, ids, cos, sin, dtype):
+        layer, kl = self.layers[i], None
+        xin, state = self.mhc[2*i].pre(X)
+        x = layer.input_layernorm(xin).to(dtype)
+        if self.config.layer_types[i] == "linear_attention":
+            y = layer.linear_attn(hidden_states=x, cache_params=None, attention_mask=None)
+        else:
+            y, kl = qsa_attention(layer.self_attn, x, cos, sin, self.indexers[str(i)],
+                                  self.config.qsa_blocks, self.training and self.qsa_dense,
+                                  self.training and torch.is_grad_enabled())
+        X = self.mhc[2*i].post(X, y, state)
+        xin, state = self.mhc[2*i+1].pre(X)
+        y = layer.mlp(layer.post_attention_layernorm(xin).to(dtype))
+        X = self.mhc[2*i+1].post(X, y, state)
+        if i == 0 and self.ngram is not None:
+            X = X + self.ngram.delta(X.mean(2).to(dtype), ids).unsqueeze(2)
+        return X, kl
 
     @merge_with_config_defaults
     @capture_outputs

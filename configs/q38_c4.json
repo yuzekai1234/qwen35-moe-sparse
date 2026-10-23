@@ -64,7 +64,8 @@
     "mtp_coef": 0.3,
     "kl_coef": 0.05,
     "muon": 1,
-    "dense_warmup": 1
+    "dense_warmup": 1,
+    "grad_ckpt": 1
   },
   "accounting": {
     "accounting_method": "q38_sparse_mhc_ngram_mtp_v2",
