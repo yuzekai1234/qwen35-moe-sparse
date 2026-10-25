@@ -29,7 +29,7 @@
     "mtp": 1
   },
   "train": {
-    "run_dir": "runs/q38/c2",
+    "run_dir": "/home/shared/ckpt/c2",
     "data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/train.bin",
     "val_data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/valid.bin",
     "tokenizer": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/tokenizer",

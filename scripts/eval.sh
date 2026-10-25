@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# GPUS=1 bash scripts/eval.sh <model_dir (runs/<run>/hf)> [dataset.jsonl] [seq_len] [batch_per_gpu] [evaluate options...]
-# Writes runs/<run>/eval_<dataset>_seq<seq>.json.
+# GPUS=1 bash scripts/eval.sh <model_dir (/home/shared/ckpt/<c1..c4>/hf)> [dataset.jsonl] [seq_len] [batch_per_gpu] [evaluate options...]
+# Writes <model_dir>/../eval_<dataset>_seq<seq>.json.
 set -euo pipefail
 MODEL=$(realpath "${1:?usage: scripts/eval.sh <model_dir> [dataset] [seq] [batch]}")
 DATASET=$(realpath "${2:-/home/shared/data/dolma3_mix_100M_a.jsonl}"); SEQ=${3:-4096}; BS=${4:-2}

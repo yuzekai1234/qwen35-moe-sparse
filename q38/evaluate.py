@@ -1,6 +1,6 @@
 """Single-node, multi-GPU Transformers evaluation: JSONL -> packing -> bpb/EvalTime.
 
-torchrun --standalone --nproc_per_node=<gpus> -m q38.evaluate --dataset-path <eval.jsonl> --model-path runs/<run>/hf
+torchrun --standalone --nproc_per_node=<gpus> -m q38.evaluate --dataset-path <eval.jsonl> --model-path /home/shared/ckpt/<c1..c4>/hf
 (scripts/eval.sh wraps this.)  Imports the repository model implementation, not the exported remote code.
 
 BF16 and SDPA are example choices; adapt them for the submitted model.

@@ -14,6 +14,8 @@ from .models.qwen3_8_moe import Qwen3_8MoeTextConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 PRESET_DIR = ROOT / "configs"
+# Team-shared run directories: checkpoints, HF exports and evaluation results.
+CKPT_ROOT = Path("/home/shared/ckpt")
 
 # Model-shape arguments shared by train.py and the presets.
 MODEL_DEFAULTS = dict(layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64, lin_k_heads=1, lin_v_heads=2,

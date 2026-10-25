@@ -14,7 +14,7 @@ import sys
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from q38.flops import count
-from q38.presets import MODEL_DEFAULTS, ROOT, budget_tokens, model_config
+from q38.presets import CKPT_ROOT, MODEL_DEFAULTS, ROOT, budget_tokens, model_config
 
 BUDGETS = {"c1": 3 * 10**17, "c2": 10**18, "c3": 3 * 10**18, "c4": 10**19}
 SEQ = 4096  # User's clarified request; global batch size is a separate parameter.
@@ -143,7 +143,7 @@ def main():
         ranked=candidates(compute,n_target,d_target,batch)
         best=ranked[0]; shape,fc,tokens=best['shape'],best['flops'],best['train_tokens']
         steps=tokens//batch;warmup=min(steps,max(10,round(steps*.01)))
-        train=dict(run_dir=f'runs/q38/{name}',data=str(POOL/'train.bin'),val_data=str(POOL/'valid.bin'),
+        train=dict(run_dir=str(CKPT_ROOT/name),data=str(POOL/'train.bin'),val_data=str(POOL/'valid.bin'),
                    tokenizer=str(POOL/'tokenizer'),seq=SEQ,tokens=tokens,batch_tokens=batch,micro_bs=4,
                    auto_micro_bs=1,probe_mem_frac=.92,lr=round(.3118*compute**-.125,6),min_lr_ratio=.1,
                    warmup=warmup,warmup_ratio=.01,warmup_min=10,wd=.1,clip=1.,seed=0,data_seed=0,

@@ -15,7 +15,8 @@
 --val_data "" 时改为从 train.bin 末尾留出 --eval_tokens。
 输出 run_dir/: ckpt.pt (FP32 主权重+优化器+各 rank 随机状态), training_metrics.csv, tb/ (TensorBoard, --tensorboard 0 关闭),
 run_config.json, summary.json, flops.json, hf/ (BF16 HF 导出, 携带模型源码)。
-监控: tensorboard --logdir runs --port 6006
+q38_c1–c4 预设的 run_dir 在团队共享目录 /home/shared/ckpt/<c1..c4>; 未写 run_dir 的预设默认 /home/shared/ckpt/<preset>。
+监控: tensorboard --logdir /home/shared/ckpt --port 6006
 """
 import argparse
 import contextlib
@@ -36,7 +37,7 @@ from .data import DEFAULT_DATA, DEFAULT_TOKENIZER, DEFAULT_VAL_DATA, TOKEN_DTYPE
 from .flops import count as count_flops, validate_resume_accounting
 from .models.qwen3_8_moe import Qwen3_8MoeForCausalLM, source_info
 from .models.qwen3_8_moe import modeling_qwen3_8_moe as M
-from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_training_config, model_config
+from .presets import CKPT_ROOT, MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_training_config, model_config
 from .sampling import ShuffledBlockSampler, sequential_windows
 
 TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_VAL_DATA), tokenizer=str(DEFAULT_TOKENIZER),
@@ -78,7 +79,7 @@ def parse_args(argv=None):
         bad_train = set(p["train"]) - ((set(TRAIN_DEFAULTS) | set(MODEL_DEFAULTS)) - {"compute"})
         if bad_model or bad_train:
             ap.error(f"Unknown config fields: model={sorted(bad_model)}, train={sorted(bad_train)}")
-        defaults = dict(compute=p["compute"], run_dir=str(ROOT / "runs" / known.preset) if known.preset else "")
+        defaults = dict(compute=p["compute"], run_dir=str(CKPT_ROOT / known.preset) if known.preset else "")
         defaults.update(p["model"]); defaults.update(p["train"])
         ap.set_defaults(**defaults)
     a = ap.parse_args(argv)

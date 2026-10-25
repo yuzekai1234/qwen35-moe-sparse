@@ -17,15 +17,18 @@ N-gram 不跨 EOS；序列开头不足的前文使用独立占位 ID。模型只
 # 环境；已有 .venv_q35 可直接复用，脚本会自动回退
 bash scripts/setup_env.sh
 
-# 单卡；GPUS=0,1 可用 DDP
-GPUS=0 bash scripts/train.sh q38_c2 --run_dir runs/q38_c2
+# 单卡；GPUS=0,1 可用 DDP；输出到预设的 run_dir（/home/shared/ckpt/c2）
+GPUS=0 bash scripts/train.sh q38_c2
 
 # 模型参数及预算
 .venv_q35/bin/python -m q38.flops q38_c2 --seq 4096
 
-# 评估 HF 导出
-GPUS=0 bash scripts/eval.sh runs/q38_c2/hf /path/to/eval.jsonl 4096 1
+# 评估 HF 导出；结果写在模型目录旁（/home/shared/ckpt/c2/eval_*.json）
+GPUS=0 bash scripts/eval.sh /home/shared/ckpt/c2/hf /path/to/eval.jsonl 4096 1
 ```
+
+C1–C4 的训练输出、HF 导出和评测结果都放在团队共享目录 `/home/shared/ckpt/<c1..c4>/`。
+默认 `--resume 1` 会从该目录的 `ckpt.pt` 续训；试验性改动请用新的 `--run_dir`，避免写进队友正在使用的目录。
 
 默认训练 seq=4096，使用 GZY 10K tokenizer（实际 10112 token）及共享 16B token 训练池，无需重新分词。
 4096 是序列长度；`batch_tokens` 为每步全局 token 数，`micro_bs` 为每卡序列数。

@@ -6,11 +6,16 @@ replacements are forward-only and keep its numerics up to BF16 rounding order:
 - Routed experts: transformers' grouped_mm falls back on non-Hopper GPUs with torch < 2.9 to
   a per-expert loop with two host syncs per layer. Two Triton grouped GEMMs replace it,
   routing on the device and fusing the token gather, SiLU gating and routing weights.
+  Tile sizes are benchmarked once per GPU model and expert shape on the first call (warmup).
 - Gated DeltaNet prefill: FLA's Triton causal conv1d on the [B, T, D] layout and its native
   grouped-value heads replace the reference conv (two transposes) and repeat_interleave.
 - RMSNorm / gated RMSNorm: torch.compile fuses the FP32 elementwise chains.
+- mHC: one Triton pass reads the FP32 residual branches once for both the RMS and the
+  low-rank projection (3xTF32, no less accurate than the FP32 SGEMM it replaces), and the
+  4x4 branch mix is a fused broadcast-sum instead of a cuBLAS batched GEMM per token.
 
-Keep _gdn_prefill_forward in sync with Qwen3_8MoeGatedDeltaNet.forward when editing the model.
+Keep _gdn_prefill_forward in sync with Qwen3_8MoeGatedDeltaNet.forward and _mhc_pre_forward /
+_mhc_post_forward in sync with MHC when editing the model.
 """
 import types
 
@@ -18,9 +23,10 @@ import torch
 import torch.nn.functional as F
 import triton
 import triton.language as tl
+from triton.testing import do_bench
 
 from .models.qwen3_8_moe.modeling_qwen3_8_moe import (
-    Qwen3_8MoeGatedDeltaNet, Qwen3_8MoeRMSNorm, Qwen3_8MoeRMSNormGated,
+    MHC, Qwen3_8MoeGatedDeltaNet, Qwen3_8MoeRMSNorm, Qwen3_8MoeRMSNormGated, _agg, _sinkhorn,
 )
 
 EXPERTS_IMPLEMENTATION = "q38_triton"
@@ -120,9 +126,29 @@ def _down_kernel(
     tl.store(y_ptr + pair[:, None] * stride_y + offs_n[None, :], out.to(dtype), mask=mask_m[:, None] & mask_n[None, :])
 
 
-# Tuned on an RTX 4090 for hidden = intermediate = 192, 262144 tokens, top-4 of 64 experts.
-GATE_UP_CONFIG = dict(BLOCK_M=128, BLOCK_N=64, BLOCK_K=64, num_warps=4, num_stages=2)
-DOWN_CONFIG = dict(BLOCK_M=64, BLOCK_N=256, BLOCK_K=32, num_warps=8, num_stages=3)
+def _expert_configs(block_n):
+    return [dict(BLOCK_M=m, BLOCK_N=n, BLOCK_K=k, num_warps=w, num_stages=s)
+            for m in (64, 128) for n in block_n for k in (32, 64) for w in (4, 8) for s in (2, 3)]
+
+
+# Candidates for the first-call benchmark; the best depends on the GPU and the expert shape.
+GATE_UP_CONFIGS = _expert_configs((64, 128))
+DOWN_CONFIGS = _expert_configs((64, 128, 256))
+_TUNED = {}
+
+
+def _tuned_config(key, candidates, run):
+    """Fastest candidate for key, benchmarked once per process; candidates that fail to compile are skipped."""
+    if key not in _TUNED:
+        timings = []
+        for config in candidates:
+            try:
+                timings.append((do_bench(lambda: run(config), warmup=5, rep=20), config))
+            except triton.runtime.errors.OutOfResources:
+                continue
+        _TUNED[key] = min(timings, key=lambda t: t[0])[1]
+        print(f"Tuned {key}: {_TUNED[key]}", flush=True)
+    return _TUNED[key]
 
 
 def triton_experts_forward(self, hidden_states, top_k_index, top_k_weights):
@@ -141,23 +167,27 @@ def triton_experts_forward(self, hidden_states, top_k_index, top_k_weights):
     counts = (bounds[1:] - bounds[:-1]).to(torch.int32)
     common = dict(E=num_experts, E_PAD=triton.next_power_of_2(num_experts), IEEE=hidden_states.dtype == torch.float32)
 
-    def launch(kernel, config, n, *args, **meta):
-        block_m = config["BLOCK_M"]
-        blk_cum = torch.cumsum((counts + block_m - 1) // block_m, 0, dtype=torch.int32)
-        # Upper bound on non-empty M-blocks; surplus programs exit immediately.
-        grid = (triton.cdiv(num_pairs, block_m) + num_experts, triton.cdiv(n, config["BLOCK_N"]))
-        kernel[grid](blk_cum, counts, starts, *args, **meta, **config)
+    def launch(kernel, candidates, k, n, *args, **meta):
+        def run(config):
+            block_m = config["BLOCK_M"]
+            blk_cum = torch.cumsum((counts + block_m - 1) // block_m, 0, dtype=torch.int32)
+            # Upper bound on non-empty M-blocks; surplus programs exit immediately.
+            grid = (triton.cdiv(num_pairs, block_m) + num_experts, triton.cdiv(n, config["BLOCK_N"]))
+            kernel[grid](blk_cum, counts, starts, *args, **meta, **config)
+        key = (kernel.__name__, torch.cuda.get_device_name(hidden_states.device), hidden_states.dtype,
+               k, n, num_experts, top_k)
+        run(_tuned_config(key, candidates, run))
 
     h = hidden_states.new_empty(num_pairs, intermediate)
     gate_up = self.gate_up_proj
-    launch(_gate_up_kernel, GATE_UP_CONFIG, intermediate,
+    launch(_gate_up_kernel, GATE_UP_CONFIGS, hidden, intermediate,
            hidden_states, gate_up, h, perm,
            hidden, intermediate, hidden_states.stride(0), gate_up.stride(0), gate_up.stride(1), h.stride(0),
            TOPK=top_k, **common)
     y = hidden_states.new_empty(num_pairs, hidden)
     down = self.down_proj
     weights = top_k_weights.reshape(-1)
-    launch(_down_kernel, DOWN_CONFIG, hidden,
+    launch(_down_kernel, DOWN_CONFIGS, intermediate, hidden,
            h, down, y, perm, weights,
            intermediate, hidden, h.stride(0), down.stride(0), down.stride(1), y.stride(0),
            **common)
@@ -190,6 +220,85 @@ def _gdn_prefill_forward(self, hidden_states, cache_params=None, attention_mask=
     return self.out_proj(core_attn_out.reshape(batch_size, seq_len, -1))
 
 
+def _rms_lowrank_configs():
+    return [triton.Config(dict(BLOCK_M=m, BLOCK_K=k), num_warps=w, num_stages=s)
+            for m in (32, 64, 128) for k in (16, 32) for w in (4, 8) for s in (3, 4)]
+
+
+@triton.autotune(_rms_lowrank_configs(), key=["K", "R"])
+@triton.jit
+def _rms_lowrank_kernel(x_ptr, a_ptr, z_ptr, M, K, R, stride_x, stride_a, stride_z, eps,
+                        R_PAD: tl.constexpr, BLOCK_M: tl.constexpr, BLOCK_K: tl.constexpr):
+    """z = rmsnorm(x) @ A^T as rsqrt(mean(x^2) + eps) * (x @ A^T), reading each row of x once."""
+    offs_m = (tl.program_id(0) * BLOCK_M + tl.arange(0, BLOCK_M)).to(tl.int64)
+    mask_m = offs_m < M
+    offs_r = tl.arange(0, R_PAD)
+    mask_r = offs_r < R
+    offs_k = tl.arange(0, BLOCK_K)
+    acc = tl.zeros((BLOCK_M, R_PAD), dtype=tl.float32)
+    sum_sq = tl.zeros((BLOCK_M,), dtype=tl.float32)
+    for k0 in range(0, K, BLOCK_K):
+        mask_k = k0 + offs_k < K
+        x = tl.load(x_ptr + offs_m[:, None] * stride_x + (k0 + offs_k)[None, :],
+                    mask=mask_m[:, None] & mask_k[None, :], other=0.0)
+        a = tl.load(a_ptr + offs_r[None, :] * stride_a + (k0 + offs_k)[:, None],
+                    mask=mask_r[None, :] & mask_k[:, None], other=0.0)
+        acc = tl.dot(x, a, acc, input_precision="tf32x3")
+        sum_sq += tl.sum(x * x, axis=1)
+    inv = 1.0 / tl.sqrt(sum_sq / K + eps)
+    tl.store(z_ptr + offs_m[:, None] * stride_z + offs_r[None, :], acc * inv[:, None],
+             mask=mask_m[:, None] & mask_r[None, :])
+
+
+def rms_lowrank(x, a, eps=1e-6):
+    """FP32 [M, K] x, [R, K] a -> [M, R]; matches F.linear(x * rsqrt(mean(x^2) + eps), a)."""
+    M, K = x.shape
+    R = a.shape[0]
+    z = x.new_empty(M, R)
+    grid = lambda meta: (triton.cdiv(M, meta["BLOCK_M"]),)
+    _rms_lowrank_kernel[grid](x, a, z, M, K, R, x.stride(0), a.stride(0), z.stride(0), eps,
+                              R_PAD=max(16, triton.next_power_of_2(R)))
+    return z
+
+
+def _mhc_coeffs_agg(X, lowrank, B, b_pre, b_post, b_res, alphas, n, iters):
+    # Same as the model's _coeffs after its first projection, followed by _agg.
+    z = torch.tanh(F.linear(lowrank, B))
+    zp, zq, zr = z[..., :n], z[..., n:2 * n], z[..., 2 * n:].reshape(*z.shape[:-1], n, n)
+    pre = torch.sigmoid(b_pre + alphas[0] * zp)
+    post = 2 * torch.sigmoid(b_post + alphas[1] * zq)
+    res = _sinkhorn(b_res + alphas[2] * zr, iters)
+    return _agg(X, pre), pre, post, res
+
+
+def _mix_fused(X, res, post, y):
+    # einsum("bsmn,bsnh->bsmh") as a broadcast-sum so Inductor fuses it with the update.
+    return (res.unsqueeze(-1) * X.unsqueeze(2)).sum(3) + post.unsqueeze(-1) * y.float().unsqueeze(2)
+
+
+_mhc_coeffs_agg_c = torch.compile(_mhc_coeffs_agg)
+_mix_fused_c = torch.compile(_mix_fused)
+
+
+def _mhc_pre_forward(self, X):
+    if not X.is_cuda:
+        return self._reference_pre(X)
+    with torch.autocast("cuda", enabled=False):
+        X = X.float()
+        lowrank = rms_lowrank(X.reshape(-1, X.shape[2] * X.shape[3]), self.A.weight.float())
+        xin, pre, post, res = _mhc_coeffs_agg_c(
+            X, lowrank.view(*X.shape[:2], -1), self.B.weight.float(), self.b_pre.float(), self.b_post.float(),
+            self.b_res.float(), self.alphas.float(), self.n, self.iters,
+        )
+        return xin, (X, pre, post, res)
+
+
+def _mhc_post_forward(self, X, y, c):
+    if not X.is_cuda:
+        return self._reference_post(X, y, c)
+    return _mix_fused_c(c[0], c[3], c[2], y)
+
+
 def compile_inference_norms(model):
     """Fuse normalization without tracing dynamic expert dispatch or the FLA kernels."""
     count = 0
@@ -217,7 +326,15 @@ def optimize_for_inference(model):
             module._reference_forward = module.forward
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
-    return dict(experts=model.config._experts_implementation, gated_deltanet=gdn, norms=compile_inference_norms(model))
+    mhc = 0
+    for module in model.modules():
+        if isinstance(module, MHC):
+            module._reference_pre, module._reference_post = module.pre, module.post
+            module.pre = types.MethodType(_mhc_pre_forward, module)
+            module.post = types.MethodType(_mhc_post_forward, module)
+            mhc += 1
+    return dict(experts=model.config._experts_implementation, gated_deltanet=gdn, mhc=mhc,
+                norms=compile_inference_norms(model))
 
 
 def padded_batched_experts_forward(self, hidden_states, top_k_index, top_k_weights):
