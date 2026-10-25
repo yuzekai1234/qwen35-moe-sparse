@@ -13,10 +13,14 @@ replacements are forward-only and keep its numerics up to BF16 rounding order:
 - mHC: one Triton pass reads the FP32 residual branches once for both the RMS and the
   low-rank projection (3xTF32, no less accurate than the FP32 SGEMM it replaces), and the
   4x4 branch mix is a fused broadcast-sum instead of a cuBLAS batched GEMM per token.
+  Opt-in reduced precision (changes numerics; off by default): Q38_MHC_BF16_PROJ=1 runs the
+  projection as one BF16 tensor-core pass, Q38_MHC_BF16_STREAM=1 stores the residual branches
+  in BF16 between sublayers (the mix itself still computes in FP32).
 
 Keep _gdn_prefill_forward in sync with Qwen3_8MoeGatedDeltaNet.forward and _mhc_pre_forward /
 _mhc_post_forward in sync with MHC when editing the model.
 """
+import os
 import types
 
 import torch
@@ -225,10 +229,11 @@ def _rms_lowrank_configs():
             for m in (32, 64, 128) for k in (16, 32) for w in (4, 8) for s in (3, 4)]
 
 
-@triton.autotune(_rms_lowrank_configs(), key=["K", "R"])
+@triton.autotune(_rms_lowrank_configs(), key=["K", "R", "BF16_DOT"])
 @triton.jit
 def _rms_lowrank_kernel(x_ptr, a_ptr, z_ptr, M, K, R, stride_x, stride_a, stride_z, eps,
-                        R_PAD: tl.constexpr, BLOCK_M: tl.constexpr, BLOCK_K: tl.constexpr):
+                        BF16_DOT: tl.constexpr, R_PAD: tl.constexpr, BLOCK_M: tl.constexpr,
+                        BLOCK_K: tl.constexpr):
     """z = rmsnorm(x) @ A^T as rsqrt(mean(x^2) + eps) * (x @ A^T), reading each row of x once."""
     offs_m = (tl.program_id(0) * BLOCK_M + tl.arange(0, BLOCK_M)).to(tl.int64)
     mask_m = offs_m < M
@@ -240,24 +245,27 @@ def _rms_lowrank_kernel(x_ptr, a_ptr, z_ptr, M, K, R, stride_x, stride_a, stride
     for k0 in range(0, K, BLOCK_K):
         mask_k = k0 + offs_k < K
         x = tl.load(x_ptr + offs_m[:, None] * stride_x + (k0 + offs_k)[None, :],
-                    mask=mask_m[:, None] & mask_k[None, :], other=0.0)
+                    mask=mask_m[:, None] & mask_k[None, :], other=0.0).to(tl.float32)
         a = tl.load(a_ptr + offs_r[None, :] * stride_a + (k0 + offs_k)[:, None],
                     mask=mask_r[None, :] & mask_k[:, None], other=0.0)
-        acc = tl.dot(x, a, acc, input_precision="tf32x3")
+        if BF16_DOT:
+            acc = tl.dot(x.to(tl.bfloat16), a.to(tl.bfloat16), acc)
+        else:
+            acc = tl.dot(x, a, acc, input_precision="tf32x3")
         sum_sq += tl.sum(x * x, axis=1)
     inv = 1.0 / tl.sqrt(sum_sq / K + eps)
     tl.store(z_ptr + offs_m[:, None] * stride_z + offs_r[None, :], acc * inv[:, None],
              mask=mask_m[:, None] & mask_r[None, :])
 
 
-def rms_lowrank(x, a, eps=1e-6):
-    """FP32 [M, K] x, [R, K] a -> [M, R]; matches F.linear(x * rsqrt(mean(x^2) + eps), a)."""
+def rms_lowrank(x, a, eps=1e-6, bf16_dot=False):
+    """[M, K] x (FP32 or BF16), FP32 [R, K] a -> FP32 [M, R]; matches F.linear(x * rsqrt(mean(x^2) + eps), a)."""
     M, K = x.shape
     R = a.shape[0]
-    z = x.new_empty(M, R)
+    z = x.new_empty(M, R, dtype=torch.float32)
     grid = lambda meta: (triton.cdiv(M, meta["BLOCK_M"]),)
     _rms_lowrank_kernel[grid](x, a, z, M, K, R, x.stride(0), a.stride(0), z.stride(0), eps,
-                              R_PAD=max(16, triton.next_power_of_2(R)))
+                              BF16_DOT=bf16_dot, R_PAD=max(16, triton.next_power_of_2(R)))
     return z
 
 
@@ -276,16 +284,24 @@ def _mix_fused(X, res, post, y):
     return (res.unsqueeze(-1) * X.unsqueeze(2)).sum(3) + post.unsqueeze(-1) * y.float().unsqueeze(2)
 
 
+def _mix_fused_bf16(X, res, post, y):
+    # Rounds to BF16 inside the fused kernel, so the FP32 result is never written.
+    return _mix_fused(X, res, post, y).to(torch.bfloat16)
+
+
 _mhc_coeffs_agg_c = torch.compile(_mhc_coeffs_agg)
 _mix_fused_c = torch.compile(_mix_fused)
+_mix_fused_bf16_c = torch.compile(_mix_fused_bf16)
 
 
 def _mhc_pre_forward(self, X):
     if not X.is_cuda:
         return self._reference_pre(X)
     with torch.autocast("cuda", enabled=False):
-        X = X.float()
-        lowrank = rms_lowrank(X.reshape(-1, X.shape[2] * X.shape[3]), self.A.weight.float())
+        if not self._bf16_stream:
+            X = X.float()
+        lowrank = rms_lowrank(X.reshape(-1, X.shape[2] * X.shape[3]), self.A.weight.float(),
+                              bf16_dot=self._bf16_proj)
         xin, pre, post, res = _mhc_coeffs_agg_c(
             X, lowrank.view(*X.shape[:2], -1), self.B.weight.float(), self.b_pre.float(), self.b_post.float(),
             self.b_res.float(), self.alphas.float(), self.n, self.iters,
@@ -296,7 +312,7 @@ def _mhc_pre_forward(self, X):
 def _mhc_post_forward(self, X, y, c):
     if not X.is_cuda:
         return self._reference_post(X, y, c)
-    return _mix_fused_c(c[0], c[3], c[2], y)
+    return (_mix_fused_bf16_c if self._bf16_stream else _mix_fused_c)(c[0], c[3], c[2], y)
 
 
 def compile_inference_norms(model):
@@ -327,14 +343,16 @@ def optimize_for_inference(model):
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
     mhc = 0
+    bf16_proj, bf16_stream = (os.environ.get(k) == "1" for k in ("Q38_MHC_BF16_PROJ", "Q38_MHC_BF16_STREAM"))
     for module in model.modules():
         if isinstance(module, MHC):
+            module._bf16_proj, module._bf16_stream = bf16_proj, bf16_stream
             module._reference_pre, module._reference_post = module.pre, module.post
             module.pre = types.MethodType(_mhc_pre_forward, module)
             module.post = types.MethodType(_mhc_post_forward, module)
             mhc += 1
     return dict(experts=model.config._experts_implementation, gated_deltanet=gdn, mhc=mhc,
-                norms=compile_inference_norms(model))
+                mhc_bf16_proj=bf16_proj, mhc_bf16_stream=bf16_stream, norms=compile_inference_norms(model))
 
 
 def padded_batched_experts_forward(self, hidden_states, top_k_index, top_k_weights):
