@@ -37,7 +37,7 @@ PY="$PY" GPUS=0 bash scripts/train_dense.sh c1 --dry-run
 PY="$PY" GPUS=0 bash scripts/train_dense.sh c1 --run_dir /path/to/new/output
 ```
 
-入口也接受 `c2`、`c3`、`c4` 或配置 JSON。改变模型或预算后应重新生成配置；显式 `tokens` 超过 `compute` 时在读数据前拒绝。`--tokens 0 --warmup 0` 按完整预算重算，不保留上述预留。禁止跨配置恢复 checkpoint。
+入口也接受 `c2`、`c3`、`c4` 或配置 JSON。改变模型或预算后应重新生成配置；显式 `tokens` 对应的训练 FLOPs 超过 `compute` 时在读数据前拒绝。`--tokens 0 --warmup 0` 按完整预算重算，不保留上述预留。禁止跨配置恢复 checkpoint。
 
 ## 验证
 
