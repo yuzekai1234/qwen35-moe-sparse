@@ -80,6 +80,7 @@ class Qwen3_8MoeTextConfig(PreTrainedConfig):
     linear_value_head_dim: int = 128
     linear_num_key_heads: int = 16
     linear_num_value_heads: int = 32
+    intermediate_size: int = 0  # Dense SwiGLU width; num_experts=0 selects this FFN.
     moe_intermediate_size: int = 512
     shared_expert_intermediate_size: int = 512
     num_experts_per_tok: int = 5
@@ -101,6 +102,16 @@ class Qwen3_8MoeTextConfig(PreTrainedConfig):
     ignore_keys_at_rope_validation = {"mrope_section", "mrope_interleaved"}
 
     def __post_init__(self, **kwargs):
+        if self.num_experts < 0:
+            raise ValueError("num_experts must be nonnegative")
+        if self.num_experts == 0:
+            if self.intermediate_size <= 0 or any((self.num_experts_per_tok,
+                    self.moe_intermediate_size, self.shared_expert_intermediate_size)):
+                raise ValueError("Dense FFN requires intermediate_size>0 and zero routed/shared expert fields")
+            if self.router_aux_loss_coef != 0:
+                raise ValueError("Dense FFN has no router auxiliary loss")
+        elif not 1 <= self.num_experts_per_tok <= self.num_experts:
+            raise ValueError("MoE requires 1 <= num_experts_per_tok <= num_experts")
         kwargs.setdefault("partial_rotary_factor", 0.25)  # assign default for BC
         if self.layer_types is None:
             interval_pattern = kwargs.pop("full_attention_interval", 4)

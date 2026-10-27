@@ -22,8 +22,14 @@ def _count_backbone(c, seq):
         raise ValueError("Positive sequence length and one supported layer type per layer are required")
     if c.get("attention_bias", False):
         raise ValueError("This accounting supports the bias-free Qwen attention projections")
-    moe_active = E * h + 3 * h * fs + h + k * 3 * h * fe          # router + 共享专家 + 共享专家门 + top-k 路由专家
-    moe_total = E * h + 3 * h * fs + h + E * 3 * h * fe
+    dense_width = c.get("intermediate_size", 0)
+    if E == 0:
+        if dense_width <= 0 or any((k, fe, fs)):
+            raise ValueError("Dense FFN requires a positive width and zero expert fields")
+        moe_active = moe_total = 3 * h * dense_width
+    else:
+        moe_active = E * h + 3 * h * fs + h + k * 3 * h * fe
+        moe_total = E * h + 3 * h * fs + h + E * 3 * h * fe
     gdn = h * (2 * nk * dk + nv * dv) + h * nv * dv + 2 * h * nv + (2 * nk * dk + nv * dv) * K + 2 * nv + dv + nv * dv * h
     full = h * 2 * nq * hd + 2 * h * nkv * hd + nq * hd * h + 2 * hd   # q 含输出门(×2), q/k norm
     n_lin, n_full = types.count("linear_attention"), types.count("full_attention")
@@ -35,9 +41,9 @@ def _count_backbone(c, seq):
     gdn_conv = n_lin * 2 * K * (2 * nk * dk + nv * dv)
     # Preserve the pinned reference's dv**2 convention, including when dk != dv.
     gdn_core = n_lin * 8 * nv * dv**2
-    expert_gemm = L * 6 * h * (k * fe + fs)
+    expert_gemm = L * 6 * h * (k * fe + fs if E else dense_width)
     router = L * 2 * h * E
-    shared_gate = L * 2 * h
+    shared_gate = L * 2 * h if E else 0
     attn_score = n_full * 2 * seq * nq * hd
     logits = 2 * h * V
     breakdown = dict(full_projections=full_proj, gdn_projections=gdn_proj, gdn_conv=gdn_conv,
@@ -95,13 +101,17 @@ def count(c, seq):
     # Indexer inputs are detached: projections need only forward and weight
     # gradients (2x), while the score GEMMs still backpropagate to both operands.
     train = 3*fwd - bd["indexer_projections"] + distill
-    r.update(accounting_method="q38_sparse_mhc_ngram_mtp_v2", breakdown=bd,
+    r.update(accounting_method="q38_sparse_mhc_ngram_mtp_v2" if c["num_experts"] else "q38_dense_mhc_ngram_mtp_v1", breakdown=bd,
              active_nonvocab_params=active, nonvocab_params=active, total_nonvocab_params=total,
              total_params_all=total+r["embed_params"], ngram_params=tables, ngram_rows=rows,
              indexer_params=ip, mhc_params=mp, mtp_params=mtp_params,
              mtp_active_params=mtp_active, distill_target_flops=distill,
              fwd_flops_per_token=fwd, main_fwd_flops_per_token=fwd-bd.get("mtp", 0),
              train_flops_per_token=train)
+    # Keep the historical nonvocab fields for training/checkpoint accounting;
+    # evaluation excludes every Embedding, including N-gram tables/rows.
+    r.update(active_params_excluding_embeddings=active-(2*h if rows else 0),
+             total_params_excluding_embeddings=total-tables)
     return r
 
 

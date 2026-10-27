@@ -20,7 +20,7 @@ MODEL_DEFAULTS = dict(layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64, lin
                       lin_head_dim=64, experts=64, topk=5, moe_ffn=24, shared_ffn=24, layer_types="",
                       aux_coef=0.001, rope_theta=1e7, partial_rotary=0.25, experts_impl="eager",
                       n_branch=4, mhc_iters=20, qsa_blocks=8, indexer_heads=4, indexer_head_dim=64,
-                      ngram_rows=-1, mtp=1)
+                      ngram_rows=-1, mtp=1, dense_ffn=0)
 
 
 def preset_names():
@@ -57,6 +57,13 @@ def default_layer_types(layers):
 def model_config(shape, vocab_size, seq, bos_token_id=None, eos_token_id=None, pad_token_id=None):
     """Build the text config from shape fields (a dict such as vars(args) or MODEL_DEFAULTS | preset)."""
     s = {**MODEL_DEFAULTS, **shape}
+    if s["experts"] == 0:
+        if s["dense_ffn"] <= 0 or any(s[k] for k in ("topk", "moe_ffn", "shared_ffn", "aux_coef")):
+            raise ValueError("Dense shape requires dense_ffn>0 and topk/moe_ffn/shared_ffn/aux_coef=0")
+        if s["ngram_rows"] < 0:
+            raise ValueError("Resolve the paired MoE N-gram table size before constructing dense")
+    elif s["dense_ffn"]:
+        raise ValueError("dense_ffn is only valid when experts=0")
     types = s["layer_types"].split(",") if s["layer_types"] else default_layer_types(s["layers"])
     cfg = Qwen3_8MoeTextConfig(
         vocab_size=vocab_size, hidden_size=s["hidden"], num_hidden_layers=s["layers"],
@@ -64,6 +71,7 @@ def model_config(shape, vocab_size, seq, bos_token_id=None, eos_token_id=None, p
         linear_num_key_heads=s["lin_k_heads"], linear_num_value_heads=s["lin_v_heads"],
         linear_key_head_dim=s["lin_head_dim"], linear_value_head_dim=s["lin_head_dim"], linear_conv_kernel_dim=4,
         num_experts=s["experts"], num_experts_per_tok=s["topk"], moe_intermediate_size=s["moe_ffn"],
+        intermediate_size=s["dense_ffn"],
         shared_expert_intermediate_size=s["shared_ffn"], router_aux_loss_coef=s["aux_coef"],
         output_router_logits=False, layer_types=types, max_position_embeddings=seq, rms_norm_eps=1e-6,
         rope_parameters={"rope_type": "default", "rope_theta": s["rope_theta"], "partial_rotary_factor": s["partial_rotary"]},
@@ -79,6 +87,18 @@ def model_config(shape, vocab_size, seq, bos_token_id=None, eos_token_id=None, p
     cfg._experts_implementation = s["experts_impl"]
     cfg._attn_implementation = "sdpa"
     return cfg
+
+
+def dense_shape(shape, vocab_size, seq):
+    """Replace only the FFN, resolving shared non-FFN dimensions from the MoE first."""
+    reference = model_config(shape, vocab_size, seq)
+    if reference.num_experts <= 0:
+        raise ValueError("dense_shape expects a MoE reference")
+    width = (reference.num_experts_per_tok * reference.moe_intermediate_size
+             + reference.shared_expert_intermediate_size)
+    return {**shape, "experts": 0, "topk": 0, "moe_ffn": 0, "shared_ffn": 0,
+            "dense_ffn": width, "aux_coef": 0.0, "experts_impl": "eager",
+            "ngram_rows": reference.ngram_rows}
 
 
 def budget_tokens(train_flops_per_token, compute, batch_tokens):

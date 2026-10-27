@@ -864,7 +864,8 @@ class Qwen3_8MoeDecoderLayer(GradientCheckpointingLayer):
             self.linear_attn = Qwen3_8MoeGatedDeltaNet(config, layer_idx)
         elif self.block_type == "full_attention":
             self.self_attn = Qwen3_8MoeAttention(config, layer_idx)
-        self.mlp = Qwen3_8MoeSparseMoeBlock(config)
+        self.mlp = (Qwen3_8MoeSparseMoeBlock(config) if config.num_experts
+                    else Qwen3_8MoeMLP(config, intermediate_size=config.intermediate_size))
         self.input_layernorm = Qwen3_8MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen3_8MoeRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
@@ -1154,7 +1155,16 @@ def qsa_attention(attn, x, cos, sin, indexer, budget_blocks, dense, want_kl):
             mask = mask & torch.ones(S, S, dtype=torch.bool, device=x.device).tril()
             o = F.scaled_dot_product_attention(q, k, v, attn_mask=mask[:, None], scale=attn.scaling, enable_gqa=True)
         else:
-            o = _flex(q, k, v, scale=attn.scaling, block_mask=bm, enable_gqa=True, kernel_options={"BLOCK_M": 64, "BLOCK_N": 64, "BLOCK_M1": 32, "BLOCK_N1": 64, "BLOCK_M2": 64, "BLOCK_N2": 32})
+            kernel_options = {"BLOCK_M": 64, "BLOCK_N": 64, "BLOCK_M1": 32,
+                              "BLOCK_N1": 64, "BLOCK_M2": 64, "BLOCK_N2": 32}
+            # Torch 2.7 switches short GQA queries to a decoding kernel, whose
+            # BLOCK_M must cover S * (query_heads / kv_heads), not just S.
+            # These are uncached prefill tails: use the prefill kernel with the
+            # exact same selected-block/causal mask, rather than dropping it.
+            if torch.__version__.startswith("2.7.") and S < 128:
+                kernel_options["FORCE_USE_FLEX_ATTENTION"] = True
+            o = _flex(q, k, v, scale=attn.scaling, block_mask=bm,
+                      enable_gqa=True, kernel_options=kernel_options)
     o = o.transpose(1, 2).reshape(B, S, -1) * torch.sigmoid(gate)
     return attn.o_proj(o), kl
 
@@ -1400,7 +1410,7 @@ class Qwen3_8MoeForCausalLM(Qwen3_8MoePreTrainedModel, GenerationMixin):
 
         output_router_logits = (
             output_router_logits if output_router_logits is not None else self.config.output_router_logits
-        )
+        ) and self.num_experts > 0
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs: MoeModelOutputWithPast = self.model(

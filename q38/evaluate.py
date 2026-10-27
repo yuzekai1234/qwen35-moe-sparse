@@ -72,13 +72,13 @@ def packed_batch(tokens, is_text, start, stop, sequence_length, pad_token_id):
 
 
 def active_parameter_count(model):
-    """Count N_a excluding input/output vocabulary parameters.
+    """Main-head active parameters: exclude all Embeddings, vocabulary head and MTP.
 
-    q38 修改: Qwen3.8-MoE 每 token 每层恰好激活 top-k 个路由专家(静态 top-k, 无丢弃/无动态深度),
-    按路由统计的平均激活参数 = 非词表总参数 - 每层 (num_experts - top_k) 个专家参数, 与实际路由平均严格相等。
+    MoE counts top-k expert matrices plus the always-used shared FFN/router;
+    dense counts the whole SwiGLU. Ordinary gates/projections remain included.
     """
     from .flops import count
-    return count(model.config.to_dict(), 4096)["active_nonvocab_params"]
+    return count(model.config.to_dict(), 4096)["active_params_excluding_embeddings"]
 
 
 def parse_args():

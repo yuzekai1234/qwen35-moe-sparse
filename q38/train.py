@@ -49,7 +49,7 @@ RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
                "batch_tokens", "seed", "data", "val_data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip",
                "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")
-RESUME_KEYS += ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "ngram_rows", "mtp", "mtp_coef", "kl_coef", "muon", "dense_warmup")
+RESUME_KEYS += ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "ngram_rows", "mtp", "mtp_coef", "kl_coef", "muon", "dense_warmup", "dense_ffn")
 NEW_RESUME_DEFAULTS = {k: TRAIN_DEFAULTS[k] for k in (
     "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")}
 
@@ -138,6 +138,8 @@ def prepare_inputs(a, world=1):
     fc = count_flops(cfg.to_dict(), a.seq)
     if not a.tokens:
         a.tokens = budget_tokens(fc["train_flops_per_token"], a.compute, a.batch_tokens)
+    if a.compute and a.tokens * fc["train_flops_per_token"] > int(a.compute):
+        raise ValueError("Explicit token budget exceeds compute; regenerate the config or use --tokens 0 --warmup 0")
     steps = a.tokens // a.batch_tokens
     if steps < 1:
         raise ValueError("Budget must cover at least one global batch")
@@ -220,7 +222,8 @@ class LossModel(torch.nn.Module):
         self.ce = ce
         self._router = []
         self._router_hooks = [layer.mlp.gate.register_forward_hook(self._record_router)
-                              for layer in list(lm.model.layers) + ([lm.mtp["block"]] if lm.mtp else [])]
+                              for layer in list(lm.model.layers) + ([lm.mtp["block"]] if lm.mtp else [])
+                              if isinstance(layer.mlp, M.Qwen3_8MoeSparseMoeBlock)]
         if lm.mtp is not None:
             if type(ce).__name__ == "LigerFusedLinearCrossEntropyLoss":
                 from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
@@ -248,7 +251,7 @@ class LossModel(torch.nn.Module):
             valid = (target != -100).sum()
             mtp_loss = self.mtp_ce(m.lm_head.weight, mh.reshape(-1, mh.size(-1)), target.reshape(-1)) / valid.clamp_min(1)
         kl = torch.stack(kls).mean() if kls else ce.new_zeros(())
-        aux = M.load_balancing_loss_func(tuple(router), self.experts, self.topk)
+        aux = M.load_balancing_loss_func(tuple(router), self.experts, self.topk) if router else ce.new_zeros(())
         router.clear()
         return ce, aux, mtp_loss, kl
 
@@ -278,16 +281,18 @@ def install_fast_paths(model):
     import types
     import transformers.integrations.moe as moe
     from .inference import _gdn_prefill_forward, compile_inference_norms, padded_batched_experts_forward
-    if moe._grouped_mm is not _autocast_grouped_mm:
-        _autocast_grouped_mm.original, moe._grouped_mm = moe._grouped_mm, _autocast_grouped_mm
-    from transformers.integrations.moe import ALL_EXPERTS_FUNCTIONS
-    ALL_EXPERTS_FUNCTIONS.register("q38_batched_mm", padded_batched_experts_forward)
-    parameter = next(model.parameters())
-    native_grouped = parameter.is_cuda and (
-        torch.cuda.get_device_capability(parameter.device)[0] >= 9
-        or tuple(int(v) for v in torch.__version__.split("+")[0].split(".")[:2]) >= (2, 9))
-    implementation = "grouped_mm" if native_grouped or os.environ.get("Q38_GROUPED_BASELINE") == "1" else "q38_batched_mm"
-    model.set_experts_implementation(implementation)
+    implementation = "none"
+    if model.config.num_experts:
+        if moe._grouped_mm is not _autocast_grouped_mm:
+            _autocast_grouped_mm.original, moe._grouped_mm = moe._grouped_mm, _autocast_grouped_mm
+        from transformers.integrations.moe import ALL_EXPERTS_FUNCTIONS
+        ALL_EXPERTS_FUNCTIONS.register("q38_batched_mm", padded_batched_experts_forward)
+        parameter = next(model.parameters())
+        native_grouped = parameter.is_cuda and (
+            torch.cuda.get_device_capability(parameter.device)[0] >= 9
+            or tuple(int(v) for v in torch.__version__.split("+")[0].split(".")[:2]) >= (2, 9))
+        implementation = "grouped_mm" if native_grouped or os.environ.get("Q38_GROUPED_BASELINE") == "1" else "q38_batched_mm"
+        model.set_experts_implementation(implementation)
     gdn = 0
     for module in model.modules():
         if isinstance(module, M.Qwen3_8MoeGatedDeltaNet):
@@ -535,7 +540,7 @@ def main(argv=None):
             loss.backward()
             totals += torch.stack([ce.detach(), torch.as_tensor(aux, device=dev).detach(),
                                    mtp_loss.detach(), kl.detach()]).float() / accum
-        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip)
+        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), a.clip, error_if_nonfinite=True)
         opt.step(); opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
         if ddp:
             dist.all_reduce(totals); totals /= world

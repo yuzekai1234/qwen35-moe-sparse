@@ -1,5 +1,7 @@
 # Q38 sparse
 
+dense 实现、参数口径、配置生成与验证状态见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。该分支保持每 token 激活参数近似不变，只替换 MoE 前馈层。
+
 从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
 架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。
 
@@ -40,7 +42,7 @@ HF 导出包含全部自定义模型代码、N-gram 表和 MTP 权重；可用 `
 
 `q38/flops.py` 在原 Megatron GDN 约定上计入 QSA 实际选块、indexer 投影/打分、KL 目标、mHC、N-gram 门和训练 MTP；优化器与 dense warmup 开销不计。
 Indexer 输入已 detach，投影的前反向矩阵计算按前向的 2 倍计；打分矩阵计算仍按 3 倍计。
-非词表总参数包含完整 N-gram 表与 MTP；激活参数采用主头评估口径，只计每 token 访问的两条 N-gram 行，排除训练专用 MTP。
+历史核算字段 `total_nonvocab_params` 包含完整 N-gram 表与 MTP；`active_nonvocab_params` 采用主头评估口径，只计每 token 访问的两条 N-gram 行，排除训练专用 MTP。这两项仅排输入/输出词表。新增 `active_params_excluding_embeddings` 则排除全部 Embedding，也不含训练专用 MTP；dense 对照说明中的 \(N_a\) 使用后者。
 C1–C4 预设采用同一 64 选 5 缩放规则，非词表激活比例按包含完整 N-gram 表和 MTP 的分母计算，均大于 10%。
 参数/数据配比依据本地 Q35 IsoFLOPs 结果外推，再按 Q38 的计算开销重算 token 预算；这些配置尚未完成 Q38 训练。
 预设显式固定 `tokens` 并预留 0.5% 预算，改模型形状或序列长度请重新运行生成器；`--tokens 0` 会按完整预算重算且不保留该预留。

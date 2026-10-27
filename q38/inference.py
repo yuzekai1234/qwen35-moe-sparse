@@ -209,15 +209,17 @@ def optimize_for_inference(model):
     """Install all fast paths on a loaded model in place; returns counts for logging."""
     from transformers.integrations.moe import ALL_EXPERTS_FUNCTIONS
 
-    ALL_EXPERTS_FUNCTIONS.register(EXPERTS_IMPLEMENTATION, triton_experts_forward)
-    model.set_experts_implementation(EXPERTS_IMPLEMENTATION)
+    if model.config.num_experts:
+        ALL_EXPERTS_FUNCTIONS.register(EXPERTS_IMPLEMENTATION, triton_experts_forward)
+        model.set_experts_implementation(EXPERTS_IMPLEMENTATION)
     gdn = 0
     for module in model.modules():
         if isinstance(module, Qwen3_8MoeGatedDeltaNet):
             module._reference_forward = module.forward
             module.forward = types.MethodType(_gdn_prefill_forward, module)
             gdn += 1
-    return dict(experts=model.config._experts_implementation, gated_deltanet=gdn, norms=compile_inference_norms(model))
+    return dict(experts=model.config._experts_implementation if model.config.num_experts else "none",
+                gated_deltanet=gdn, norms=compile_inference_norms(model))
 
 
 def padded_batched_experts_forward(self, hidden_states, top_k_index, top_k_weights):
