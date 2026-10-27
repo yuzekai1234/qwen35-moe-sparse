@@ -55,9 +55,37 @@ GPU 短测入口为 [`smoke_dense.sh`](../../scripts/smoke_dense.sh)，必须指
 PY="$PY" GPUS=0 timeout 900s bash scripts/smoke_dense.sh /path/to/new/smoke-output
 ```
 
-A100 40GB、Torch 2.7.1+cu126 实测通过：C1 完整形状、seq4096、全局每步 131072 token，先两次更新保存，再独立进程恢复至三次，共 393216 token；其中两次为非 warmup 稀疏训练。检查覆盖优化器步数、有限损失和梯度、全部 259 个去重导出参数（含 18 个 MTP 参数）、本地模型与 `AutoModelForCausalLM(..., trust_remote_code=True)` 加载模型的同输入 GPU 稀疏 logits 逐位一致。64-token GQA 与 1024-token 非全选块注意力回归也通过。
+A100 40GB、Torch 2.7.1+cu126 实测通过：C1 完整形状、seq4096、全局每步 131072 token，先两次更新保存，再独立进程恢复至三次，共 393216 token；其中两次为非 warmup 稀疏训练。检查覆盖优化器步数、有限损失和梯度、全部 259 个去重参数张量（其中 18 个属于 MTP）、本地模型与 `AutoModelForCausalLM(..., trust_remote_code=True)` 加载模型的同输入 GPU 稀疏 logits 逐位一致。64-token GQA 与 1024-token 非全选块注意力回归也通过。
 
 短测使用 warmup1，不是完整预算或质量评测；正式实验不恢复该 checkpoint。独立结果复核退出码为 0，原件位于 `/shared/a100-209c/gzy/q38-dense-isoflops-20261027/qualification/c1-qsa-fixed/`；运行模型 SHA256 为 `2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a`。默认配置与短测配置的输出目录不同，不影响模型和预算。
+
+## IsoFLOPs
+
+低预算扫描只训练 dense，沿用 `scripts/make_q38_configs.py:shape_for`。下表为静态初始网格，不是训练结果；h64 是原 64 步长规则的向下延伸，在读取质量结果前固定。
+
+| 训练 FLOPs 预算 | 隐藏宽度 | 规模点数 |
+|---:|---|---:|
+| 3e15 | 64、128、192、256 | 4 |
+| 1e16 | 128、192、256、320 | 4 |
+| 3e16 | 192、256、320、384 | 4 |
+| 1e17 | 256、320、384、448、512 | 5 |
+
+来源为 [`make_q38_isoflops_configs.py`](../../scripts/make_q38_isoflops_configs.py)。序列长度为 4096，seed0；每点独立完成完整预算与 cosine 调度。指标固定为独立 curve 分区的纯 CE（含 EOS，nats/target），offset=2002536、targets=16001875，分区身份见 `configs/q35_isoflops/validation.json`；不是 A BPB。默认单任务超时 4 小时、整队列 6 小时、监控间隔 600 秒，均为运行器参数。
+
+```bash
+"$PY" scripts/make_q38_isoflops_configs.py \
+  --output /data/q38-isoflops/configs --run-root /data/q38-isoflops/runs
+"$PY" scripts/run_q38_isoflops.py --manifest /data/q38-isoflops/configs/manifest.json \
+  --gpus 0,1,2,3,4,5,6,7 --python "$PY" --output /data/q38-isoflops/control --execute
+"$PY" scripts/fit_q38_isoflops.py --manifest /data/q38-isoflops/configs/manifest.json \
+  --output /data/q38-isoflops/prediction --c1-run-dir /data/q38-isoflops/c1
+timeout --signal=TERM --kill-after=30s 14400s env PY="$PY" GPUS=0,1,2,3,4,5,6,7 \
+  bash scripts/train_dense.sh /data/q38-isoflops/prediction/c1-config.json
+```
+
+运行器默认仅显示计划，必须显式指定 `--execute`；拒绝已有训练目录、不同源码提交或配置身份。只有完整预算且同验证口径的终点进入拟合。逐预算拟合 CE 关于 \(\log_{10}N_a\) 的凸二次曲线，再对最优 \(N_a\)、训练 token 数 \(D\) 分别拟合 FLOPs 幂律；沿用的是作者拟合形式，指标明确采用本轮固定纯 CE。留一预算结果仅为敏感性，不是置信区间。测得最优点在边界、非凸或顶点越界时拒绝输出配方。
+
+C1=3e17 不进入拟合。按 \(\log(N_a/N_{a,\mathrm{pred}})^2+\log(D/D_{\mathrm{pred}})^2\) 最小化选择离散宽度，将预测和所选配置写入新目录后，再从头训练。该 C1 可能改变层数和隐藏宽度，不等于上文固定 h448/L9、只换前馈层的 C1 对照。N/D 幂律不直接预测 CE，单个 C1 点也不证明最优性。
 
 ## 未验证与待确认
 
