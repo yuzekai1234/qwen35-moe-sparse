@@ -1,0 +1,1011 @@
+{
+  "experiment": "Q38 dense IsoFLOPs and held-out C1",
+  "source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
+  "reference_training_commit": "6daa43d6fdb5cb929036028fd7b03df488df1cc3",
+  "model_source_sha256": {
+    "modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a",
+    "configuration_qwen3_8_moe.py": "c5a8041219f5f3fce3b4dac6dcb0cdd91bc2fa5573e9386c7b0497295034ded4"
+  },
+  "artifacts_root": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027",
+  "prediction_files_sha256": {
+    "fit.json": "9161ac55ead50f7ab8b238f30fb8ff29d8be78bf181e6fb268075c42cca0e76d",
+    "c1-config.json": "d4b0759aab52e6786f083b3ecb954bc3e61fa9fc1c468f1474e765b7241e754c"
+  },
+  "training_comparison": {
+    "equal_config_fields": {
+      "seq": 4096,
+      "seed": 0,
+      "data_seed": 0,
+      "data_sampling": "shuffled_blocks",
+      "data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/train.bin",
+      "val_data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/valid.bin",
+      "tokenizer": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/tokenizer",
+      "batch_tokens": 131072,
+      "lr": 0.002038,
+      "min_lr_ratio": 0.1,
+      "warmup_ratio": 0.01,
+      "warmup_min": 10,
+      "wd": 0.1,
+      "clip": 1.0,
+      "mtp_coef": 0.3,
+      "kl_coef": 0.05,
+      "muon": 1,
+      "dense_warmup": 1,
+      "eval_sampling": "sequential",
+      "eval_offset": 0,
+      "final_eval_offset": 2002536
+    },
+    "sampling": {
+      "version": "pcg64-shuffled-disjoint-sequence-blocks-v1",
+      "seed": 0,
+      "blocks": 3906253,
+      "sequence_length": 4096,
+      "order_sha256": "09cbaea18e90ed26a62cc4e888f9083fa5d7da23126f853d8b16f6d365163ea7",
+      "replacement": false
+    },
+    "data_identity_recorded": {
+      "train": {
+        "path": "/shared/a100-201b/4090-shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/train.bin",
+        "bytes": 64000064384,
+        "mtime_ns": 1792678542212815430,
+        "declared_sha256": "0cfe52b709dbddc58f2a3b84ca10b6923624203efd3d7793b3ba97cad9037aa3"
+      },
+      "validation": {
+        "path": "/shared/a100-201b/4090-shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/valid.bin",
+        "bytes": 313526136,
+        "mtime_ns": 1792678555936698525,
+        "declared_sha256": "19d30b21482012f07062f46d2d204ef2b27a101728b33a66f992348623fda924"
+      }
+    },
+    "actual_flops_difference_over_target": 2.0161292315306667e-05,
+    "scope": "Same target training budget and recorded controls, not an FFN-only ablation or a reproduction of reference training; h/L/Na/D and source training implementations differ"
+  },
+  "isoflops": {
+    "metric": "pure_cross_entropy",
+    "metric_units": "nats/target including EOS",
+    "validation": {
+      "offset": 2002536,
+      "targets": 16001875,
+      "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+      "validation_sha256": "19d30b21482012f07062f46d2d204ef2b27a101728b33a66f992348623fda924"
+    },
+    "source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
+    "manifest_sha256": "372ba5247ef3188e83a7bc5e85d8925cd8dd349035e4a5d68558521e5ff59bd4",
+    "fitting_code_sha256": "0f92e25fef80dd4b2b52a09ad39ce4d3352b6a6782a53b06ce776564728ecb3b",
+    "budget_fits": [
+      {
+        "budget": "3e15",
+        "compute": 2983711633047552.0,
+        "compute_min": 2982356512145408,
+        "compute_max": 2984866635317248,
+        "quadratic_coefficients": [
+          0.5603436421407366,
+          -7.132363879512554,
+          26.470934180494236
+        ],
+        "Na_opt": 2313537.898013261,
+        "D_opt": 52659499.26237771,
+        "fitted_minimum_ce": 3.774765845546554,
+        "residual_rmse": 0.009091260363174243,
+        "measured_best": {
+          "id": "dense/3e15/h192_L4",
+          "budget": "3e15",
+          "target_compute": 3000000000000000,
+          "compute": 2983305926410240,
+          "Na": 2087036,
+          "D": 54624256,
+          "loss": 3.7886289382286744,
+          "hidden": 192,
+          "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4",
+          "source_sha256": {
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/summary.json": "873742588373825038744c94abbdeae5805401fc8c78cbc385fc0a400e8454e8",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/final_eval.json": "a8f1a968c95579ca5b1ec4b03f8ad6b4b6a8e6041b0c82f5fb68cde2457d6750",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/run_config.json": "0b75242ac95748fb16960767f09b8062f0b775deb676c1dcff5a2e7ed7c48719",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/flops.json": "9503a6bbd2b039137a34bf9c118cc8fa04192240a90b86bb80ee1de82942e888"
+          }
+        },
+        "points": [
+          {
+            "id": "dense/3e15/h64_L4",
+            "budget": "3e15",
+            "target_compute": 3000000000000000,
+            "compute": 2984866635317248,
+            "Na": 439036,
+            "D": 138575872,
+            "loss": 4.069680018241271,
+            "hidden": 64,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h64_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h64_L4/summary.json": "8f97655b5e697c722ee49b26a61c4bb5e6c7b310085d3a85b9fdc1461417dda6",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h64_L4/final_eval.json": "c3dbab7ee4f869c8a6b30fdf981ef27d4eb48661a284cf8de6a9a23e5b6fce9e",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h64_L4/run_config.json": "b22438c8b2108f4734eb082e648293b30252f5369cdb6d9f7acd9643acb9b46e",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h64_L4/flops.json": "4223e5842c94c5de15ff00d4d7ebe582d6f45afc32b02f2b06fbd34d6aa7997a"
+            }
+          },
+          {
+            "id": "dense/3e15/h128_L4",
+            "budget": "3e15",
+            "target_compute": 3000000000000000,
+            "compute": 2984317458317312,
+            "Na": 1107388,
+            "D": 82640896,
+            "loss": 3.820057934418696,
+            "hidden": 128,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h128_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h128_L4/summary.json": "97c59190b51492833a9497d88d90d7fea73445885721397d1a7bf84d60caa589",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h128_L4/final_eval.json": "d2901898216c4b71e141e0533a5117d94eccba22b2c1d6f957cc7772ba3bd41e",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h128_L4/run_config.json": "db0d428849b39182f731787999096cf5a40be13c0e0d4bd8a210cb4ac4e0b307",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h128_L4/flops.json": "1e89592f41239f7e556fe277286dd02c987e92666e017e61152c8beb6ea2259c"
+            }
+          },
+          {
+            "id": "dense/3e15/h192_L4",
+            "budget": "3e15",
+            "target_compute": 3000000000000000,
+            "compute": 2983305926410240,
+            "Na": 2087036,
+            "D": 54624256,
+            "loss": 3.7886289382286744,
+            "hidden": 192,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/summary.json": "873742588373825038744c94abbdeae5805401fc8c78cbc385fc0a400e8454e8",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/final_eval.json": "a8f1a968c95579ca5b1ec4b03f8ad6b4b6a8e6041b0c82f5fb68cde2457d6750",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/run_config.json": "0b75242ac95748fb16960767f09b8062f0b775deb676c1dcff5a2e7ed7c48719",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h192_L4/flops.json": "9503a6bbd2b039137a34bf9c118cc8fa04192240a90b86bb80ee1de82942e888"
+            }
+          },
+          {
+            "id": "dense/3e15/h256_L5",
+            "budget": "3e15",
+            "target_compute": 3000000000000000,
+            "compute": 2982356512145408,
+            "Na": 4715990,
+            "D": 35160064,
+            "loss": 3.824711480283072,
+            "hidden": 256,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h256_L5",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h256_L5/summary.json": "49658e45a55e0f6c0ee744a19d92694556934626c8b61d9b62526c5660942edc",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h256_L5/final_eval.json": "a31701db54288251b69149259757db87db69d1962089824cb6a49a548a02f7e0",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h256_L5/run_config.json": "da9f16183416b87dbd2c08e0e21e484ac801dd362332e3c31e18d62f92c7d5cc",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e15/h256_L5/flops.json": "ef96d5135a26f04e254a7349c3ffc39d9679d4940977f5c278e3bcacf3eefb26"
+            }
+          }
+        ]
+      },
+      {
+        "budget": "1e16",
+        "compute": 9947379729956864.0,
+        "compute_min": 9944894315429888,
+        "compute_max": 9949302612819968,
+        "quadratic_coefficients": [
+          0.4142633265458612,
+          -5.509823474591224,
+          21.83543599523215
+        ],
+        "Na_opt": 4468341.134502665,
+        "D_opt": 118530777.64558883,
+        "fitted_minimum_ce": 3.5148698385054473,
+        "residual_rmse": 0.00724939217124139,
+        "measured_best": {
+          "id": "dense/1e16/h256_L5",
+          "budget": "1e16",
+          "target_compute": 10000000000000000,
+          "compute": 9944894315429888,
+          "Na": 4715990,
+          "D": 117243904,
+          "loss": 3.505591984887025,
+          "hidden": 256,
+          "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5",
+          "source_sha256": {
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/summary.json": "a72df0c8ca53fa2cc2a4ff02ae06a62a5296fb7d9ad6aea27feabb98a231dce1",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/final_eval.json": "97dcd8d3e65cbfb69ca5fe48619a8a180c42eae7400aee554f065668c0f6f109",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/run_config.json": "df4b40c24b29beef618b253d5648ba8c0787c35476434885c29c6528067c4636",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/flops.json": "13935fad7d7a110a42bdeed1481f72c9fa9f28311adc92cf2988c19906e91043"
+          }
+        },
+        "points": [
+          {
+            "id": "dense/1e16/h128_L4",
+            "budget": "1e16",
+            "target_compute": 10000000000000000,
+            "compute": 9949302612819968,
+            "Na": 1107388,
+            "D": 275513344,
+            "loss": 3.66315769655442,
+            "hidden": 128,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h128_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h128_L4/summary.json": "4f5db3e0fb868affe45675ddb6773f18c12df8ea942a307fd5a5af99129e0383",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h128_L4/final_eval.json": "c8f28bebe44be396626abc399b1b481e084419844894a5004c80001774bcc599",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h128_L4/run_config.json": "cb1f27b2532306428d77d37ded849a8780d59c6b2818227d5920618226ab7fd0",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h128_L4/flops.json": "5a69176332798a41556ad76ccb3ebd8412be9873ed4c3602f19553025f8274e6"
+            }
+          },
+          {
+            "id": "dense/1e16/h192_L4",
+            "budget": "1e16",
+            "target_compute": 10000000000000000,
+            "compute": 9946739255541760,
+            "Na": 2087036,
+            "D": 182124544,
+            "loss": 3.5697537535960753,
+            "hidden": 192,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h192_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h192_L4/summary.json": "2a47f335ad5bd5ac13dca087b3f16ff922fe5fc24456e21809cbfd1ebce60bc5",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h192_L4/final_eval.json": "4c82b8605873493130ea9e5ea480fa6ca8ec6f15cd5523e2bc71bb2066a32897",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h192_L4/run_config.json": "79d0a1f74ff56756b3f478ed2191517ed0c4b998549020235e9314272c398aad",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h192_L4/flops.json": "fbda02db6faa86006c669d651bdb93e75b279858b42fc15455a0e59fe6286670"
+            }
+          },
+          {
+            "id": "dense/1e16/h256_L5",
+            "budget": "1e16",
+            "target_compute": 10000000000000000,
+            "compute": 9944894315429888,
+            "Na": 4715990,
+            "D": 117243904,
+            "loss": 3.505591984887025,
+            "hidden": 256,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/summary.json": "a72df0c8ca53fa2cc2a4ff02ae06a62a5296fb7d9ad6aea27feabb98a231dce1",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/final_eval.json": "97dcd8d3e65cbfb69ca5fe48619a8a180c42eae7400aee554f065668c0f6f109",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/run_config.json": "df4b40c24b29beef618b253d5648ba8c0787c35476434885c29c6528067c4636",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h256_L5/flops.json": "13935fad7d7a110a42bdeed1481f72c9fa9f28311adc92cf2988c19906e91043"
+            }
+          },
+          {
+            "id": "dense/1e16/h320_L6",
+            "budget": "1e16",
+            "target_compute": 10000000000000000,
+            "compute": 9948582736035840,
+            "Na": 8991292,
+            "D": 78708736,
+            "loss": 3.556743520916128,
+            "hidden": 320,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h320_L6",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h320_L6/summary.json": "1bca7fde35dfc711517a9cdb547d4d7eb1cf14866b1f57719b10f1209cb8fcf3",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h320_L6/final_eval.json": "2ac31a8de5a1175fc446fcae0e441fd4379ffbbf46f447d23c98e76239cb45f5",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h320_L6/run_config.json": "f62b6c39bd4e899b6422e4bfb34f504d6211a9c2421a18a92216e01ef6641a21",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e16/h320_L6/flops.json": "06b9025809e862ce5b91fabff4e2270781cf0ad173fe321e43bdaa7ba068f27f"
+            }
+          }
+        ]
+      },
+      {
+        "budget": "3e16",
+        "compute": 2.9844257976090624e+16,
+        "compute_min": 29838106655981568,
+        "compute_max": 29847376269148160,
+        "quadratic_coefficients": [
+          0.38743505641205894,
+          -5.414564646256263,
+          22.185774202406623
+        ],
+        "Na_opt": 9720892.523939537,
+        "D_opt": 220809142.2798959,
+        "fitted_minimum_ce": 3.2680808862735375,
+        "residual_rmse": 0.002363688031094724,
+        "measured_best": {
+          "id": "dense/3e16/h320_L6",
+          "budget": "3e16",
+          "target_compute": 30000000000000000,
+          "compute": 29845748208107520,
+          "Na": 8991292,
+          "D": 236126208,
+          "loss": 3.265180320467206,
+          "hidden": 320,
+          "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6",
+          "source_sha256": {
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/summary.json": "7042a6ee7a11c703582d93fc7a2103e8f12a712c8abc071e599c3626f5139bd8",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/final_eval.json": "cbb43b4d1190dddc2b1d11b4e4152035d67431acca31b2a48db719c2736df6af",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/run_config.json": "4a46ba9db9f7559d4e657a9c64a8f384991a7affccd27969b8db80622ce9d293",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/flops.json": "30f767c86ba9a479f68b28d42ad6c913d4621857c579fe3a97f2faf282c1730b"
+          }
+        },
+        "points": [
+          {
+            "id": "dense/3e16/h192_L4",
+            "budget": "3e16",
+            "target_compute": 30000000000000000,
+            "compute": 29847376269148160,
+            "Na": 2087036,
+            "D": 546504704,
+            "loss": 3.4402310260195947,
+            "hidden": 192,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h192_L4",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h192_L4/summary.json": "d607eda6e53d24519b7f53612b243e1433c4248de3090d2c98c73cf5c25ca661",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h192_L4/final_eval.json": "8b6215be417df6dbea65bfe1cef3f96c34ffceebaccefc384c37b8084b60411e",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h192_L4/run_config.json": "7a7582a454cd1c995b3c6b2eb0e52542424bf718c769b1744167c195f8997999",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h192_L4/flops.json": "c7186ad44fd0c1bee61c94fb521aa68bd896e0694079f6820d2e3aecd9898801"
+            }
+          },
+          {
+            "id": "dense/3e16/h256_L5",
+            "budget": "3e16",
+            "target_compute": 30000000000000000,
+            "compute": 29845800771125248,
+            "Na": 4715990,
+            "D": 351862784,
+            "loss": 3.309342537205723,
+            "hidden": 256,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h256_L5",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h256_L5/summary.json": "f3a25a87564b7e7dccd57ddb9d898814f4ad23f049803553f63668e93ea46239",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h256_L5/final_eval.json": "7fa926c125682629d0f9f674ed2975df251c306c0371dc4600127d21b31b0a6f",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h256_L5/run_config.json": "15fe59596f5c16b555f8360df1d6ade8b4bf435c9a2ad8dee18e2c395e1c9142",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h256_L5/flops.json": "a69bee6edf76bcef1247808737b85561e6654e97bdaa23158f1c6aa7b7f6a85b"
+            }
+          },
+          {
+            "id": "dense/3e16/h320_L6",
+            "budget": "3e16",
+            "target_compute": 30000000000000000,
+            "compute": 29845748208107520,
+            "Na": 8991292,
+            "D": 236126208,
+            "loss": 3.265180320467206,
+            "hidden": 320,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/summary.json": "7042a6ee7a11c703582d93fc7a2103e8f12a712c8abc071e599c3626f5139bd8",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/final_eval.json": "cbb43b4d1190dddc2b1d11b4e4152035d67431acca31b2a48db719c2736df6af",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/run_config.json": "4a46ba9db9f7559d4e657a9c64a8f384991a7affccd27969b8db80622ce9d293",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h320_L6/flops.json": "30f767c86ba9a479f68b28d42ad6c913d4621857c579fe3a97f2faf282c1730b"
+            }
+          },
+          {
+            "id": "dense/3e16/h384_L8",
+            "budget": "3e16",
+            "target_compute": 30000000000000000,
+            "compute": 29838106655981568,
+            "Na": 17389924,
+            "D": 140378112,
+            "loss": 3.293939821970631,
+            "hidden": 384,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h384_L8",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h384_L8/summary.json": "2be2e10e5bc7430e80b45a2dde61b9f7ba5504e8c49f74498634dfec1f91cec6",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h384_L8/final_eval.json": "eee6caf153bc500b31c8b85ea4b038bf740a9a3835fa8596d8309b90b96e6b79",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h384_L8/run_config.json": "c13807a6af32acd40037b1783c5790222f0b9dbec6b6b299e981eecf718f5623",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/3e16/h384_L8/flops.json": "ede283728b78dd128e14ba7c44381adb82753ffacab452d421fef5c713db8dd3"
+            }
+          }
+        ]
+      },
+      {
+        "budget": "1e17",
+        "compute": 9.947880357216912e+16,
+        "compute_min": 99461000436121600,
+        "compute_max": 99493414453641216,
+        "quadratic_coefficients": [
+          0.29867762915229107,
+          -4.384000315822516,
+          19.150136910730808
+        ],
+        "Na_opt": 21828146.81784216,
+        "D_opt": 402666065.7056286,
+        "fitted_minimum_ce": 3.0630107810632445,
+        "residual_rmse": 0.0008038134690471138,
+        "measured_best": {
+          "id": "dense/1e17/h448_L9",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99465560047222784,
+          "Na": 26855906,
+          "D": 343015424,
+          "loss": 3.065640931711494,
+          "hidden": 448,
+          "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9",
+          "source_sha256": {
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/summary.json": "42ccc1b9ffdb5f0694d02ecd1984c104a63f80d23d197f8243b7f0374150acff",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/final_eval.json": "a0a5105a94d9c78a669d113d360005d31fd01a34bcae2aeff6f69c82b8396663",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/run_config.json": "7ce641f2494d8366fb2c17a355986fa25574b9c26bc3b0dcd6548b5ee2ad0a0b",
+            "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/flops.json": "1102ffae126a0f0c17a5dfd1dce81f3776deac6819297c1bd26545dbf335f15b"
+          }
+        },
+        "points": [
+          {
+            "id": "dense/1e17/h256_L5",
+            "budget": "1e17",
+            "target_compute": 100000000000000000,
+            "compute": 99493414453641216,
+            "Na": 4715990,
+            "D": 1172963328,
+            "loss": 3.1957229399615645,
+            "hidden": 256,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h256_L5",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h256_L5/summary.json": "f8fb7e27df809e421d31b2a88685f51d256e367b4a34c7097b29642d2c5eb35b",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h256_L5/final_eval.json": "499ed33d38a12bcb653149b68837db5c913bff02680a7628cae13039b01b14bc",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h256_L5/run_config.json": "87d87b92b2943c7f864aaeeec34355b2f4393bbe5a08940f1721350ffc3a6c34",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h256_L5/flops.json": "7c52a4fb5f8a71cf83b629c5c51b7eae2668eabf57a97a4bfbe6042f6c21f985"
+            }
+          },
+          {
+            "id": "dense/1e17/h320_L6",
+            "budget": "1e17",
+            "target_compute": 100000000000000000,
+            "compute": 99485827360358400,
+            "Na": 8991292,
+            "D": 787087360,
+            "loss": 3.106051007557098,
+            "hidden": 320,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h320_L6",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h320_L6/summary.json": "5b248bbcf1730a794d1b25f764632eb85c38c2db353be5478d8fffcda9f6f552",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h320_L6/final_eval.json": "33f0ed31c5339baad025d18fe854e3c86df70469bfe2150772743e8e48071e3e",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h320_L6/run_config.json": "6c432d42bf4f53e07bfc6bc37ed978493dfa4fa25d56246fc37c6b2ac620a744",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h320_L6/flops.json": "44efac4eece95c22b38f59c2f7827560ed332fd67c01d1d14ce0e6f30c1ebcae"
+            }
+          },
+          {
+            "id": "dense/1e17/h384_L8",
+            "budget": "1e17",
+            "target_compute": 100000000000000000,
+            "compute": 99488215563501568,
+            "Na": 17389924,
+            "D": 468058112,
+            "loss": 3.066991440051886,
+            "hidden": 384,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h384_L8",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h384_L8/summary.json": "aa9bae0948faca0718f26dc2037b11bcd9f80b6f20a8498f3233c596ce39ae5b",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h384_L8/final_eval.json": "d7d45a851b10969c29751ffaa0030751e50325bfcf811762317cb6b9b6efeebe",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h384_L8/run_config.json": "b3d6bd46c271568743e97952fbf32f42fafbfb4081e9680dbfe555c014599b06",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h384_L8/flops.json": "66051ad85efd78dc96e8595c665ef80ef2bed2724b4b0790025b8785b5796420"
+            }
+          },
+          {
+            "id": "dense/1e17/h448_L9",
+            "budget": "1e17",
+            "target_compute": 100000000000000000,
+            "compute": 99465560047222784,
+            "Na": 26855906,
+            "D": 343015424,
+            "loss": 3.065640931711494,
+            "hidden": 448,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/summary.json": "42ccc1b9ffdb5f0694d02ecd1984c104a63f80d23d197f8243b7f0374150acff",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/final_eval.json": "a0a5105a94d9c78a669d113d360005d31fd01a34bcae2aeff6f69c82b8396663",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/run_config.json": "7ce641f2494d8366fb2c17a355986fa25574b9c26bc3b0dcd6548b5ee2ad0a0b",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h448_L9/flops.json": "1102ffae126a0f0c17a5dfd1dce81f3776deac6819297c1bd26545dbf335f15b"
+            }
+          },
+          {
+            "id": "dense/1e17/h512_L10",
+            "budget": "1e17",
+            "target_compute": 100000000000000000,
+            "compute": 99461000436121600,
+            "Na": 36760636,
+            "D": 268697600,
+            "loss": 3.0778590340823095,
+            "hidden": 512,
+            "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h512_L10",
+            "source_sha256": {
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h512_L10/summary.json": "406bc3a133bcad89aed53a9e8171cc73e96097a0b01ad251b1444cee27e74835",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h512_L10/final_eval.json": "a94a1de6d60a209290710584ef13b8f9e31cab6477cbb969b2457978dd056bed",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h512_L10/run_config.json": "b3e7454883a78ad0fbfda68c38e48988bebbe482cf8736f973f2b2872ddaa6a1",
+              "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/sweep/1e17/h512_L10/flops.json": "ee831f63e661ac7bc5069a9d31af51cdf047b271b5b9bf05aa9d85e47731dfbe"
+            }
+          }
+        ]
+      }
+    ],
+    "Na_log10_coefficients": [
+      0.6460498520705733,
+      -3.6541496111373784
+    ],
+    "D_log10_coefficients": [
+      0.5788579944098683,
+      -1.2124238583391727
+    ],
+    "leave_one_budget_out": [
+      {
+        "omitted_budget": "3e15",
+        "Na_prediction": 1963990.5067485194,
+        "Na_observed": 2313537.898013261,
+        "D_prediction": 63415957.53378834,
+        "D_observed": 52659499.26237771,
+        "c1_Na_prediction": 46982714.967861004,
+        "c1_D_prediction": 732210945.8416518
+      },
+      {
+        "omitted_budget": "1e16",
+        "Na_prediction": 4944571.306847055,
+        "Na_observed": 4468341.134502665,
+        "D_prediction": 108937149.62223345,
+        "D_observed": 118530777.64558883,
+        "c1_Na_prediction": 43422495.64892563,
+        "c1_D_prediction": 801130841.532379
+      },
+      {
+        "omitted_budget": "3e16",
+        "Na_prediction": 9775810.842434172,
+        "Na_observed": 9720892.523939537,
+        "D_prediction": 206963038.84087393,
+        "D_observed": 220809142.2798959,
+        "c1_Na_prediction": 43463272.544620365,
+        "c1_D_prediction": 777639660.5722499
+      },
+      {
+        "omitted_budget": "1e17",
+        "Na_prediction": 19908052.439697966,
+        "Na_observed": 21828146.81784216,
+        "D_prediction": 477820645.80220854,
+        "D_observed": 402666065.7056286,
+        "c1_Na_prediction": 39561915.8312782,
+        "c1_D_prediction": 950749917.073126
+      }
+    ],
+    "c1_prediction": {
+      "compute": 300000000000000000,
+      "predicted_Na": 43345297.701644294,
+      "predicted_D": 802319780.0136842,
+      "selected_hidden": 512,
+      "selected_layers": 10,
+      "selected_Na": 36760636,
+      "selected_D": 806354944,
+      "selection_score": 0.02717452704717276,
+      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
+      "quality_prediction": null,
+      "limitation": "N/D power laws do not predict CE or prove that one C1 size is optimal"
+    }
+  },
+  "c1_dense": {
+    "config": {
+      "schema_version": 2,
+      "architecture": "q38",
+      "compute": 300000000000000000,
+      "model": {
+        "layers": 10,
+        "hidden": 512,
+        "heads": 20,
+        "kv_heads": 2,
+        "head_dim": 64,
+        "lin_k_heads": 6,
+        "lin_v_heads": 18,
+        "lin_head_dim": 64,
+        "experts": 0,
+        "topk": 0,
+        "moe_ffn": 0,
+        "shared_ffn": 0,
+        "layer_types": "",
+        "aux_coef": 0.0,
+        "rope_theta": 10000000.0,
+        "partial_rotary": 0.25,
+        "experts_impl": "eager",
+        "n_branch": 4,
+        "mhc_iters": 20,
+        "qsa_blocks": 8,
+        "indexer_heads": 4,
+        "indexer_head_dim": 64,
+        "ngram_rows": 61440,
+        "mtp": 1,
+        "dense_ffn": 768
+      },
+      "train": {
+        "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1",
+        "data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/train.bin",
+        "val_data": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/valid.bin",
+        "tokenizer": "/home/shared/qwen35_moe_sparse/cache/isoflops-gzy10k-16b-v1/tokenizer",
+        "seq": 4096,
+        "tokens": 806354944,
+        "batch_tokens": 131072,
+        "micro_bs": 4,
+        "auto_micro_bs": 1,
+        "probe_mem_frac": 0.92,
+        "lr": 0.002038,
+        "min_lr_ratio": 0.1,
+        "warmup": 62,
+        "warmup_ratio": 0.01,
+        "warmup_min": 10,
+        "wd": 0.1,
+        "clip": 1.0,
+        "seed": 0,
+        "data_seed": 0,
+        "data_sampling": "shuffled_blocks",
+        "require_ready_pool": 1,
+        "eval_sampling": "sequential",
+        "eval_offset": 0,
+        "eval_tokens": 2002535,
+        "final_eval_offset": 2002536,
+        "final_eval_tokens": 16001875,
+        "log_every": 10,
+        "eval_every": 500,
+        "ckpt_every": 500,
+        "resume": 1,
+        "max_steps": 0,
+        "tensorboard": 1,
+        "mtp_coef": 0.3,
+        "kl_coef": 0.05,
+        "muon": 1,
+        "dense_warmup": 1
+      },
+      "accounting": {
+        "layers": 10,
+        "hidden": 512,
+        "layer_types": [
+          "linear_attention",
+          "linear_attention",
+          "linear_attention",
+          "full_attention",
+          "linear_attention",
+          "linear_attention",
+          "linear_attention",
+          "full_attention",
+          "linear_attention",
+          "linear_attention"
+        ],
+        "vocab": 10112,
+        "seq": 4096,
+        "experts": 0,
+        "topk": 0,
+        "expert_ffn": 0,
+        "shared_ffn": 0,
+        "attn_heads": 20,
+        "kv_heads": 2,
+        "head_dim": 64,
+        "lin_k_heads": 6,
+        "lin_v_heads": 18,
+        "active_nonvocab_params": 36761660,
+        "total_nonvocab_params": 103570592,
+        "nonvocab_params": 36761660,
+        "embed_params": 5177344,
+        "accounting_method": "q38_dense_mhc_ngram_mtp_v1",
+        "megatron_commit": "b92c3ed70029005fd5769d2cf4c65bc3d061a74b",
+        "fwd_flops_per_token": 116617216,
+        "train_flops_per_token": 370159616,
+        "megatron_reference_train_flops_per_token": 309141504,
+        "extra_router_shared_gate_train_flops_per_token": 0,
+        "breakdown": {
+          "full_projections": 8388608,
+          "gdn_projections": 34897920,
+          "gdn_conv": 122880,
+          "gdn_core": 4718592,
+          "expert_gemm": 23592960,
+          "router": 0,
+          "shared_gate": 0,
+          "attn_score": 4633600,
+          "logits": 10354688,
+          "indexer_projections": 663552,
+          "indexer_score": 4194304,
+          "mhc_projections": 5304320,
+          "mhc_mix": 491520,
+          "ngram_gate": 524288,
+          "mtp": 18729984
+        },
+        "total_params_all": 108747936,
+        "ngram_params": 62914560,
+        "ngram_rows": 61440,
+        "indexer_params": 331776,
+        "mhc_params": 2652700,
+        "mtp_params": 3895396,
+        "mtp_active_params": 3895396,
+        "distill_target_flops": 20971520,
+        "main_fwd_flops_per_token": 97887232,
+        "active_params_excluding_embeddings": 36760636,
+        "total_params_excluding_embeddings": 40656032,
+        "vocab_size": 10112,
+        "compute_reserve_fraction": 0.005,
+        "train_tokens": 806354944,
+        "steps": 6152,
+        "actual_train_flops": 298480036430741504
+      },
+      "comparison": {
+        "reference_commit": "6daa43d6fdb5cb929036028fd7b03df488df1cc3",
+        "reference_config_canonical_json_sha256": "5f859244b0f11f671a186517cd8351657a3d6040b832fac4a4895b890fa17584",
+        "hash_serialization": "UTF-8 json.dumps(reference, sort_keys=True), default separators and ensure_ascii=True",
+        "change": "Replace every main/MTP routed/shared-expert FFN by one dense SwiGLU; other modules unchanged",
+        "dense_width": 768,
+        "reference_active_params_excluding_embeddings": 37093436,
+        "dense_active_params_excluding_embeddings": 36760636,
+        "removed_main_router_and_shared_gate_params": 332800,
+        "ngram_rows_fixed_from_reference": 61440,
+        "budget": "Same target compute and reserve, each architecture rounded down to a full global batch"
+      }
+    },
+    "configuration_reference_scope": "The comparison metadata within this configuration refers to the corresponding same-shape MoE configuration generated by shape_for, not the measured h448/L9 reference.",
+    "pure_ce": 2.8468307030059954,
+    "curve_scored_targets": 16001875,
+    "completed_updates": 6152,
+    "world": 8,
+    "identity": {
+      "run_dir": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1",
+      "config_sha256": "d4b0759aab52e6786f083b3ecb954bc3e61fa9fc1c468f1474e765b7241e754c",
+      "checkpoint_sha256": "0eb54b8cd485da7bacea762e719d9b20893b1db8400850a61e4d5e18557cfe5b",
+      "hf_model_sha256": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78",
+      "hf_config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+      "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+      "verified_export_tensor_count": 285,
+      "verified_export_numel": 108747936,
+      "mtp_export_tensor_count": 18
+    },
+    "config_path": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/prediction/c1-config.json",
+    "output_path": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1"
+  },
+  "c1_reference_moe": {
+    "target_train_flops": 300000000000000000,
+    "actual_train_flops": 298473988043046912,
+    "D": 1023148032,
+    "F": 291721216,
+    "Na": 27117986,
+    "identity": {
+      "checkpoint_path": "/shared/a100-201b/4090-shared/ckpt/c1/ckpt.pt",
+      "checkpoint_sha256": "2818b4f3bdc6a44444f5bf095c86ad31a881fdcf87a652b8d220324b79980ed4",
+      "source_hf_path": "/shared/a100-201b/4090-shared/ckpt/c1/hf/model.safetensors",
+      "source_hf_sha256": "8ffc2016e0d4d69db87d9b47ccd2fe5ad998e6267cabad64d32f60deaf28c9e2",
+      "frozen_submission_hf_sha256": "8ffc2016e0d4d69db87d9b47ccd2fe5ad998e6267cabad64d32f60deaf28c9e2",
+      "completed_updates": 7806,
+      "tokens_trained": 1023148032,
+      "world": 8,
+      "verified_export_tensor_count": 299,
+      "verified_export_numel": 167752070,
+      "mtp_export_tensor_count": 22,
+      "all_hf_tensors_equal_checkpoint_cast": true
+    },
+    "hf_config_sha256": "8df55b3c416bcdcdf3e7d7dac1ae3ae3e95a504401ef4877540b7278ced1689d",
+    "config_path": "configs/q38_c1.json",
+    "config_sha256": "d063bb4273679244b04768ab0c5fbf6b045e40b56b1506dbdcda7448a4f29eda"
+  },
+  "evaluation": {
+    "source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
+    "repeat_count_per_model": 3,
+    "rows": [
+      {
+        "family": "moe",
+        "model_path": "/shared/a100-209c/gzy/deliver-20261026/submission/models/FLOPs_3e17",
+        "bpb": 1.101508318117679,
+        "evaltime": 20.942971346799936,
+        "Na": 27117986,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 68.2329449855024,
+        "tokens_per_forward_second": 1760776.6457321611,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      },
+      {
+        "family": "dense",
+        "model_path": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1/hf",
+        "bpb": 1.1332345204850165,
+        "evaltime": 13.506773800277902,
+        "Na": 36760636,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 59.65310152445454,
+        "tokens_per_forward_second": 2014027.3167648774,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      },
+      {
+        "family": "dense",
+        "model_path": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1/hf",
+        "bpb": 1.1332345204850165,
+        "evaltime": 14.055164183928479,
+        "Na": 36760636,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 62.07508531678469,
+        "tokens_per_forward_second": 1935446.0068299598,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      },
+      {
+        "family": "moe",
+        "model_path": "/shared/a100-209c/gzy/deliver-20261026/submission/models/FLOPs_3e17",
+        "bpb": 1.101508318117679,
+        "evaltime": 19.77958963499101,
+        "Na": 27117986,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 64.44260602048598,
+        "tokens_per_forward_second": 1864340.7431693117,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      },
+      {
+        "family": "moe",
+        "model_path": "/shared/a100-209c/gzy/deliver-20261026/submission/models/FLOPs_3e17",
+        "bpb": 1.101508318117679,
+        "evaltime": 19.79788127636183,
+        "Na": 27117986,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 64.5022008381784,
+        "tokens_per_forward_second": 1862618.2430799822,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      },
+      {
+        "family": "dense",
+        "model_path": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/c1/hf",
+        "bpb": 1.1332345204850165,
+        "evaltime": 13.790763377693931,
+        "Na": 36760636,
+        "scored_text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "forward_seconds": 60.90735064004547,
+        "tokens_per_forward_second": 1972552.9798534396,
+        "raw_forward_time_source": "Recovered from full-precision EvalTime using its defining denominator; cross-checked against rounded forward log",
+        "complete_pass": true
+      }
+    ],
+    "summary": {
+      "moe": {
+        "bpb": {
+          "median": 1.101508318117679,
+          "min": 1.101508318117679,
+          "max": 1.101508318117679
+        },
+        "evaltime": {
+          "median": 19.79788127636183,
+          "min": 19.77958963499101,
+          "max": 20.942971346799936
+        },
+        "forward_seconds": {
+          "median": 64.5022008381784,
+          "min": 64.44260602048598,
+          "max": 68.2329449855024
+        },
+        "tokens_per_forward_second": {
+          "median": 1862618.2430799822,
+          "min": 1760776.6457321611,
+          "max": 1864340.7431693117
+        }
+      },
+      "dense": {
+        "bpb": {
+          "median": 1.1332345204850165,
+          "min": 1.1332345204850165,
+          "max": 1.1332345204850165
+        },
+        "evaltime": {
+          "median": 13.790763377693931,
+          "min": 13.506773800277902,
+          "max": 14.055164183928479
+        },
+        "forward_seconds": {
+          "median": 60.90735064004547,
+          "min": 59.65310152445454,
+          "max": 62.07508531678469
+        },
+        "tokens_per_forward_second": {
+          "median": 1972552.9798534396,
+          "min": 1935446.0068299598,
+          "max": 2014027.3167648774
+        }
+      }
+    },
+    "normalized_EvalTime_ratio_moe_over_dense": 1.4355899477170495,
+    "raw_forward_time_ratio_moe_over_dense": 1.059021614966936,
+    "dense_minus_moe_bpb": 0.031726202367337475,
+    "target_ratio": 50,
+    "target_met": false,
+    "scope": "A100 same-node evaluation; not H200 official score",
+    "protocol": {
+      "node": "a100c",
+      "source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
+      "dataset": {
+        "path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "bytes": 455678559,
+        "sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c"
+      },
+      "packed_metadata": {
+        "text_tokens": 120142976,
+        "original_text_utf8_bytes": 445910984,
+        "inserted_eos_tokens": 66042,
+        "packed_token_entries_including_eos": 120209018,
+        "sequence_length": 4096,
+        "dtype_for_later_evaluation": "bfloat16",
+        "full_vocabulary_scoring": true,
+        "bpb_definition": "total text-token NLL in nats / (ln(2) * original_text_utf8_bytes); EOS is inserted per nonblank JSONL record but is not scored"
+      },
+      "physical_gpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "batch_per_gpu": 2,
+      "sequence_length": 4096,
+      "weights_dtype": "bfloat16; same implementation and internal FP32 mHC in both models",
+      "warmup_per_shape": 5,
+      "repeat_count": 3,
+      "paired_order": [
+        [
+          "moe",
+          "dense"
+        ],
+        [
+          "dense",
+          "moe"
+        ],
+        [
+          "moe",
+          "dense"
+        ]
+      ],
+      "timer": "CUDA-synchronized forward with full vocabulary projection; sum of per-step rank maximum; exclude H2D, loss scoring, compile/warmup",
+      "bpb": "sum text-token NLL /(ln(2)*original UTF8 text bytes); inserted EOS ignored",
+      "normalized_time": "forward_seconds / ((Na/1e9)*(scored_text_tokens/1e6)); Na excludes all Embedding and MTP",
+      "comparison_scope": "Same FLOPs budget; if extrapolated dense changes h/L/Na, not an isolated FFN-only ablation"
+    },
+    "dense_bpb_relative_change": 0.028802508202165046,
+    "raw_forward_time_fraction_reduction": 0.05573220993112471,
+    "normalized_EvalTime_fraction_reduction": 0.303422260938611,
+    "source_files": {
+      "01-moe": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/01-moe",
+        "sha256": {
+          "result.json": "4165c25ca4b89152b562c8c9bf574d7f704ba281cb2769ba7ce46a56950d8a77",
+          "checked-result.json": "d6a2ec506fe567fbbc42e533f104e81ccf758671b229f1b95ab74548492166c4",
+          "eval.log": "2259438add1d4ae6255cceeae0577a5b51be9532c9f66ea256e35817ff99bb36",
+          "command.txt": "47c1117a45dcdcce4589661a20e528e3cdcb8791c304f1e419e80b044bd38051",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      },
+      "02-dense": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/02-dense",
+        "sha256": {
+          "result.json": "9f9bcab97828befcc86365b7510b2530838fc0cb5ef7b5dab46725470b2875cb",
+          "checked-result.json": "d0d8541a9e2ff6dfbe03a9fa4729ca271fc6d4001e5791a5399812fc393be694",
+          "eval.log": "7091bec0104f6c3c3fb5376726d95498df1f371105541896e10fd4e4f58ee937",
+          "command.txt": "7d88faedc43b9bf418680443c2b34547f46786fc407ebd7d3a333e4242d8ee83",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      },
+      "03-dense": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/03-dense",
+        "sha256": {
+          "result.json": "9a4e7779994ec4a583dc619560454904bf584d30a263f2d0a13dc3a9f37ac138",
+          "checked-result.json": "c90d6c469d6f62ab425c71b10111e460c7d6d1f24215dc29e4fb33fdff3fe795",
+          "eval.log": "0586fc9e8be9f74687f78591a32aa664efdbea67c24623b3f2bc4a59f421b8e6",
+          "command.txt": "ae289a07097359239d6c9ff67de97ae4b484a5e4685534b60b32ef45fcaf6d8a",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      },
+      "04-moe": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/04-moe",
+        "sha256": {
+          "result.json": "9a84385d656e9cd4e65757234eee4e70ea581c0c027c342a6dd7df1f607252e4",
+          "checked-result.json": "910e1f1102b5e7f343c4dbc192cf9d86b56e0710aa688faa3cceabb612c6d6a1",
+          "eval.log": "62611816f068b613981746e803ddccafd7417e74f4bc3855671ead48e32464e9",
+          "command.txt": "cf777625bae57b746770233bfba7510de771c7c8d8fede4eb6fca3513675f2b4",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      },
+      "05-moe": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/05-moe",
+        "sha256": {
+          "result.json": "e8a090d576f1f296dee2f0b32e3c62f6cb7dadf5d2b97c72f33e88d6d41dec5d",
+          "checked-result.json": "8f029f6d108f76cb5353136d1cdb88192ba3120113de2b8df476f2ec8791ba96",
+          "eval.log": "420309207413d4f7defdabd76519cbab15a935c86b55f43b5173f823442a1d67",
+          "command.txt": "fdf45b40f206d5c0215b9bf1d58dd82465beaeb63d3e163c65f69c7e07d340fe",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      },
+      "06-dense": {
+        "directory": "/shared/a100-209c/gzy/q38-dense-isoflops-20261027/evaluation/06-dense",
+        "sha256": {
+          "result.json": "585255cac4d7f885d8a62bd3114337cad5733049570ffadcf8b434b98596aeb1",
+          "checked-result.json": "9a66979a5c64fa4b564436e1c614afe4a83b663cc89658d7b02806f714c8e698",
+          "eval.log": "8c9cfe20f3482e7e08fd5bbd0f19317ddd1bcabfc2e76065cd93fbd33ade317e",
+          "command.txt": "630c030175594b161c8c0134d91760a03e8467175b4ca3678a6d9820fc46bbbb",
+          "gpu-preflight.json": "2f0c086dfa3efcace6c6e5c01f8604762f808ceb5a24db43f6fd36d37f060a34"
+        }
+      }
+    }
+  }
+}
