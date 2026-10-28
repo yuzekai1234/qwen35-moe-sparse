@@ -1063,7 +1063,8 @@
         "hf_path": "/home/guozeyuan/q38-4090-evaluation-20261028/models/dense",
         "model_sha256": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78",
         "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
-        "Na": 36760636
+        "Na": 36760636,
+        "shared_hf_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense"
       }
     },
     "protocol": {
@@ -1289,43 +1290,51 @@
         "sha256": {
           "result.json": "11610557d57ad04d99858a88641c520712705dc3f6730fa5747cf45eb4cb5ff4",
           "stdout.log": "c797921d169ecc9b0c847cf195f86dc7731295227fa8dee416c728398e2a5aad"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/01-moe"
       },
       "02-dense": {
         "directory": "/home/guozeyuan/q38-4090-evaluation-20261028/evaluation/02-dense",
         "sha256": {
           "result.json": "fc661094fa5a358a73cf0120a971645aeac6377e6568ae4bf09e8f57b78fdfbd",
           "stdout.log": "26130bf9b80283be39259efcdb3c42c7e6a4b885107a88127c12b9bc4151f914"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/02-dense"
       },
       "03-dense": {
         "directory": "/home/guozeyuan/q38-4090-evaluation-20261028/evaluation/03-dense",
         "sha256": {
           "result.json": "b26a4cdf9b7b26cfc8ec2461ce9d2a1c565a3f9b2c921424df47acc5f27e58d2",
           "stdout.log": "f1ea5f83ad17fc112f15bb07666fa8e8cce5e5b3f41addc4e2aca0caf1db85f9"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/03-dense"
       },
       "04-moe": {
         "directory": "/home/guozeyuan/q38-4090-evaluation-20261028/evaluation/04-moe",
         "sha256": {
           "result.json": "f03f7089929e2657fa12ea82e1331fa6d26acb8f5fd7f57a4db33820ed901486",
           "stdout.log": "7d69b71a73cab1f7b2d86323b7bf8ad81d581c2181a46071c4b000e7b693dfd7"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/04-moe"
       },
       "05-moe": {
         "directory": "/home/guozeyuan/q38-4090-evaluation-20261028/evaluation/05-moe",
         "sha256": {
           "result.json": "e50769fd00714e5a371a8f4d358442bc66aac87c31fe0c0262e8678dc08fa89a",
           "stdout.log": "900c4fb810072f3e9cdf0b6572621aee3c8f47c0aaff1999b1ce52ca524ff8e9"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/05-moe"
       },
       "06-dense": {
         "directory": "/home/guozeyuan/q38-4090-evaluation-20261028/evaluation/06-dense",
         "sha256": {
           "result.json": "7d9668d8df023a5f90e97f01e053937c9fce61f3ca5c3f85ef4d75f3d676cd70",
           "stdout.log": "ea2429e5abebbb3a84d78d55ca93bf6d94c315d00a2a16de6de4c621a01aaac8"
-        }
+        },
+        "shared_directory": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/evaluation/06-dense"
       }
-    }
+    },
+    "shared_artifacts_root": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028",
+    "shared_manifest_sha256": "3124b92fb44504a5475afc940b8f4e54b8d11e02c704eff5f91178fd1ee2fc0b"
   }
 }

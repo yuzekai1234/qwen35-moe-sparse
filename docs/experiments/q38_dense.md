@@ -191,7 +191,7 @@ CUDA_VISIBLE_DEVICES=0 "$PY" -m q38.evaluate_single_gpu \
 
 四档拟合、留出训练与原八卡评测源码为 [`c4157511`](https://github.com/yuzekai1234/qwen35-moe-sparse/commit/c4157511af8f6ab00f9ed2fdece09edb7c67303c)。原件位于 `/shared/a100-209c/gzy/q38-dense-isoflops-20261027/`：`sweep/` 为四档 17 点；`prediction/fit.json`、`prediction/c1-config.json` 为训练 C1 前冻结的外推及配置；`c1/` 为完整留出训练，`c1-validation/result.json` 记录导出身份；`evaluation/` 保存原八卡完整 A 的逐次结果和日志。
 
-单卡评测源码为 [`a5bf8f13`](https://github.com/yuzekai1234/qwen35-moe-sparse/commit/a5bf8f13e1ec495da9af34d2405b6d3163f76600)，两种权重均未重新训练或修改。单卡原件位于 4090a 的 `/home/guozeyuan/q38-4090-evaluation-20261028/`，`evaluation/01-moe` 至 `06-dense` 保存六次结果和日志。配置、模型、分词器、输入及官方样例 SHA256、完整精度数值见结果 JSON；其中原八卡与训练字段保持原值。
+单卡评测源码为 [`a5bf8f13`](https://github.com/yuzekai1234/qwen35-moe-sparse/commit/a5bf8f13e1ec495da9af34d2405b6d3163f76600)，两种权重均未重新训练或修改。原始执行目录为 4090a 的 `/home/guozeyuan/q38-4090-evaluation-20261028/`；供 `shared` 组读取的完整副本位于同机 `/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/`，其中 `evaluation/01-moe` 至 `06-dense` 保存六次结果和日志，`models/dense/` 为同一 dense 权重，`SHA256SUMS` 覆盖所有原文件。副本与原件逐文件 SHA256 相同，原始结果中的执行路径保持不变；共享访问路径见结果 JSON 的 `shared_artifacts_root`、`shared_directory` 和 `shared_hf_path`。配置、模型、分词器、输入及官方样例 SHA256、完整精度数值也见结果 JSON；既有八卡 A100 评测结果与训练结果字段保持原值。
 
 ## 未验证与待确认
 
