@@ -31,7 +31,7 @@ GPUS=0 bash scripts/eval.sh runs/q38_c2/hf /path/to/eval.jsonl 4096 1
 
 默认训练 seq=4096，使用 GZY 10K tokenizer（实际 10112 token）及共享 16B token 训练池，无需重新分词。
 4096 是序列长度；`batch_tokens` 为每步全局 token 数，`micro_bs` 为每卡序列数。
-入口为 `python -m q38.train`、`python -m q38.evaluate`、`python -m q38.data`。
+训练和数据入口为 `python -m q38.train`、`python -m q38.data`。按官方单卡样例适配的评测入口为 `python -m q38.evaluate_single_gpu`；原多卡评测入口为 `python -m q38.evaluate`。
 配置新增 `n_branch`、`mhc_iters`、`qsa_blocks`、`indexer_heads`、`indexer_head_dim`、`ngram_rows`、`mtp`；`ngram_rows=-1` 自动按非词表参数规模选择行数，`0` 关闭哈希表。
 训练参数可设置 `--muon 0`、`--mtp_coef`、`--kl_coef` 和 `--dense_warmup`。QSA 在学习率 warmup 阶段使用 dense attention。
 
