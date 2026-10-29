@@ -2,6 +2,8 @@
 
 dense 实现、参数口径、配置生成与验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。固定形状的 C1–C4 配置保持每 token 激活参数近似不变，只替换 MoE 前馈层；四档拟合后外推的 C1 另选层数和隐藏宽度。
 
+同一 dense checkpoint 的 BF16 / INT8 / FP8 推理质量对照见 [低精度 BPB 实验](docs/experiments/q38_low_precision.md)。入口为 `python -m q38.compare_precision`，默认只量化主干 FFN，关闭 EvalTime 计时。
+
 从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
 架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。
 

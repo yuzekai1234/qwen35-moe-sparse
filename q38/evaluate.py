@@ -23,8 +23,10 @@ from pathlib import Path
 import numpy as np
 
 
-def pack_jsonl(dataset_path, tokenizer, cache_dir):
+def pack_jsonl(dataset_path, tokenizer, cache_dir, max_documents=None):
     """Write a flat token stream and a mask distinguishing text from inserted EOS."""
+    if max_documents is not None and max_documents < 1:
+        raise ValueError("max_documents must be positive")
     eos = tokenizer.eos_token_id
     if eos is None:
         raise ValueError("The tokenizer must define eos_token_id for document separation")
@@ -35,6 +37,8 @@ def pack_jsonl(dataset_path, tokenizer, cache_dir):
         (cache_dir / "is_text.bin").open("wb") as mask_file,
     ):
         records = (json.loads(line)["text"] for line in source if line.strip())
+        if max_documents is not None:
+            records = islice(records, max_documents)
         while texts := list(islice(records, 128)):
             total_bytes += sum(len(text.encode("utf-8")) for text in texts)
             encoded = tokenizer(

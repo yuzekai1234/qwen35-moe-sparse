@@ -1,0 +1,572 @@
+{
+  "scope": "main_dense_ffn",
+  "purpose": "BPB comparison; no EvalTime measurement",
+  "pilot": {
+    "max_documents": 256,
+    "results": [
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "9aaaa810fcee254e08ab7a4c622ec3b346057da8973cedc57ec5786bcd3805ec",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "first_documents",
+        "max_documents": 256,
+        "requested_precisions": [
+          "bf16",
+          "int8",
+          "fp8"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 2066533,
+          "total_tokens": 571351,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "bf16",
+          "backend": "bf16",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [],
+          "quantized_weight_elements": 0,
+          "weight_scaling": null,
+          "activation_scaling": null,
+          "format": "bf16",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.149023328655102,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 571351,
+        "text_bytes": 2066533,
+        "total_nll_nats": 1645874.2555685863,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 140,
+        "num_steps": 9,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.0,
+        "relative_bpb_increase_percent": 0.0
+      },
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "9aaaa810fcee254e08ab7a4c622ec3b346057da8973cedc57ec5786bcd3805ec",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "first_documents",
+        "max_documents": 256,
+        "requested_precisions": [
+          "bf16",
+          "int8",
+          "fp8"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 2066533,
+          "total_tokens": 571351,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "int8",
+          "backend": "native",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [
+            "model.layers.0.mlp.gate_proj",
+            "model.layers.0.mlp.up_proj",
+            "model.layers.0.mlp.down_proj",
+            "model.layers.1.mlp.gate_proj",
+            "model.layers.1.mlp.up_proj",
+            "model.layers.1.mlp.down_proj",
+            "model.layers.2.mlp.gate_proj",
+            "model.layers.2.mlp.up_proj",
+            "model.layers.2.mlp.down_proj",
+            "model.layers.3.mlp.gate_proj",
+            "model.layers.3.mlp.up_proj",
+            "model.layers.3.mlp.down_proj",
+            "model.layers.4.mlp.gate_proj",
+            "model.layers.4.mlp.up_proj",
+            "model.layers.4.mlp.down_proj",
+            "model.layers.5.mlp.gate_proj",
+            "model.layers.5.mlp.up_proj",
+            "model.layers.5.mlp.down_proj",
+            "model.layers.6.mlp.gate_proj",
+            "model.layers.6.mlp.up_proj",
+            "model.layers.6.mlp.down_proj",
+            "model.layers.7.mlp.gate_proj",
+            "model.layers.7.mlp.up_proj",
+            "model.layers.7.mlp.down_proj",
+            "model.layers.8.mlp.gate_proj",
+            "model.layers.8.mlp.up_proj",
+            "model.layers.8.mlp.down_proj",
+            "model.layers.9.mlp.gate_proj",
+            "model.layers.9.mlp.up_proj",
+            "model.layers.9.mlp.down_proj"
+          ],
+          "quantized_weight_elements": 11796480,
+          "weight_scaling": "per_output_channel",
+          "activation_scaling": "dynamic_per_token",
+          "format": "int8",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.149231721984975,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 571351,
+        "text_bytes": 2066533,
+        "total_nll_nats": 1646172.7605755054,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 140,
+        "num_steps": 9,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.00020839332987310222,
+        "relative_bpb_increase_percent": 0.01813656212854564
+      },
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "9aaaa810fcee254e08ab7a4c622ec3b346057da8973cedc57ec5786bcd3805ec",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "first_documents",
+        "max_documents": 256,
+        "requested_precisions": [
+          "bf16",
+          "int8",
+          "fp8"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 2066533,
+          "total_tokens": 571351,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "fp8",
+          "backend": "native",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [
+            "model.layers.0.mlp.gate_proj",
+            "model.layers.0.mlp.up_proj",
+            "model.layers.0.mlp.down_proj",
+            "model.layers.1.mlp.gate_proj",
+            "model.layers.1.mlp.up_proj",
+            "model.layers.1.mlp.down_proj",
+            "model.layers.2.mlp.gate_proj",
+            "model.layers.2.mlp.up_proj",
+            "model.layers.2.mlp.down_proj",
+            "model.layers.3.mlp.gate_proj",
+            "model.layers.3.mlp.up_proj",
+            "model.layers.3.mlp.down_proj",
+            "model.layers.4.mlp.gate_proj",
+            "model.layers.4.mlp.up_proj",
+            "model.layers.4.mlp.down_proj",
+            "model.layers.5.mlp.gate_proj",
+            "model.layers.5.mlp.up_proj",
+            "model.layers.5.mlp.down_proj",
+            "model.layers.6.mlp.gate_proj",
+            "model.layers.6.mlp.up_proj",
+            "model.layers.6.mlp.down_proj",
+            "model.layers.7.mlp.gate_proj",
+            "model.layers.7.mlp.up_proj",
+            "model.layers.7.mlp.down_proj",
+            "model.layers.8.mlp.gate_proj",
+            "model.layers.8.mlp.up_proj",
+            "model.layers.8.mlp.down_proj",
+            "model.layers.9.mlp.gate_proj",
+            "model.layers.9.mlp.up_proj",
+            "model.layers.9.mlp.down_proj"
+          ],
+          "quantized_weight_elements": 11796480,
+          "weight_scaling": "per_tensor",
+          "activation_scaling": "dynamic_per_tensor",
+          "format": "e4m3fn",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.1498333875811129,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 571351,
+        "text_bytes": 2066533,
+        "total_nll_nats": 1647034.5933080954,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 140,
+        "num_steps": 9,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.000810058926010937,
+        "relative_bpb_increase_percent": 0.07049978062316775
+      }
+    ]
+  },
+  "full": {
+    "completed_utc": "2026-10-29T09:33:38.782521+00:00",
+    "protocol": "One independent RTX 4090 SM89 per precision, same checkpoint, tokenizer, dataset, packing implementation, batch16, seq4096; no timing comparison.",
+    "identity_checks_passed": [
+      "model_files_sha256",
+      "config_sha256",
+      "tokenizer_sha256",
+      "dataset_sha256",
+      "implementation_sha256",
+      "dataset_scope",
+      "max_documents",
+      "packing",
+      "torch_version",
+      "cuda_version",
+      "gpu_name",
+      "compute_capability",
+      "batch_size",
+      "sequence_length",
+      "scored_tokens",
+      "text_bytes",
+      "active_params_excluding_embeddings"
+    ],
+    "source_code_matches_recorded_hashes": true,
+    "results": [
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "4fa6f195c38c1a206c54730fcef535bc13f4bbbec62d0bc8ddb395f459ca64ea",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "full",
+        "max_documents": null,
+        "requested_precisions": [
+          "bf16"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "cuda_visible_devices": "GPU-b6110d0e-7eeb-4918-f0be-26f59a91bfa4",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 445910984,
+          "total_tokens": 120142976,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "bf16",
+          "backend": "bf16",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [],
+          "quantized_weight_elements": 0,
+          "weight_scaling": null,
+          "activation_scaling": null,
+          "format": "bf16",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.13323462423263,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 120142976,
+        "text_bytes": 445910984,
+        "total_nll_nats": 350262357.651879,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 29348,
+        "num_steps": 1835,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.0,
+        "relative_bpb_increase_percent": 0.0
+      },
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "4fa6f195c38c1a206c54730fcef535bc13f4bbbec62d0bc8ddb395f459ca64ea",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "full",
+        "max_documents": null,
+        "requested_precisions": [
+          "int8"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "cuda_visible_devices": "GPU-4598ce41-5c18-d30e-6e3e-a64079ec9c76",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 445910984,
+          "total_tokens": 120142976,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "int8",
+          "backend": "native",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [
+            "model.layers.0.mlp.gate_proj",
+            "model.layers.0.mlp.up_proj",
+            "model.layers.0.mlp.down_proj",
+            "model.layers.1.mlp.gate_proj",
+            "model.layers.1.mlp.up_proj",
+            "model.layers.1.mlp.down_proj",
+            "model.layers.2.mlp.gate_proj",
+            "model.layers.2.mlp.up_proj",
+            "model.layers.2.mlp.down_proj",
+            "model.layers.3.mlp.gate_proj",
+            "model.layers.3.mlp.up_proj",
+            "model.layers.3.mlp.down_proj",
+            "model.layers.4.mlp.gate_proj",
+            "model.layers.4.mlp.up_proj",
+            "model.layers.4.mlp.down_proj",
+            "model.layers.5.mlp.gate_proj",
+            "model.layers.5.mlp.up_proj",
+            "model.layers.5.mlp.down_proj",
+            "model.layers.6.mlp.gate_proj",
+            "model.layers.6.mlp.up_proj",
+            "model.layers.6.mlp.down_proj",
+            "model.layers.7.mlp.gate_proj",
+            "model.layers.7.mlp.up_proj",
+            "model.layers.7.mlp.down_proj",
+            "model.layers.8.mlp.gate_proj",
+            "model.layers.8.mlp.up_proj",
+            "model.layers.8.mlp.down_proj",
+            "model.layers.9.mlp.gate_proj",
+            "model.layers.9.mlp.up_proj",
+            "model.layers.9.mlp.down_proj"
+          ],
+          "quantized_weight_elements": 11796480,
+          "weight_scaling": "per_output_channel",
+          "activation_scaling": "dynamic_per_token",
+          "format": "int8",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.133429784813177,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 120142976,
+        "text_bytes": 445910984,
+        "total_nll_nats": 350322678.2629875,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 29348,
+        "num_steps": 1835,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.00019516058054680485,
+        "relative_bpb_increase_percent": 0.01722155115750912
+      },
+      {
+        "model_path": "/home/shared/qwen35_moe_sparse/experiments/q38-4090-evaluation-20261028/models/dense",
+        "dataset_path": "/home/shared/data/dolma3_mix_100M_a.jsonl",
+        "model_files_sha256": {
+          "model.safetensors": "4e1a73cd826f2eb7a5ccbc7266d9adb0dea9d1f3bae4253cbcd19bc6427e5b78"
+        },
+        "config_sha256": "4d1148d97925489ddc698a1b540478a908b12638ea477dc26638e5ea307f8458",
+        "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+        "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+        "implementation_sha256": {
+          "quantization.py": "0ae82eab7136df6467d5123fe28147bb40aadd26e58ef5b24ce0ccf67cde7146",
+          "compare_precision.py": "4fa6f195c38c1a206c54730fcef535bc13f4bbbec62d0bc8ddb395f459ca64ea",
+          "evaluate.py": "ffcc09425b07586e652080a8160822e9d307e8661e327eb4f538493eed26de19",
+          "evaluate_single_gpu.py": "f8bd523579ac5b221d98a03a16db3bfaee13c17f8f099f6f9eab973f57547fdd",
+          "inference.py": "8f0514d7302d32c6204548727c1cbb2a55989db6e5b1a9bb602bd7263e7b2232",
+          "models/qwen3_8_moe/modeling_qwen3_8_moe.py": "2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a"
+        },
+        "dataset_scope": "full",
+        "max_documents": null,
+        "requested_precisions": [
+          "fp8"
+        ],
+        "torch_version": "2.7.1+cu126",
+        "cuda_version": "12.6",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
+        "cuda_visible_devices": "GPU-aa63804c-9b95-fa18-17ec-ac620f942a21",
+        "compute_capability": [
+          8,
+          9
+        ],
+        "packing": {
+          "total_bytes": 445910984,
+          "total_tokens": 120142976,
+          "pad_token_id": 0
+        },
+        "quantization": {
+          "precision": "fp8",
+          "backend": "native",
+          "scope": "main_dense_ffn",
+          "quantized_modules": [
+            "model.layers.0.mlp.gate_proj",
+            "model.layers.0.mlp.up_proj",
+            "model.layers.0.mlp.down_proj",
+            "model.layers.1.mlp.gate_proj",
+            "model.layers.1.mlp.up_proj",
+            "model.layers.1.mlp.down_proj",
+            "model.layers.2.mlp.gate_proj",
+            "model.layers.2.mlp.up_proj",
+            "model.layers.2.mlp.down_proj",
+            "model.layers.3.mlp.gate_proj",
+            "model.layers.3.mlp.up_proj",
+            "model.layers.3.mlp.down_proj",
+            "model.layers.4.mlp.gate_proj",
+            "model.layers.4.mlp.up_proj",
+            "model.layers.4.mlp.down_proj",
+            "model.layers.5.mlp.gate_proj",
+            "model.layers.5.mlp.up_proj",
+            "model.layers.5.mlp.down_proj",
+            "model.layers.6.mlp.gate_proj",
+            "model.layers.6.mlp.up_proj",
+            "model.layers.6.mlp.down_proj",
+            "model.layers.7.mlp.gate_proj",
+            "model.layers.7.mlp.up_proj",
+            "model.layers.7.mlp.down_proj",
+            "model.layers.8.mlp.gate_proj",
+            "model.layers.8.mlp.up_proj",
+            "model.layers.8.mlp.down_proj",
+            "model.layers.9.mlp.gate_proj",
+            "model.layers.9.mlp.up_proj",
+            "model.layers.9.mlp.down_proj"
+          ],
+          "quantized_weight_elements": 11796480,
+          "weight_scaling": "per_tensor",
+          "activation_scaling": "dynamic_per_tensor",
+          "format": "e4m3fn",
+          "untouched": "attention/GDN, mHC, norms, embeddings, tied output head, training-only MTP",
+          "original_total_weight_elements": 108747936
+        },
+        "bpb": 1.13399605755779,
+        "evaltime": null,
+        "forward_seconds": null,
+        "timing_enabled": false,
+        "active_params_excluding_embeddings": 36760636,
+        "scored_tokens": 120142976,
+        "text_bytes": 445910984,
+        "total_nll_nats": 350497702.9422207,
+        "sequence_length": 4096,
+        "batch_size": 16,
+        "num_sequences": 29348,
+        "num_steps": 1835,
+        "gpu_count": 1,
+        "delta_bpb_vs_bf16": 0.0007614333251599881,
+        "relative_bpb_increase_percent": 0.06719114549429417
+      }
+    ],
+    "source_files": {
+      "bf16": {
+        "result": "runs/q38_precision_20261029_full/bf16/bf16.json",
+        "result_sha256": "bca55c69a6c513ae12585630ea723c8b59ca7cb5ba5beb0c99b78bab0d6df66a",
+        "log": "runs/q38_precision_20261029_full/bf16.log",
+        "log_sha256": "7988b3e417d25e299894196acbcc937a060a5fe1f1865e3592105d27cb87b6e8"
+      },
+      "int8": {
+        "result": "runs/q38_precision_20261029_full/int8/int8.json",
+        "result_sha256": "2c97edf0164397a82940826e6422f58c33ba2d09f1d3209ac17c8c1bf009ebab",
+        "log": "runs/q38_precision_20261029_full/int8.log",
+        "log_sha256": "83b1408186995aa5ecc77819c82c7a3c67813534512e0db7a2173caa13652469"
+      },
+      "fp8": {
+        "result": "runs/q38_precision_20261029_full/fp8/fp8.json",
+        "result_sha256": "03753a52d9ee60e6e991fbc12818b6815e9b4b862a730d6d085bd97f8fad7fb1",
+        "log": "runs/q38_precision_20261029_full/fp8.log",
+        "log_sha256": "d709360f42e1466f3f33b8f0f7557c193bd56a096660447c015251d9bb4de6a5"
+      }
+    },
+    "process_exit_codes": {
+      "bf16": 0,
+      "int8": 0,
+      "fp8": 0
+    }
+  },
+  "validation": {
+    "cpu_passed": 19,
+    "cpu_gpu_test_skipped": 1,
+    "native_gpu_passed": 1,
+    "gpu": "RTX 4090 SM89",
+    "torch": "2.7.1+cu126"
+  }
+}
