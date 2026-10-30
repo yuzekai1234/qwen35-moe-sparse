@@ -1,0 +1,20 @@
+--- fused_fwd.py.upstream0.1.3
++++ fused_fwd.py.local-sm90-d64
+@@ -659,7 +659,7 @@
+     _, _, H, V = v.shape
+     chunk_size = a.shape[-1]
+     scale = scale or K ** (-0.5)
+-    assert K == V == 128
++    assert K == V and K in (64, 128)
+     assert chunk_size == 64
+     output_final_state = output_final_state or False
+     output_h = output_h or False
+@@ -734,6 +734,8 @@
+         block_DV = 64
+     else:
+         block_DV = 32
++
++    block_DV = min(block_DV, V)
+ 
+     tilelang_fused_chunk_gdr_fwd_kernel = tilelang_fused_chunk_gdr_fwd(
+         H,

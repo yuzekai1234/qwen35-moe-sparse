@@ -1,0 +1,35 @@
+{
+  "scope": "GDN_core_unit_not_model_score",
+  "torch": "2.8.0+cu128",
+  "cuda": "12.8",
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "auto_cp": false,
+  "cases": [
+    {
+      "batch": 60,
+      "sequence": 4096,
+      "qk_heads": 6,
+      "v_heads": 18,
+      "head_dimension": 64,
+      "scale": 0.125,
+      "normalization": "shared_original_FLA_l2norm_then_both_flag_False",
+      "g_dtype": "torch.float32",
+      "beta_dtype": "torch.bfloat16",
+      "initial_state": true,
+      "final_state_dtype": "torch.float32",
+      "output_error": {
+        "max_abs": 0.001953125,
+        "rms": 0.00011919945245608687,
+        "reference_rms": 0.026044048368930817,
+        "relative_rms": 0.00457684038854288
+      },
+      "state_error": {
+        "max_abs": 0.012721359729766846,
+        "rms": 0.0008189046056941152,
+        "reference_rms": 0.2091534584760666,
+        "relative_rms": 0.003915329020427469
+      }
+    }
+  ],
+  "status": "ok"
+}
