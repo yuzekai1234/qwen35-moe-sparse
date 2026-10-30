@@ -10,7 +10,7 @@ from q38.flops import count, validate_resume_accounting
 from q38.models.qwen3_8_moe import Qwen3_8MoeForCausalLM, Qwen3_8MoeTextConfig
 from q38.models.qwen3_8_moe import modeling_qwen3_8_moe as M
 from q38.presets import ROOT, dense_shape, model_config
-from q38.train import LossModel, NEW_RESUME_DEFAULTS, RESUME_KEYS
+from q38.train import LossModel, NEW_RESUME_DEFAULTS, RESUME_KEYS, parse_args
 from scripts.make_baseline_config import make_config
 from tests.test_dense import CE, tiny_shape
 
@@ -20,6 +20,15 @@ class Baseline(unittest.TestCase):
         shape = dict(dense_shape(tiny_shape(), 128, 128), mhc_enabled=0, qsa_mode='full')
         shape.update(changes)
         return model_config(shape, 128, 128, eos_token_id=0)
+
+    def test_eight_gpu_bf16_training_recipe(self):
+        train = make_config()['train']
+        self.assertEqual(train['batch_tokens'], 8*train['seq']*train['micro_bs'])
+        for key, expected in dict(micro_bs=4, auto_micro_bs=0, resume=1,
+                                  ffn_precision='bf16', projection_precision='bf16',
+                                  ffn_calibration='', precision_transition=0).items():
+            self.assertEqual(train[key], expected, key)
+        self.assertEqual(parse_args(['--preset', 'baseline', '--resume', '0']).resume, 0)
 
     def test_combined_budget_and_registered_parameter_count(self):
         config = make_config()

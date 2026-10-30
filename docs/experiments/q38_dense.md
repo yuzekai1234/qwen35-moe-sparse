@@ -142,6 +142,28 @@ $$
 
 所选离散配置相对连续预测的 $N_a$ 为 −15.19%、$D$ 为 +0.5029%；完整训练实际 $D=806{,}354{,}944$、$F=370{,}159{,}616$，最终 checkpoint 与 285 个 HF 导出张量逐项核对通过。该 CE 是上述独立验证分区的完整训练终点，不是 BPB，也不是质量预测误差。单个 C1 配方完成训练不证明该预算的最优规模。
 
+### C1–C4 外推训练配置
+
+[`configs/dense_isoflops/`](../../configs/dense_isoflops/) 保存由上述冻结拟合系数与原离散选型规则生成的四级配置。生成器 [`make_dense_scaling_configs.py`](../../scripts/make_dense_scaling_configs.py) 校验已提交结果 JSON 内完整 fit 的原始 SHA256，读取全精度系数，不重新拟合，也不将 C1 纳入拟合。每级分别继承对应预算的全局 batch、学习率规则及 0.5% FLOPs 预留，重新计算整步训练 token 和 warmup。
+
+| 配置 | 目标 FLOPs | h / L / FFN 宽度 | $N_a$ | 训练 token $D$ | 验证状态 |
+|---|---:|---:|---:|---:|---|
+| `c1.json` | 3e17 | 512 / 10 / 768 | 36,760,636 | 806,354,944 | 已有完整留出 C1 训练 |
+| `c2.json` | 1e18 | 640 / 12 / 960 | 70,278,520 | 1,546,649,600 | 未训练的外推配置 |
+| `c3.json` | 3e18 | 832 / 16 / 1248 | 155,137,264 | 2,348,548,096 | 未训练的外推配置 |
+| `c4.json` | 1e19 | 1024 / 20 / 1536 | 298,910,218 | 4,370,989,056 | 未训练的外推配置 |
+
+这些配置保留 **mHC、learned QSA 和原 16B-token 数据池**，不是当前无 mHC/全注意力组合模型。C1 除输出目录规范化为 `runs/q38_dense_isoflops/c1` 外，与原实际留出训练配置完全一致。`selection.json` 保存精确系数、来源身份、连续预测、离散选择与各配置 SHA256；连续 N/D 目标通常不能在同一预算内同时精确满足。C2–C4 未做完整训练、质量验证或目标 GPU 显存验证，N/D 外推不预测 CE/BPB，也不证明最优性。
+
+```bash
+# 只生成/核对配置，不读取训练数据、不重新拟合
+CUDA_VISIBLE_DEVICES='' "$PY" scripts/make_dense_scaling_configs.py --check
+
+# 显式选择外推配置；不要用历史 train_dense.sh c1 代替
+PY="$PY" GPUS=0,1,2,3,4,5,6,7 bash scripts/train_dense.sh \
+  configs/dense_isoflops/c1.json --resume 0 --run_dir /path/to/new/c1
+```
+
 ## 完整 A 评测
 
 两种 C1 使用相同目标训练 FLOPs、同一完整 A 与计分方式。单卡 4090 使用按官方单卡样例适配的入口；原八卡 A100 结果独立保留，不按卡数换算，也不跨设备排列模型优劣。

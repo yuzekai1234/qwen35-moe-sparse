@@ -39,8 +39,8 @@
     "seq": 4096,
     "tokens": 813432832,
     "batch_tokens": 131072,
-    "micro_bs": 8,
-    "auto_micro_bs": 1,
+    "micro_bs": 4,
+    "auto_micro_bs": 0,
     "probe_mem_frac": 0.92,
     "lr": 0.002038,
     "min_lr_ratio": 0.1,
@@ -67,7 +67,11 @@
     "mtp_coef": 0.3,
     "kl_coef": 0.0,
     "muon": 1,
-    "dense_warmup": 0
+    "dense_warmup": 0,
+    "ffn_precision": "bf16",
+    "projection_precision": "bf16",
+    "ffn_calibration": "",
+    "precision_transition": 0
   },
   "accounting": {
     "layers": 10,
@@ -142,7 +146,7 @@
   "baseline": {
     "name": "dense_no_mhc_full_attention_c1",
     "shape": "h512/L10/F768; eight GDN and two causal full-attention layers",
-    "status": "configuration qualified; combined full-budget quality not measured",
+    "results": "docs/experiments/q38_baseline.md",
     "preserve": "N-gram, attention output gates, GQA, Q/K norms and training-only MTP"
   }
 }

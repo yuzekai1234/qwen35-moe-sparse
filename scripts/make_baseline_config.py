@@ -19,8 +19,10 @@ def make_config():
     config['train'].update(run_dir='runs/q38_baseline/c1', data=pool+'/train.bin',
                            val_data=pool+'/valid.bin',
                            tokenizer='/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1',
-                           require_ready_pool=0, micro_bs=8, auto_micro_bs=1,
-                           resume=1, kl_coef=0.0, dense_warmup=0)
+                           require_ready_pool=0, micro_bs=4, auto_micro_bs=0,
+                           resume=1, kl_coef=0.0, dense_warmup=0,
+                           ffn_precision='bf16', projection_precision='bf16',
+                           ffn_calibration='', precision_transition=0)
     cfg = model_config(config['model'], 10112, config['train']['seq'], 1, 53, 0)
     fc = count(cfg.to_dict(), config['train']['seq'])
     batch = config['train']['batch_tokens']
@@ -33,7 +35,7 @@ def make_config():
     config.pop('comparison', None)
     config['baseline'] = dict(name='dense_no_mhc_full_attention_c1',
                               shape='h512/L10/F768; eight GDN and two causal full-attention layers',
-                              status='configuration qualified; combined full-budget quality not measured',
+                              results='docs/experiments/q38_baseline.md',
                               preserve='N-gram, attention output gates, GQA, Q/K norms and training-only MTP')
     return config
 
