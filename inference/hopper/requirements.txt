@@ -1,0 +1,12 @@
+torch==2.8.0
+triton==3.4.0
+transformers==5.19.0
+flash-linear-attention==0.5.1
+fla-core==0.5.1
+numpy==2.2.6
+safetensors==0.8.0
+tokenizers==0.23.3
+einops==0.8.1
+huggingface-hub==2.3.0
+packaging==26.3
+psutil==7.1.0
