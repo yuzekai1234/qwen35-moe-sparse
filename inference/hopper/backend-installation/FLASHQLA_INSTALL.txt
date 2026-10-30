@@ -1,0 +1,36 @@
+可复现的FlashQLA D64实验依赖安装（无H100绝对site-packages路径）
+
+来源是官方QwenLM/FlashQLA项目发布到PyPI的flash-qla==0.1.3。
+PyPI wheel没有.git信息，不能虚构其Git commit等同于当前main；用精确版本、43个源码SHA和两个原始/补丁SHA锁定。
+该后端仅在本任务已验证C1的SM90、head_dim64、fixed-length prefill上启用，auto_cp=False。
+原始架构、gate/scale/state语义不变；auto-CP的128维限制未改，不启用未验证的CP路径。
+
+基础运行时：CPython3.12/x86_64、Torch2.8.0+cu128、Triton3.4.0、FLA0.5.1。
+保留已验证的numpy/psutil/tqdm/typing-extensions等基础依赖。
+官方最低CUDA>=12.8；本机实测JIT编译工具是nvcc13.0.88、g++13（含C++20<format>）。
+需要开发版CUDA Toolkit及可写JIT cache；不是只安装CUDA runtime就能在干净机器编译。
+
+建议在镜像构建阶段或专用新目录安装，禁止升级已验证的Torch环境：
+
+  python -m pip install --no-deps --target ./q38_backend_deps -r requirements-flashqla-backend.txt
+  export PYTHONPATH="$PWD/q38_backend_deps${PYTHONPATH:+:$PYTHONPATH}"
+  python apply_flashqla_d64.py --package ./q38_backend_deps/flash_qla --record ./flashqla-patch.json
+  python verify_flashqla_dependencies.py --manifest ./flashqla-source-manifest.json --verify-records --output ./backend-integrity.json
+
+若使用uv，等价用uv pip install --target ./q38_backend_deps --no-deps -r ...。
+若需离线镜像，先用pip download --no-deps -r ... -d ./wheels，构建时--no-index --find-links ./wheels。
+不要使用无约束pip install --upgrade flash-qla；新上游源码若与锁定SHA不同，补丁脚本会拒绝。
+补丁仅改Hopper kkt_solve/fused_fwd两个文件的D64资格与block_DV cap；完整原文/diff/SHA附在证据包。
+verify-records会校验各依赖安装RECORD中的源/二进制hash，且只允许这两个已知D64补丁与原wheel记录不同。
+完整RECORD检查用于安装/发布资格，不需要每次model forward重复执行；快速43源SHA/版本检查可单独运行。
+
+运行前提供本机CUDA_HOME和nvcc/g++路径（不要改变已验证cuDNN的LD_LIBRARY_PATH）：
+  export PATH="$CUDA_HOME/bin:$PATH"
+  export TILELANG_CACHE_DIR="${TMPDIR:-/tmp}/q38-tilelang-cache"
+  export TILELANG_TMP_DIR="${TMPDIR:-/tmp}/q38-tilelang-tmp"
+  export Q38_FLASHQLA_BACKEND=1
+
+安装顺序：原通用FP8/GDN/FFN/residualnorm -> attention/cuDNN回调 -> prequant_norm.install -> gdn_flashqla_backend.install最后。
+最后一步复制common_gdn namespace，必须在prequant quant_rows proxy已经安装后执行。
+保留输入release补丁；batch由外部EVAL_BATCH_SIZE或eval.py --batch-size决定，不写死H100的942。
+实际使用新设备/新编译器时先重跑unit、memcheck和模型质量/速度门限；不能把上游benchmark倍数当成模型结果。
