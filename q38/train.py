@@ -50,8 +50,10 @@ RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads
                "batch_tokens", "seed", "data", "val_data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip",
                "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")
 RESUME_KEYS += ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "ngram_rows", "mtp", "mtp_coef", "kl_coef", "muon", "dense_warmup", "dense_ffn")
+RESUME_KEYS += ("mhc_enabled", "qsa_mode")
 NEW_RESUME_DEFAULTS = {k: TRAIN_DEFAULTS[k] for k in (
     "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")}
+NEW_RESUME_DEFAULTS.update(mhc_enabled=1, qsa_mode="learned")
 
 
 def int_like(s):   # accept 3e9-style token counts

@@ -1,8 +1,8 @@
-"""Q38 sparse parameter and compute accounting.
+"""Q38 parameter and compute accounting.
 
 Inherited GDN terms use the contest-pinned Megatron convention. Q38 adds
-sparse QSA, indexer/KL, mHC, N-gram gates and training-only MTP.
-Usage: python -m q38.flops q38_c2 --seq 4096
+full attention or sparse QSA, optional indexer/KL and mHC, N-gram gates and MTP.
+Usage: python -m q38.flops baseline --seq 4096
 """
 import argparse
 import json
@@ -75,18 +75,24 @@ def count(c, seq):
     n, rank = c.get("n_branch", 4), max(1, round(h / 8))
     ni, di = c.get("indexer_heads", 4), c.get("indexer_head_dim", 64)
     rows, budget = c.get("ngram_rows", 0), c.get("qsa_blocks", 8)
-    if rows < 0 or budget < 1 or seq < 1:
+    qsa_mode = c.get("qsa_mode", "learned")
+    if qsa_mode not in ("learned", "full"):
+        raise ValueError("qsa_mode must be learned or full")
+    full_attention = qsa_mode == "full"
+    if rows < 0 or (not full_attention and budget < 1) or seq < 1:
         raise ValueError("Invalid Q38 N-gram rows, sparse block budget or sequence length")
-    blocks = (seq + 63) // 64
-    avg = sum(64 * (min(i + 1, budget) - 1) + 32.5 for i in range(blocks)) / blocks
     bd = dict(r["breakdown"])
-    bd["attn_score"] = round(nf * 4 * c["num_attention_heads"] * c["head_dim"] * avg)
-    ip = nf * h * (ni * di + di + ni)
-    mp = 2 * L * (n*h*rank + rank*(2*n+n*n) + 2*n+n*n+3)
+    if not full_attention:
+        blocks = (seq + 63) // 64
+        avg = sum(64 * (min(i + 1, budget) - 1) + 32.5 for i in range(blocks)) / blocks
+        bd["attn_score"] = round(nf * 4 * c["num_attention_heads"] * c["head_dim"] * avg)
+    ip = 0 if full_attention else nf * h * (ni * di + di + ni)
+    mhc_enabled = c.get("mhc_enabled", True)
+    mp = 2 * L * (n*h*rank + rank*(2*n+n*n) + 2*n+n*n+3) if mhc_enabled else 0
     gp, tables = (h*h + 2*h, 2*rows*h) if rows else (0, 0)
-    bd.update(indexer_projections=2*ip, indexer_score=nf*2*seq*ni*di,
-              mhc_projections=2*2*L*(n*h*rank + rank*(2*n+n*n)),
-              mhc_mix=2*L*2*h*(2*n+n*n), ngram_gate=2*h*h if rows else 0)
+    bd.update(indexer_projections=2*ip, indexer_score=0 if full_attention else nf*2*seq*ni*di,
+              mhc_projections=2*2*L*(n*h*rank + rank*(2*n+n*n)) if mhc_enabled else 0,
+              mhc_mix=2*L*2*h*(2*n+n*n) if mhc_enabled else 0, ngram_gate=2*h*h if rows else 0)
     mtp_params = mtp_active = 0
     if c.get("mtp", True):
         mc = dict(c, num_hidden_layers=1, layer_types=["linear_attention"])
@@ -94,7 +100,7 @@ def count(c, seq):
         mtp_params = mr["total_nonvocab_params"] + 2*h*h + 2*h
         mtp_active = mr["active_nonvocab_params"] + 2*h*h + 2*h
         bd["mtp"] = mr["fwd_flops_per_token"] + 4*h*h
-    distill = nf * 2 * seq * c["num_attention_heads"] * c["head_dim"]
+    distill = 0 if full_attention else nf * 2 * seq * c["num_attention_heads"] * c["head_dim"]
     active = r["active_nonvocab_params"] + ip + mp + gp + (2*h if rows else 0)
     total = r["total_nonvocab_params"] + ip + mp + gp + tables + mtp_params
     fwd = sum(bd.values())
@@ -108,6 +114,10 @@ def count(c, seq):
              mtp_active_params=mtp_active, distill_target_flops=distill,
              fwd_flops_per_token=fwd, main_fwd_flops_per_token=fwd-bd.get("mtp", 0),
              train_flops_per_token=train)
+    if not mhc_enabled:
+        r["accounting_method"] += "_no_mhc_v1"
+    if full_attention:
+        r["accounting_method"] += "_qsa_full_v1"
     # Keep the historical nonvocab fields for training/checkpoint accounting;
     # evaluation excludes every Embedding, including N-gram tables/rows.
     r.update(active_params_excluding_embeddings=active-(2*h if rows else 0),

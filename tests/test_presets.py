@@ -7,7 +7,8 @@ class Presets(unittest.TestCase):
         for name in preset_names():
             p=load_preset(name)
             cfg=model_config(p["model"],10112,4096)
-            self.assertEqual((cfg.num_experts,cfg.num_experts_per_tok),(64,5))
+            self.assertEqual((cfg.num_experts,cfg.num_experts_per_tok),
+                             (0,0) if name == "baseline" else (64,5))
             self.assertGreater(cfg.ngram_rows,0)
             self.assertTrue(cfg.mtp)
             tokens,fc=preset_budget(name,10112,4096)

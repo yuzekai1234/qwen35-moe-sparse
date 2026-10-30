@@ -1193,7 +1193,8 @@ class NGramEmbedding(nn.Module):
         pos = torch.arange(T, device=x.device).expand(B, T)
         last = torch.cummax(torch.where(x == self.eos_id, pos, torch.full_like(pos, -1)), dim=1).values.clamp(min=0)
         def prev(k):
-            xs = torch.cat([torch.full((B, k), self.vocab, device=x.device, dtype=x.dtype), x[:, :-k]], dim=1)
+            shift = min(k, T)
+            xs = torch.cat([torch.full((B, shift), self.vocab, device=x.device, dtype=x.dtype), x[:, :T-shift]], dim=1)
             return torch.where((pos - k) >= last, xs, torch.full_like(xs, self.vocab))
         a, b = prev(1), x
         i2 = (a * P2[0]) ^ (b * P2[1])
@@ -1229,9 +1230,9 @@ class Qwen3_8MoeTextModel(Qwen3_8MoePreTrainedModel):
         self.post_init()
         h, L = config.hidden_size, config.num_hidden_layers
         self.mhc = nn.ModuleList([MHC(h, config.n_branch, max(1, round(h / 8)), slot=i,
-                                      iters=config.mhc_iters) for i in range(2 * L)])
+                                      iters=config.mhc_iters) for i in range(2 * L)]) if config.mhc_enabled else nn.ModuleList()
         self.indexers = nn.ModuleDict({str(i): Indexer(h, config.indexer_heads, config.indexer_head_dim)
-                                     for i, kind in enumerate(config.layer_types) if kind == "full_attention"})
+                                     for i, kind in enumerate(config.layer_types) if kind == "full_attention" and config.qsa_mode == "learned"})
         self.ngram = NGramEmbedding(h, config.vocab_size, config.ngram_rows, config.eos_token_id) if config.ngram_rows else None
         for extra in (self.mhc, self.indexers, self.ngram):
             if extra is not None:
@@ -1244,34 +1245,40 @@ class Qwen3_8MoeTextModel(Qwen3_8MoePreTrainedModel):
         length = ids.shape[1]
         if not length:
             raise ValueError("Q38 requires at least one input token")
-        padding = (-length) % BLK
+        padding = (-length) % BLK if self.config.qsa_mode == "learned" else 0
         if padding:
             ids = F.pad(ids, (0, padding), value=self.config.pad_token_id or 0)
         e = self.embed_tokens(ids)
         positions = torch.arange(ids.shape[1], device=ids.device).view(1, 1, -1).expand(3, ids.shape[0], -1)
         cos, sin = self.rotary_emb(e, positions)
-        if self.config.indexer_head_dim != self.config.head_dim:
+        if self.config.qsa_mode == "learned" and self.config.indexer_head_dim != self.config.head_dim:
             raise ValueError("Indexer and attention head dimensions must match for shared partial RoPE")
-        X = e.float().unsqueeze(2).expand(-1, -1, self.config.n_branch, -1).contiguous()
+        mhc_enabled = self.config.mhc_enabled
+        X = (e.float().unsqueeze(2).expand(-1, -1, self.config.n_branch, -1).contiguous()
+             if mhc_enabled else e.float())
         kls = []
         for i, layer in enumerate(self.layers):
-            xin, state = self.mhc[2*i].pre(X)
+            xin, state = self.mhc[2*i].pre(X) if mhc_enabled else (X, None)
             x = layer.input_layernorm(xin).to(e.dtype)
             if self.config.layer_types[i] == "linear_attention":
                 y = layer.linear_attn(hidden_states=x, cache_params=None, attention_mask=None)
             else:
-                y, kl = qsa_attention(layer.self_attn, x, cos, sin, self.indexers[str(i)],
-                                      self.config.qsa_blocks, self.training and self.qsa_dense,
-                                      self.training and torch.is_grad_enabled())
+                full_attention = self.config.qsa_mode == "full"
+                y, kl = qsa_attention(layer.self_attn, x, cos, sin,
+                                      None if full_attention else self.indexers[str(i)],
+                                      self.config.qsa_blocks, full_attention or (self.training and self.qsa_dense),
+                                      not full_attention and self.training and torch.is_grad_enabled())
                 if kl is not None:
                     kls.append(kl)
-            X = self.mhc[2*i].post(X, y, state)
-            xin, state = self.mhc[2*i+1].pre(X)
+            X = self.mhc[2*i].post(X, y, state) if mhc_enabled else X + y.float()
+            xin, state = self.mhc[2*i+1].pre(X) if mhc_enabled else (X, None)
             y = layer.mlp(layer.post_attention_layernorm(xin).to(e.dtype))
-            X = self.mhc[2*i+1].post(X, y, state)
+            X = self.mhc[2*i+1].post(X, y, state) if mhc_enabled else X + y.float()
             if i == 0 and self.ngram is not None:
-                X = X + self.ngram.delta(X.mean(2).to(e.dtype), ids).unsqueeze(2)
-        return X.sum(2)[:, :length].to(e.dtype), kls
+                delta = self.ngram.delta((X.mean(2) if mhc_enabled else X).to(e.dtype), ids)
+                X = X + (delta.unsqueeze(2) if mhc_enabled else delta)
+        hs = X.sum(2) if mhc_enabled else X
+        return hs[:, :length].to(e.dtype), kls
 
     @merge_with_config_defaults
     @capture_outputs
