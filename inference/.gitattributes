@@ -1,0 +1,3 @@
+# Preserve the byte-identical qualified snapshot and unified-diff context lines.
+hopper/evaluation/hopper_inference.py whitespace=-blank-at-eof
+hopper/backend-installation/*.diff -whitespace
