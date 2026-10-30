@@ -1,6 +1,31 @@
-# Q38 sparse
+# Q38 dense baseline
 
-dense 实现、参数口径、配置生成与验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。固定形状的 C1–C4 配置保持每 token 激活参数近似不变，只替换 MoE 前馈层；四档拟合后外推的 C1 另选层数和隐藏宽度。
+当前主线为 **dense FFN + 无 mHC + 因果全注意力**，入口配置是 [`configs/baseline.json`](configs/baseline.json)。
+C1 固定 h512/L10/F768：8 层 Gated DeltaNet、2 层全注意力，使用单路 FP32 Pre-Norm 残差；保留 N-gram、GQA、Q/K norm、attention 输出门及训练专用 MTP。主路径不构造 mHC 或 indexer，也不计算 indexer KL。
+
+```bash
+# 训练新的 C1 baseline；默认允许同配置续训
+GPUS=0 bash scripts/train.sh --run_dir /path/to/c1
+# 同一配置的 dense 入口，支持 dry-run
+GPUS=0 bash scripts/train_dense.sh baseline --dry-run
+# 复核配置及精确预算
+CUDA_VISIBLE_DEVICES='' .venv_q35/bin/python scripts/make_baseline_config.py --check
+# GPU 短测、独立进程恢复及 portable HF 导出核验；输出目录必须是新的
+GPUS=0 bash scripts/smoke_dense.sh runs/new-baseline-qualification baseline
+```
+
+训练预算为 C1=3e17 FLOPs，预留 0.5%；新结构按每 token 366,904,320 FLOPs 重算为 813,432,832 token、6206 步。评测激活参数量为 33,776,160，排除全部 Embedding、输出头和未调用的 MTP。
+默认读取 `/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1/` 的现成训练/验证集及对应 10112-token tokenizer；可通过命令行覆盖数据路径。配置固化已验证的八卡设置：每卡 micro4、关闭自动 micro-batch 探测、BF16 混合精度。默认输出到 `runs/q38_baseline/c1/`，保留 `resume=1` 的同配置续训语义；从头复现应显式 `--resume 0` 并指定全新目录，不能从旧结构 checkpoint 跨配置恢复。
+
+组合模型已在八张 A100 40GB 上完成完整 C1 预算；FP32 主权重/优化器、BF16 混合精度，不使用 INT8/FP8。同一张 4090 48GB、seq4096、batch16、完整 A 三次评测中位数：BPB **1.121291**、累计 forward **216.442 秒**、EvalTime **53.337563**；同次复测的 mHC + learned QSA dense 对照为 1.131918 / 380.524 秒 / 86.159052。BPB 降低 0.010627，forward 耗时下降 43.12%，EvalTime 下降 38.09%。这是固定 batch 的本地对照，不是官方 H200 成绩。准确训练命令、原始配置身份和共享产物见 [组合 C1 训练与评测](docs/experiments/q38_baseline.md)。
+
+模型字段 `mhc_enabled=0`、`qsa_mode="full"` 明确选择新结构；旧配置和旧 HF 导出缺少这两个字段时仍按 mHC + learned QSA 解释。历史 `q38_c1`–`q38_c4` 与 `configs/dense/` 均保留原结构和预算；`train_dense.sh c1` 仍指历史 FFN-only 对照，主线请使用默认入口或显式 `baseline`。
+
+## 历史模型与实验
+
+dense 实现、参数口径、配置生成与历史验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。当前 [`configs/dense_isoflops/c1.json`](configs/dense_isoflops/c1.json) 至 `c4.json` **全部使用无 mHC、因果全注意力和 BF16**，与当前 C1 使用同一 5.617B-token 训练池。C1 保留已验证的 h512；C2–C4 暂用旧拟合提供的 h640/h832/h1024，已按新结构重算参数和 FLOPs/token 预算，但尚未训练，也不是新结构已拟合最优值。新结构仍需按 3e15、1e16、3e16、1e17 四档重新拟合；`selection.json` 明确区分旧尺度参考与新拟合状态。历史 `configs/dense/q38_c1`–`q38_c4` 仅作保留 mHC/QSA 的 FFN-only 对照，不是当前推荐配置。
+
+同一 dense checkpoint 的 BF16 / INT8 / FP8 推理质量对照见 [低精度 BPB 实验](docs/experiments/q38_low_precision.md)。入口为 `python -m q38.compare_precision`，默认只量化主干 FFN，关闭 EvalTime 计时。
 
 从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
 架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。
@@ -29,7 +54,7 @@ GPUS=0 bash scripts/train.sh q38_c2 --run_dir runs/q38_c2
 GPUS=0 bash scripts/eval.sh runs/q38_c2/hf /path/to/eval.jsonl 4096 1
 ```
 
-默认训练 seq=4096，使用 GZY 10K tokenizer（实际 10112 token）及共享 16B token 训练池，无需重新分词。
+历史 MoE 预设、FFN-only 配置和旧 IsoFLOPs 实验使用 seq=4096、GZY 10K tokenizer（实际 10112 token）及共享 16B token 训练池，无需重新分词；当前组合 baseline 和当前 `configs/dense_isoflops/` 四配置统一使用前述 5.617B-token 训练池。
 4096 是序列长度；`batch_tokens` 为每步全局 token 数，`micro_bs` 为每卡序列数。
 训练和数据入口为 `python -m q38.train`、`python -m q38.data`。按官方单卡样例适配的评测入口为 `python -m q38.evaluate_single_gpu`；原多卡评测入口为 `python -m q38.evaluate`。
 配置新增 `n_branch`、`mhc_iters`、`qsa_blocks`、`indexer_heads`、`indexer_head_dim`、`ngram_rows`、`mtp`；`ngram_rows=-1` 自动按非词表参数规模选择行数，`0` 关闭哈希表。

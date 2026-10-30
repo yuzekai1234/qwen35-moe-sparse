@@ -1,0 +1,128 @@
+{
+  "created_utc": "2026-10-30T04:07:45Z",
+  "baseline_commit": "253d663",
+  "goal": "speed first; report BPB tradeoff; no hard 0.001 cutoff",
+  "qualification": {
+    "path": "runs/q38_fused_precision/qualification_all",
+    "status": {
+      "stage": "qualification_complete",
+      "updated_utc": "2026-10-30T04:05:11Z",
+      "controller_pid": 1880120,
+      "results": 0
+    },
+    "shared_prefix_steps": 2,
+    "final_steps_per_branch": 3,
+    "full_budget": false,
+    "ddp_prefix_world": 4,
+    "ddp_tail_world": 2,
+    "actual_fp8_forward_training": true,
+    "fp8_scope": "FFN + GDN qkv/z/out + attention Q/K/V/O",
+    "backward": "BF16 GEMMs; FP32 master weights",
+    "benchmarks": {
+      "fp8_adapted": {
+        "median_ms": 92.35363006591797,
+        "forward_time_reduction_percent": 19.69200543375429,
+        "input_shape": [
+          16,
+          4096
+        ],
+        "projection_scope": "all",
+        "source": "runs/q38_fused_precision/qualification_all/fp8_adapted.benchmark.json"
+      },
+      "fp8_all_ptq": {
+        "median_ms": 92.33715057373047,
+        "forward_time_reduction_percent": 19.706335514424687,
+        "input_shape": [
+          16,
+          4096
+        ],
+        "projection_scope": "all",
+        "source": "runs/q38_fused_precision/qualification_all/fp8_all_ptq.benchmark.json"
+      },
+      "baseline": {
+        "median_ms": 114.99929809570312,
+        "forward_time_reduction_percent": 0.0,
+        "input_shape": [
+          16,
+          4096
+        ],
+        "projection_scope": "none",
+        "source": "runs/q38_fused_precision/qualification_all/baseline.benchmark.json"
+      },
+      "bf16_fused": {
+        "median_ms": 99.40576171875,
+        "forward_time_reduction_percent": 13.559679611240838,
+        "input_shape": [
+          16,
+          4096
+        ],
+        "projection_scope": "none",
+        "source": "runs/q38_fused_precision/qualification_all/bf16_fused.benchmark.json"
+      },
+      "fp8_ffn_ptq": {
+        "median_ms": 94.70771026611328,
+        "forward_time_reduction_percent": 17.644966678581863,
+        "input_shape": [
+          16,
+          4096
+        ],
+        "projection_scope": "none",
+        "source": "runs/q38_fused_precision/qualification_all/fp8_ffn_ptq.benchmark.json"
+      }
+    }
+  },
+  "validation": {
+    "cpu_suite": {
+      "total": 62,
+      "passed": 57,
+      "skipped": 5
+    },
+    "gpu_focused_suite": {
+      "total": 6,
+      "passed": 6
+    },
+    "coverage": [
+      "FP32 residual + RMSNorm boundaries",
+      "BF16 SiLU rounding",
+      "length 1/65 tails and causality",
+      "FP8 training/deployment agreement",
+      "finite gradients through GDN and full attention",
+      "optimizer changes master weights",
+      "checkpoint-compatible state keys",
+      "cache corruption and identity rejection",
+      "precision/calibration resume keys"
+    ],
+    "clean_snapshot_cpu_suite": {
+      "total": 60,
+      "passed": 55,
+      "skipped": 5,
+      "note": "Isolated staged tree; excludes pre-existing uncommitted quantization tests."
+    }
+  },
+  "formal_run": {
+    "path": "runs/q38_fused_precision/c1_20261030",
+    "controller_pid": 1907827,
+    "launched": true,
+    "completed": false,
+    "steps": 6206,
+    "tokens_per_model": 813432832,
+    "logical_train_flops_per_model": 298452020090634240,
+    "source_manifest": "runs/q38_fused_precision/c1_20261030/protocol.json",
+    "persistence": "PPID 1; session leader; stdin /dev/null; stdout/stderr file logs",
+    "full_A_results_available": false
+  },
+  "limitations": [
+    "Short measurements use three-update qualification checkpoints, not full-budget models.",
+    "Full A BPB and EvalTime remain pending.",
+    "One full A score/time per candidate; three interleaved short timing rounds supplement it.",
+    "Training uses a common BF16 prefix and FP8 adaptation only in the final 706 steps."
+  ],
+  "source_sha256": {
+    "q38/fused_precision.py": "79a42e3f1c10c6b1501b33e5b0fa1154218ea7788ae7d8be7736c686d988a658",
+    "q38/benchmark_blocks.py": "d6d42edfee9c20f9c7d7b9c44324aeab4897222aa8d721bff55fc17414758472",
+    "q38/evaluate_fused.py": "23f47d082ee50a772c57883b10771fbfbaebe32ff7d6cdac5998899ef66a7375",
+    "q38/train.py": "98abc9982f433ebaec769d9dded8494a92c012d14fdcc1d5256c5f85ef8108d8",
+    "scripts/run_fused_c1.py": "705943df04426769335cf8f706d44d610cd6dc1ac2fcbe9e6d8bdbf73e9cb9fe",
+    "tests/test_fused_precision.py": "30b6aac729ac4a038cf2e0b5ea8ede77c852de8b3be12987f4e9c7c9c5151996"
+  }
+}

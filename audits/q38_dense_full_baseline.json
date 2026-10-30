@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "verification_kind": "GPU short-run qualification, not final quality",
+  "torch": "2.7.1+cu126",
+  "cuda": "12.6",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "updates": 3,
+  "trained_tokens": 393216,
+  "full_budget_completed": false,
+  "warmup_updates": 1,
+  "attention_mode": "full",
+  "mhc_enabled": false,
+  "sparse_training_updates": 0,
+  "sequence_length": 4096,
+  "batch_tokens": 131072,
+  "micro_bs": 4,
+  "adam_steps": [
+    3
+  ],
+  "mtp_tensors_verified": 18,
+  "export_logits_bitwise_equal": true,
+  "export_tail_lengths_verified": [
+    1,
+    65
+  ],
+  "export_sparse_logits_bitwise_equal": null,
+  "suppress_compile_errors": false,
+  "total_params": 105763460,
+  "active_params_excluding_embeddings": 33776160,
+  "verified_hf_tensor_count": 159,
+  "artifact_directory": "runs/q38_baseline_qualification_20261030_v3/run",
+  "cpu_regression": {
+    "tests_run": 56,
+    "passed": 55,
+    "skipped": 1,
+    "skipped_scope": "native quantization GPU test in CPU-only invocation"
+  },
+  "other_checks": [
+    "frozen dense C1-C4 generator --check",
+    "new baseline generator --check",
+    "default shell and explicit preset dry-run",
+    "historical dense checkpoint: all 285 tensor names/shapes compatible"
+  ],
+  "historical_q35_fit_recheck": "Unavailable: original Q35 IsoFLOPs run records are absent on this host",
+  "scope": "Short-run implementation qualification only. Combined full-budget BPB and EvalTime are not measured.",
+  "source_sha256": {
+    "configs/baseline.json": "73604411e94ef5cc86229a0fcdc636e999bbdbf5595369868557d6cf1dd5b25d",
+    "q38/flops.py": "fd5d5d21b2feebe44ea26fd015d37249103c0e0d51be7b23304bb4f90f888084",
+    "q38/inference.py": "c556b9bcc83a30cd30eb1edceb8bc32b9dc6791ec654271bb5ab2bfec6e63999",
+    "q38/presets.py": "8a343a0896e90b22578f8e362757133e153644277d05e51774665ef1767b7a5d",
+    "q38/train.py": "21827fcdc0b20a3122075ff1e5d2c7b3a3d4cb3ace78006d4b4d46cf0553a589",
+    "q38/models/qwen3_8_moe/modeling_qwen3_8_moe.py": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5",
+    "q38/models/qwen3_8_moe/configuration_qwen3_8_moe.py": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3"
+  }
+}

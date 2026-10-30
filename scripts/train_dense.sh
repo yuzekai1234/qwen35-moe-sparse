@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# GPUS=0 PY=/path/to/python bash scripts/train_dense.sh c1 [q38.train arguments]
+# Defaults to baseline; explicit c1-c4 select the historical FFN-only configs.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
-TARGET=${1:?usage: scripts/train_dense.sh <c1|c2|c3|c4|config.json> [args...]}
-shift
+TARGET=baseline
+if (($#)) && [[ "$1" != --* ]]; then TARGET=$1; shift; fi
 case "$TARGET" in
+  baseline) CONFIG="$ROOT/configs/baseline.json" ;;
   c1|c2|c3|c4) CONFIG="$ROOT/configs/dense/q38_$TARGET/config.json" ;;
   *) CONFIG="$TARGET" ;;
 esac

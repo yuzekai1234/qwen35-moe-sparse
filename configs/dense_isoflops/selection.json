@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "family": "dense_no_mhc_full_attention_bf16",
+  "scale_prior": {
+    "path": "docs/experiments/q38_dense_results.json",
+    "sha256": "d38e59ba3745d43c881af12132f0e6b730dfe44c4835d04204611fb07ee01493",
+    "fit_sha256": "9161ac55ead50f7ab8b238f30fb8ff29d8be78bf181e6fb268075c42cca0e76d",
+    "training_source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
+    "manifest_sha256": "372ba5247ef3188e83a7bc5e85d8925cd8dd349035e4a5d68558521e5ff59bd4",
+    "fitting_code_sha256": "0f92e25fef80dd4b2b52a09ad39ce4d3352b6a6782a53b06ce776564728ecb3b",
+    "architecture": "dense with mHC and learned QSA, trained on the original 16B-token pool",
+    "role": "Hidden-width reference only; not an N/D fit of the current architecture"
+  },
+  "current_architecture_fit": null,
+  "planned_fit_budgets": {
+    "3e15": 3000000000000000,
+    "1e16": 10000000000000000,
+    "3e16": 30000000000000000,
+    "1e17": 100000000000000000
+  },
+  "architecture": "dense SwiGLU, no mHC, causal full attention, BF16; C1 5.617B-token pool",
+  "configurations": {
+    "c1": {
+      "compute": 300000000000000000,
+      "selected_hidden": 512,
+      "selected_layers": 10,
+      "selected_Na": 33776160,
+      "selected_D": 813432832,
+      "config": "c1.json",
+      "config_sha256": "2e07d441d6629461e159410c877defaf3c7daf82ae5e438d30d823cf50ee617d",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "combined_c1_validated"
+    },
+    "c2": {
+      "compute": 1000000000000000000,
+      "selected_hidden": 640,
+      "selected_layers": 12,
+      "selected_Na": 64694512,
+      "selected_D": 1553465344,
+      "config": "c2.json",
+      "config_sha256": "0cc2b9c6c374729727188a5de25f50b499c24be80051141707f2ba387f0cd90f",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
+    },
+    "c3": {
+      "compute": 3000000000000000000,
+      "selected_hidden": 832,
+      "selected_layers": 16,
+      "selected_Na": 142902672,
+      "selected_D": 2368208896,
+      "config": "c3.json",
+      "config_sha256": "968f703fa28a3baef921898bc17d494f35b053e233793349cfb551d81553fd59",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
+    },
+    "c4": {
+      "compute": 10000000000000000000,
+      "selected_hidden": 1024,
+      "selected_layers": 20,
+      "selected_Na": 276155858,
+      "selected_D": 4443865088,
+      "config": "c4.json",
+      "config_sha256": "367479b942c6d4bff27d8cf4f0ca64ffd9b2727a74e6a295e46be800a85ba93b",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
+    }
+  },
+  "scope": "C1 keeps its validated h512 shape. C2-C4 are untrained provisional sizes. The old N/D fit is only a width reference, not evidence for the current graph. No current-architecture fit, quality prediction or proof of optimal size."
+}

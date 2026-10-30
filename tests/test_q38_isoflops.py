@@ -7,7 +7,7 @@ import unittest
 from q38.flops import count
 from q38.presets import model_config
 from scripts.make_q38_isoflops_configs import build_plan, write_plan, BUDGETS
-from scripts.fit_q38_isoflops import fit_curves, c1_recipe, load_rows
+from scripts.fit_q38_isoflops import fit_curves, training_recipe, load_rows
 import math
 import numpy as np
 
@@ -63,7 +63,7 @@ class Fitting(unittest.TestCase):
         for f in fit["budget_fits"]:
             self.assertLess(f["residual_rmse"], 1e-10)
             self.assertAlmostEqual(f["fitted_minimum_ce"], 2)
-        cfg, prediction = c1_recipe(fit, Path("/unused/c1"))
+        cfg, prediction = training_recipe(fit, "c1", Path("/unused/c1"))
         self.assertEqual(cfg["compute"], 3*10**17)
         self.assertEqual(cfg["model"]["experts"], 0)
         self.assertIsNone(prediction["quality_prediction"])

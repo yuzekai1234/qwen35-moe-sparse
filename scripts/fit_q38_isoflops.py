@@ -12,7 +12,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from q38.presets import ROOT
 from scripts.make_dense_configs import make_config
-from scripts.make_q38_configs import shape_for
+from scripts.make_q38_configs import BUDGETS as TRAINING_BUDGETS, shape_for
 from scripts.make_q38_isoflops_configs import BUDGETS, serialized
 
 
@@ -107,26 +107,33 @@ def fit_curves(rows):
                 D_log10_coefficients=pd.tolist(), leave_one_budget_out=loo)
 
 
-def c1_recipe(fit, run_dir):
-    target_n = float(10**np.polyval(fit["Na_log10_coefficients"], math.log10(3e17)))
-    target_d = float(10**np.polyval(fit["D_log10_coefficients"], math.log10(3e17)))
-    template = json.loads((ROOT/"configs/q38_c1.json").read_text())
+def training_recipe(fit, tier, run_dir):
+    """Select one dense shape using frozen N/D coefficients and tier defaults."""
+    if tier not in TRAINING_BUDGETS:
+        raise ValueError("Training tier must be c1, c2, c3 or c4")
+    compute = TRAINING_BUDGETS[tier]
+    target_n = float(10**np.polyval(fit["Na_log10_coefficients"], math.log10(compute)))
+    target_d = float(10**np.polyval(fit["D_log10_coefficients"], math.log10(compute)))
+    template = json.loads((ROOT/f"configs/q38_{tier}.json").read_text())
+    # Keep the fitted architecture's schema, not later baseline-only defaults.
+    # dense_ffn=0 was already part of shape_for when the dense fit was frozen.
+    shape_fields = set(template["model"]) | {"dense_ffn"}
     candidates = []
     for hidden in range(64,1601,64):
         reference = copy.deepcopy(template)
-        reference["model"] = shape_for(hidden)
+        reference["model"] = {k: v for k, v in shape_for(hidden).items() if k in shape_fields}
         config = make_config(reference, run_dir)
         n, d = config["accounting"]["active_params_excluding_embeddings"], config["train"]["tokens"]
         score = math.log(n/target_n)**2+math.log(d/target_d)**2
         candidates.append((score, hidden, config))
     score, hidden, config = min(candidates, key=lambda c:c[0])
-    return config, dict(compute=3*10**17, predicted_Na=target_n, predicted_D=target_d,
+    return config, dict(compute=compute, predicted_Na=target_n, predicted_D=target_d,
         selected_hidden=hidden, selected_layers=config["model"]["layers"],
         selected_Na=config["accounting"]["active_params_excluding_embeddings"],
         selected_D=config["train"]["tokens"], selection_score=score,
         selection_rule="min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
         quality_prediction=None,
-        limitation="N/D power laws do not predict CE or prove that one C1 size is optimal")
+        limitation="N/D power laws do not predict CE or prove that a selected size is optimal")
 
 
 def main():
@@ -139,7 +146,7 @@ def main():
         raise FileExistsError("Prediction and held-out training output must be new")
     manifest, rows = load_rows(a.manifest)
     fit = fit_curves(rows)
-    config, prediction = c1_recipe(fit, a.c1_run_dir.absolute())
+    config, prediction = training_recipe(fit, "c1", a.c1_run_dir.absolute())
     result = dict(metric=manifest["metric"], metric_units=manifest["metric_units"],
         validation=manifest["validation"], source_commit=manifest["source_commit"],
         manifest_sha256=sha(a.manifest), fitting_code_sha256=sha(Path(__file__)),
