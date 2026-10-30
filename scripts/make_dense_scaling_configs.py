@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export C1-C4 dense recipes from the recorded N/D fit, without refitting."""
+"""Export provisional combined-model recipes; the old fit is a size prior only."""
 import argparse
 import hashlib
 import json
@@ -8,21 +8,22 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from q38.presets import ROOT
-from scripts.fit_q38_isoflops import training_recipe
+from scripts.make_baseline_config import FAMILY, make_training_config
 from scripts.make_q38_configs import BUDGETS as TRAINING_BUDGETS
 from scripts.make_q38_isoflops_configs import BUDGETS as FIT_BUDGETS, serialized
 
 SOURCE = ROOT/"docs/experiments/q38_dense_results.json"
 DEFAULT_OUTPUT = ROOT/"configs/dense_isoflops"
 DEFAULT_RUN_ROOT = Path("runs/q38_dense_isoflops")
+PROVISIONAL_HIDDEN = dict(c1=512, c2=640, c3=832, c4=1024)
 
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def load_fit(source=SOURCE):
-    """Authenticate the original fit before using any of its coefficients."""
+def load_scale_prior(source=SOURCE):
+    """Authenticate the legacy fit, which did not measure the combined graph."""
     raw = source.read_bytes()
     data = json.loads(raw)
     fit = data["isoflops"]
@@ -34,29 +35,35 @@ def load_fit(source=SOURCE):
             any(p["target_compute"] != FIT_BUDGETS[f["budget"]]
                 for f in fit["budget_fits"] for p in f["points"])):
         raise ValueError("Expected the four low-budget dense curves, without C1")
-    return fit, dict(path=str(source.relative_to(ROOT)), sha256=sha(raw),
+    return dict(path=str(source.relative_to(ROOT)), sha256=sha(raw),
         fit_sha256=digest, training_source_commit=fit["source_commit"],
-        manifest_sha256=fit["manifest_sha256"], fitting_code_sha256=fit["fitting_code_sha256"])
+        manifest_sha256=fit["manifest_sha256"], fitting_code_sha256=fit["fitting_code_sha256"],
+        architecture="dense with mHC and learned QSA, trained on the original 16B-token pool",
+        role="Hidden-width reference only; not an N/D fit of the current architecture")
 
 
 def build_plan(output=DEFAULT_OUTPUT, run_root=DEFAULT_RUN_ROOT):
-    fit, source = load_fit()
+    source = load_scale_prior()
     files, selections = {}, {}
-    for tier in TRAINING_BUDGETS:
-        config, prediction = training_recipe(fit, tier, Path(run_root)/tier)
+    for tier, compute in TRAINING_BUDGETS.items():
+        config = make_training_config(PROVISIONAL_HIDDEN[tier], compute, Path(run_root)/tier)
         path = Path(output)/f"{tier}.json"
         files[path] = config
-        selections[tier] = dict(prediction, config=path.name,
+        selections[tier] = dict(compute=compute, selected_hidden=config['model']['hidden'],
+            selected_layers=config['model']['layers'],
+            selected_Na=config['accounting']['active_params_excluding_embeddings'],
+            selected_D=config['train']['tokens'], config=path.name,
             config_sha256=sha(serialized(config)),
-            validation_status="held_out_c1_validated" if tier == "c1" else "untrained_extrapolation")
-    selection = dict(schema_version=1, family="dense_isoflops", fit_source=source,
-        fit_budgets=FIT_BUDGETS, metric=fit["metric"], metric_units=fit["metric_units"],
-        Na_log10_coefficients=fit["Na_log10_coefficients"],
-        D_log10_coefficients=fit["D_log10_coefficients"],
-        architecture="dense SwiGLU with mHC and learned QSA; original 16B-token training pool",
+            selection_rule='fixed provisional hidden width; current graph budget recomputed',
+            quality_prediction=None,
+            validation_status="combined_c1_validated" if tier == "c1" else "untrained_provisional")
+    selection = dict(schema_version=2, family=FAMILY, scale_prior=source,
+        current_architecture_fit=None, planned_fit_budgets=FIT_BUDGETS,
+        architecture="dense SwiGLU, no mHC, causal full attention, BF16; C1 5.617B-token pool",
         configurations=selections,
-        scope="C1 has the recorded held-out validation; C2-C4 are untrained extrapolations. "
-              "No refitting, quality prediction or proof of optimal model size.")
+        scope="C1 keeps its validated h512 shape. C2-C4 are untrained provisional sizes. "
+              "The old N/D fit is only a width reference, not evidence for the current graph. "
+              "No current-architecture fit, quality prediction or proof of optimal size.")
     files[Path(output)/"selection.json"] = selection
     return files, selection
 

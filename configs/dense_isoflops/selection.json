@@ -1,96 +1,73 @@
 {
-  "schema_version": 1,
-  "family": "dense_isoflops",
-  "fit_source": {
+  "schema_version": 2,
+  "family": "dense_no_mhc_full_attention_bf16",
+  "scale_prior": {
     "path": "docs/experiments/q38_dense_results.json",
     "sha256": "d38e59ba3745d43c881af12132f0e6b730dfe44c4835d04204611fb07ee01493",
     "fit_sha256": "9161ac55ead50f7ab8b238f30fb8ff29d8be78bf181e6fb268075c42cca0e76d",
     "training_source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
     "manifest_sha256": "372ba5247ef3188e83a7bc5e85d8925cd8dd349035e4a5d68558521e5ff59bd4",
-    "fitting_code_sha256": "0f92e25fef80dd4b2b52a09ad39ce4d3352b6a6782a53b06ce776564728ecb3b"
+    "fitting_code_sha256": "0f92e25fef80dd4b2b52a09ad39ce4d3352b6a6782a53b06ce776564728ecb3b",
+    "architecture": "dense with mHC and learned QSA, trained on the original 16B-token pool",
+    "role": "Hidden-width reference only; not an N/D fit of the current architecture"
   },
-  "fit_budgets": {
+  "current_architecture_fit": null,
+  "planned_fit_budgets": {
     "3e15": 3000000000000000,
     "1e16": 10000000000000000,
     "3e16": 30000000000000000,
     "1e17": 100000000000000000
   },
-  "metric": "pure_cross_entropy",
-  "metric_units": "nats/target including EOS",
-  "Na_log10_coefficients": [
-    0.6460498520705733,
-    -3.6541496111373784
-  ],
-  "D_log10_coefficients": [
-    0.5788579944098683,
-    -1.2124238583391727
-  ],
-  "architecture": "dense SwiGLU with mHC and learned QSA; original 16B-token training pool",
+  "architecture": "dense SwiGLU, no mHC, causal full attention, BF16; C1 5.617B-token pool",
   "configurations": {
     "c1": {
       "compute": 300000000000000000,
-      "predicted_Na": 43345297.701644294,
-      "predicted_D": 802319780.0136842,
       "selected_hidden": 512,
       "selected_layers": 10,
-      "selected_Na": 36760636,
-      "selected_D": 806354944,
-      "selection_score": 0.02717452704717276,
-      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
-      "quality_prediction": null,
-      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "selected_Na": 33776160,
+      "selected_D": 813432832,
       "config": "c1.json",
-      "config_sha256": "f2544c22824ce3ddd0acfbf5e2c977b0bb5c824dcd8ab9df2784ceb446fda4c3",
-      "validation_status": "held_out_c1_validated"
+      "config_sha256": "2e07d441d6629461e159410c877defaf3c7daf82ae5e438d30d823cf50ee617d",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "combined_c1_validated"
     },
     "c2": {
       "compute": 1000000000000000000,
-      "predicted_Na": 94351264.7516438,
-      "predicted_D": 1610719962.0630162,
       "selected_hidden": 640,
       "selected_layers": 12,
-      "selected_Na": 70278520,
-      "selected_D": 1546649600,
-      "selection_score": 0.08841225926145538,
-      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
-      "quality_prediction": null,
-      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "selected_Na": 64694512,
+      "selected_D": 1553465344,
       "config": "c2.json",
-      "config_sha256": "13dc1210b4f4c3b44b6c2fe1769b6d949773699e8f41f27a3820b5721d351e8f",
-      "validation_status": "untrained_extrapolation"
+      "config_sha256": "0cc2b9c6c374729727188a5de25f50b499c24be80051141707f2ba387f0cd90f",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
     },
     "c3": {
       "compute": 3000000000000000000,
-      "predicted_Na": 191863270.05224583,
-      "predicted_D": 3042324211.3120756,
       "selected_hidden": 832,
       "selected_layers": 16,
-      "selected_Na": 155137264,
-      "selected_D": 2348548096,
-      "selection_score": 0.1121347429260133,
-      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
-      "quality_prediction": null,
-      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "selected_Na": 142902672,
+      "selected_D": 2368208896,
       "config": "c3.json",
-      "config_sha256": "d445458f22a855d7f0c836d831575fad7810d7525414440b634ac33e5aad67fb",
-      "validation_status": "untrained_extrapolation"
+      "config_sha256": "968f703fa28a3baef921898bc17d494f35b053e233793349cfb551d81553fd59",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
     },
     "c4": {
       "compute": 10000000000000000000,
-      "predicted_Na": 417635664.044102,
-      "predicted_D": 6107704758.499639,
       "selected_hidden": 1024,
       "selected_layers": 20,
-      "selected_Na": 298910218,
-      "selected_D": 4370989056,
-      "selection_score": 0.2237991824357375,
-      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600",
-      "quality_prediction": null,
-      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "selected_Na": 276155858,
+      "selected_D": 4443865088,
       "config": "c4.json",
-      "config_sha256": "befa91b516fc324e580697215dc5a18e26a661a1ac5a0cf880b98d763586f133",
-      "validation_status": "untrained_extrapolation"
+      "config_sha256": "367479b942c6d4bff27d8cf4f0ca64ffd9b2727a74e6a295e46be800a85ba93b",
+      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "quality_prediction": null,
+      "validation_status": "untrained_provisional"
     }
   },
-  "scope": "C1 has the recorded held-out validation; C2-C4 are untrained extrapolations. No refitting, quality prediction or proof of optimal model size."
+  "scope": "C1 keeps its validated h512 shape. C2-C4 are untrained provisional sizes. The old N/D fit is only a width reference, not evidence for the current graph. No current-architecture fit, quality prediction or proof of optimal size."
 }

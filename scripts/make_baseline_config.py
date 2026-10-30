@@ -8,17 +8,27 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from q38.flops import count
-from q38.presets import ROOT, budget_tokens, model_config
+from q38.presets import ROOT, budget_tokens, dense_shape, model_config
+from scripts.make_q38_configs import SEQ, VOCAB, batch_for, shape_for
+
+FAMILY = 'dense_no_mhc_full_attention_bf16'
+POOL = '/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1'
+TOKENIZER = '/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1'
 
 
-def make_config():
+def make_training_config(hidden, compute, run_dir):
+    """Build the combined architecture; N-gram rows come from the legacy MoE."""
+    if hidden not in range(64, 1601, 64) or not isinstance(compute, int) or compute <= 0:
+        raise ValueError('Require h64:64:1600 and a positive integer compute budget')
     config = copy.deepcopy(json.loads((ROOT/'configs/dense/q38_c1/config.json').read_text()))
-    config['model'].update(layers=10, hidden=512, heads=20, dense_ffn=768,
-                           ngram_rows=61440, mhc_enabled=0, qsa_mode='full')
-    pool = '/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1'
-    config['train'].update(run_dir='runs/q38_baseline/c1', data=pool+'/train.bin',
-                           val_data=pool+'/valid.bin',
-                           tokenizer='/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1',
+    # dense_shape materializes rows before either graph-changing switch is set.
+    config['model'] = dict(dense_shape(shape_for(hidden), VOCAB, SEQ),
+                           mhc_enabled=0, qsa_mode='full')
+    config['compute'] = compute
+    config['train'].update(run_dir=str(run_dir), data=POOL+'/train.bin',
+                           val_data=POOL+'/valid.bin', tokenizer=TOKENIZER,
+                           seq=SEQ, batch_tokens=batch_for(compute),
+                           lr=round(.3118*compute**-.125, 6),
                            require_ready_pool=0, micro_bs=4, auto_micro_bs=0,
                            resume=1, kl_coef=0.0, dense_warmup=0,
                            ffn_precision='bf16', projection_precision='bf16',
@@ -33,6 +43,11 @@ def make_config():
                                 train_tokens=tokens, steps=steps,
                                 actual_train_flops=tokens*fc['train_flops_per_token'])
     config.pop('comparison', None)
+    return config
+
+
+def make_config():
+    config = make_training_config(512, 3*10**17, 'runs/q38_baseline/c1')
     config['baseline'] = dict(name='dense_no_mhc_full_attention_c1',
                               shape='h512/L10/F768; eight GDN and two causal full-attention layers',
                               results='docs/experiments/q38_baseline.md',
