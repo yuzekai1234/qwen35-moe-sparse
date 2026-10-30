@@ -27,6 +27,8 @@ dense 实现、参数口径、配置生成与历史验证结果见 [Q38 dense �
 
 新结构的实测曲线、拟合敏感性、数据身份和复现接口见 [当前 dense IsoFLOPs 方法与结果](docs/experiments/q38_combined_isoflops.md)。这四份配置的数据位置为已鉴定的 `/data/q38/datasets/c1-pruned10k-v1/`；异机迁移须重新核验身份，不会静默回退旧路径。`selection.json` 绑定原始拟合和最终配置哈希；配置生成不代表 C2–C4 已训练。
 
+八卡依次完整训练上述最新 C1–C4、逐档自动导出并评测完整 A 集的入口为 `scripts/run_dense_levels.py`，默认仅打印计划。配置身份、预算验收、单卡评测口径及终态结果格式见 [顺序训练说明](docs/experiments/dense_levels.md)。
+
 同一 dense checkpoint 的 BF16 / INT8 / FP8 推理质量对照见 [低精度 BPB 实验](docs/experiments/q38_low_precision.md)。入口为 `python -m q38.compare_precision`，默认只量化主干 FFN，关闭 EvalTime 计时。
 
 ### 历史模型
