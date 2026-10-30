@@ -89,6 +89,8 @@ A100 40GB、Torch 2.7.1+cu126 实测通过：固定 h448/L9 的 C1 完整形状�
 
 来源为 [`make_q38_isoflops_configs.py`](../../scripts/make_q38_isoflops_configs.py)。序列长度为 4096，seed0；每点独立完成完整预算与 cosine 调度。指标为用于拟合的独立验证分区上的纯交叉熵（CE，含 EOS，单位 nats/target）。该分区在 `configs/q35_isoflops/validation.json` 中的键为 `curve`，起始 token 偏移 `offset=2002536`、计分目标数 `targets=16001875`；它与 A 榜 BPB 不是同一指标。默认单任务超时 4 小时、整队列 6 小时、监控间隔 600 秒，均为运行器参数。
 
+下面的命令对应历史源码 `c4157511af8f6ab00f9ed2fdece09edb7c67303c`，复现旧 mHC/QSA 结果时应使用该提交的独立检出。当前同名脚本仅处理无 mHC/全注意力家族，必须显式提供迁移后的数据路径与独立全文哈希快照，接口见 [当前拟合方法](q38_combined_isoflops.md)。
+
 ```bash
 "$PY" scripts/make_q38_isoflops_configs.py \
   --output /data/q38-isoflops/configs --run-root /data/q38-isoflops/runs

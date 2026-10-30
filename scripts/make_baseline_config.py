@@ -10,23 +10,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from q38.flops import count
 from q38.presets import ROOT, budget_tokens, dense_shape, model_config
 from scripts.make_q38_configs import SEQ, VOCAB, batch_for, shape_for
+from scripts.q38_isoflops_contract import FAMILY
 
-FAMILY = 'dense_no_mhc_full_attention_bf16'
 POOL = '/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1'
 TOKENIZER = '/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1'
 
 
-def make_training_config(hidden, compute, run_dir):
+def make_training_config(hidden, compute, run_dir, data_root=POOL, tokenizer=TOKENIZER):
     """Build the combined architecture; N-gram rows come from the legacy MoE."""
-    if hidden not in range(64, 1601, 64) or not isinstance(compute, int) or compute <= 0:
+    if type(hidden) is not int or hidden not in range(64, 1601, 64) or type(compute) is not int or compute <= 0:
         raise ValueError('Require h64:64:1600 and a positive integer compute budget')
     config = copy.deepcopy(json.loads((ROOT/'configs/dense/q38_c1/config.json').read_text()))
     # dense_shape materializes rows before either graph-changing switch is set.
     config['model'] = dict(dense_shape(shape_for(hidden), VOCAB, SEQ),
                            mhc_enabled=0, qsa_mode='full')
     config['compute'] = compute
-    config['train'].update(run_dir=str(run_dir), data=POOL+'/train.bin',
-                           val_data=POOL+'/valid.bin', tokenizer=TOKENIZER,
+    config['train'].update(run_dir=str(run_dir), data=str(Path(data_root)/'train.bin'),
+                           val_data=str(Path(data_root)/'valid.bin'), tokenizer=str(tokenizer),
                            seq=SEQ, batch_tokens=batch_for(compute),
                            lr=round(.3118*compute**-.125, 6),
                            require_ready_pool=0, micro_bs=4, auto_micro_bs=0,
@@ -38,6 +38,8 @@ def make_training_config(hidden, compute, run_dir):
     batch = config['train']['batch_tokens']
     tokens = budget_tokens(fc['train_flops_per_token'], config['compute']*995//1000, batch)
     steps = tokens//batch
+    if not steps:
+        raise ValueError('Compute budget cannot fit one complete global update')
     config['train'].update(tokens=tokens, warmup=max(10, round(steps*.01)))
     config['accounting'] = dict(fc, vocab_size=10112, compute_reserve_fraction=.005,
                                 train_tokens=tokens, steps=steps,

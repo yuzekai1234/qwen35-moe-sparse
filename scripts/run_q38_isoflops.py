@@ -9,11 +9,17 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.q38_isoflops_contract import (
+    BUDGETS, FAMILY, RUNTIME_OVERRIDES, VALIDATION_OFFSET, VALIDATION_TARGETS,
+    runtime_identity_matches, validate_config_data_paths, validate_data_identity, validate_fit_grid, validate_model_family,
+)
 HEARTBEAT = 600
 JOB_TIMEOUT = 4 * 3600
 QUEUE_TIMEOUT = 6 * 3600
@@ -36,6 +42,16 @@ def sha256(path):
         for block in iter(lambda: f.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def check_snapshot_files(snapshot):
+    """Check only known file metadata; this is not a second full-file hash."""
+    identity = validate_data_identity(snapshot)
+    for name in ('train', 'validation'):
+        expected = identity[name]
+        stat = Path(expected['path']).stat()
+        if stat.st_size != expected['bytes'] or stat.st_mtime_ns != expected['mtime_ns']:
+            raise ValueError(f'Data snapshot no longer matches {name}: {expected["path"]}')
 
 
 def git_source():
@@ -87,10 +103,22 @@ def load_manifest(path):
     data = json.loads(path.read_text())
     if data.get("schema_version") != 1 or not isinstance(data.get("jobs"), list) or not data["jobs"]:
         raise ValueError("manifest 必须含 schema_version=1 和非空 jobs 数组")
+    if data.get('family') != FAMILY or data.get('fit_budgets') != BUDGETS:
+        raise ValueError('manifest must identify the current no-mHC/full-attention BF16 family')
+    identity = validate_data_identity(data.get('data_identity'))
+    validate_fit_grid((j.get('compute'), j.get('hidden')) for j in data['jobs'])
     top_source_commit = data.get("source_commit")
+    if not isinstance(top_source_commit, str) or not top_source_commit:
+        raise ValueError('manifest must pin source_commit')
+    if not isinstance(data.get('model_files_sha256'), dict) or not data['model_files_sha256']:
+        raise ValueError('manifest must bind the model source hashes')
     validation = data.get("validation", {})
     if not isinstance(validation, dict):
         raise ValueError("manifest.validation 必须是对象")
+    if validation != dict(offset=VALIDATION_OFFSET, targets=VALIDATION_TARGETS,
+                          tokenizer_sha256=identity['tokenizer_sha256'],
+                          validation_sha256=identity['validation']['sha256']):
+        raise ValueError('manifest final validation partition or identity changed')
     top_validation_sha = validation.get("validation_sha256")
     top_tokenizer_sha = validation.get("tokenizer_sha256")
     ids, jobs = set(), []
@@ -119,6 +147,11 @@ def load_manifest(path):
         if not cfg.is_file():
             raise ValueError(f"配置不存在: {cfg}")
         config = json.loads(cfg.read_text())
+        validate_model_family(config)
+        validate_config_data_paths(config, identity)
+        if (config['model'].get('hidden') != raw.get('hidden') or
+                BUDGETS.get(raw.get('budget')) != raw['compute']):
+            raise ValueError(f'{jid}: configuration shape/budget differs from its grid point')
         train = config.get("train", {})
         accounting = config.get("accounting", {})
         if validation and (train.get("final_eval_offset") != validation.get("offset") or
@@ -141,9 +174,15 @@ def load_manifest(path):
                 accounting.get("active_params_excluding_embeddings") != raw["Na"] or
                 not accounting.get("accounting_method")):
             raise ValueError(f"{jid}: manifest 与配置中的 compute/tokens/steps/F/Na/accounting 不一致")
+        counted_budget = raw['compute']*995//1000
+        if (expected_tokens*raw['train_flops_per_token'] > counted_budget or
+                (expected_tokens+batch_tokens)*raw['train_flops_per_token'] <= counted_budget or
+                expected_tokens > identity['train']['bytes']//4//train['seq']*train['seq']):
+            raise ValueError(f'{jid}: incomplete full-batch budget or repeated training corpus')
         if raw.get("accounting_method") and raw["accounting_method"] != accounting["accounting_method"]:
             raise ValueError(f"{jid}: accounting_method 与配置不一致")
         jobs.append({**raw, "id": jid, "source_commit": raw.get("source_commit") or top_source_commit,
+                     "data_identity": identity, "model_files_sha256": data.get('model_files_sha256'),
                      "validation_sha256": raw.get("validation_sha256") or top_validation_sha,
                      "tokenizer_sha256": raw.get("tokenizer_sha256") or top_tokenizer_sha,
                      "config_path": cfg, "config_data": config,
@@ -210,6 +249,10 @@ class Runner:
             jid = job["id"]
             proc = None
             try:
+                config_raw = job['config_path'].read_bytes()
+                if hashlib.sha256(config_raw).hexdigest() != job['config_sha256']:
+                    raise ValueError('Configuration changed before launch')
+                validate_config_data_paths(json.loads(config_raw), job['data_identity'])
                 run_dir = job["run_dir_path"]
                 run_dir.mkdir(parents=True, exist_ok=False)
                 log = run_dir / "train.log"
@@ -233,6 +276,7 @@ class Runner:
                     self.update(jid, status=state, finished_utc=utc(), gpu_id=gpu, gpu_stats=stats)
                     continue
                 with log.open("ab", buffering=0) as lf:
+                    check_snapshot_files(job['data_identity'])
                     proc = subprocess.Popen(argv, cwd=ROOT, env=env, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)
                     with self.condition:
                         self.children[jid] = proc
@@ -331,14 +375,15 @@ class Runner:
                             rc.get("flops_per_token") == accounting["train_flops_per_token"] and
                             rc.get("config_sha256") == job["config_sha256"] and
                             rc.get("flops_accounting") == accounting["accounting_method"] and
-                            all(rc.get(key) == value for key, value in config["model"].items()))
+                            all(rc.get(key) == value for key, value in config["model"].items()) and
+                            all(rc.get(key) == value for key,value in train.items() if key not in RUNTIME_OVERRIDES) and
+                            rc.get('model_code', {}).get('files') == job['model_files_sha256'])
             tokenizer_match = (not expected_tokenizer or
                                (rc.get("tokenizer_sha256") == expected_tokenizer and ev.get("tokenizer_sha256") == expected_tokenizer))
             tokenizer_match = tokenizer_match and rc.get("tokenizer_sha256") == ev.get("tokenizer_sha256")
             validation_sha = job.get("validation_sha256")
-            validation_identity = rc.get("data_identity", {}).get("validation", {})
-            validation_match = (not validation_sha or
-                                validation_identity.get("declared_sha256") == validation_sha)
+            validation_match = (validation_sha == job['data_identity']['validation']['sha256'] and
+                                runtime_identity_matches(rc.get('data_identity'), job['data_identity']))
             return (summary.get("completed_budget") is True and summary.get("tokens_trained") == job["expected_tokens"] and
                     summary.get("train_flops") == expected_flops and ev.get("tokens_trained") == job["expected_tokens"] and
                     ev.get("train_flops") == expected_flops and ev.get("completed_budget") is True and
@@ -419,6 +464,7 @@ def main():
     pinned = {job["source_commit"] for job in jobs if job.get("source_commit")}
     if len(pinned) > 1 or dirty or (pinned and commit not in pinned):
         raise ValueError(f"源码版本不符合 manifest：HEAD={commit}, dirty={bool(dirty)}, source_commit={sorted(pinned)}")
+    check_snapshot_files(jobs[0]['data_identity'])
     out.mkdir(parents=True)
     runner = Runner(jobs, gpus, py, out, args.job_timeout, args.queue_timeout, args.heartbeat, args.term_grace)
 

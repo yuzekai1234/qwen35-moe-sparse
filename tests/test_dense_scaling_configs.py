@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,17 +13,19 @@ from q38.presets import ROOT, dense_shape, model_config
 from scripts.make_baseline_config import FAMILY, make_config, make_training_config
 from scripts.make_dense_scaling_configs import (
     DEFAULT_OUTPUT, DEFAULT_RUN_ROOT, PROVISIONAL_HIDDEN, SOURCE,
-    build_plan, load_scale_prior, write_plan,
+    build_plan, load_current_fit, load_scale_prior, write_plan,
 )
 from scripts.make_q38_configs import BUDGETS, batch_for, shape_for
 from scripts.make_q38_isoflops_configs import serialized
+from scripts.fit_q38_isoflops import fit_curves
+from tests.q38_isoflops_fixtures import synthetic_fit
 
 
 class DenseScaling(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.record = json.loads(SOURCE.read_bytes())
-        cls.files, cls.selection = build_plan()
+        cls.files, cls.selection = build_plan(fit_source=None)
 
     def test_legacy_fit_is_authenticated_and_only_a_scale_prior(self):
         digest = hashlib.sha256(serialized(self.record['isoflops'])).hexdigest()
@@ -35,7 +38,7 @@ class DenseScaling(unittest.TestCase):
         self.assertNotIn('Na_log10_coefficients', self.selection)
         self.assertNotIn('D_log10_coefficients', self.selection)
         with patch('scripts.fit_q38_isoflops.fit_curves', side_effect=AssertionError('No refit')):
-            self.assertEqual(build_plan(), (self.files, self.selection))
+            self.assertEqual(build_plan(fit_source=None), (self.files, self.selection))
 
     def test_changed_legacy_fit_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -97,18 +100,19 @@ class DenseScaling(unittest.TestCase):
                     'combined_c1_validated' if tier == 'c1' else 'untrained_provisional')
 
     def test_invalid_shape_or_budget_is_rejected(self):
-        for hidden, compute in [(63, 3*10**17), (1664, 3*10**17), (512, 0), (512, 3e17)]:
+        for hidden, compute in [(63, 3*10**17), (1664, 3*10**17), (512., 3*10**17), (512, 0), (512, 3e17)]:
             with self.subTest(hidden=hidden, compute=compute), self.assertRaises(ValueError):
                 make_training_config(hidden, compute, '/unused')
 
     def test_generated_files_bind_config_hashes_and_are_reproducible(self):
+        files,selection = build_plan()
         for tier in BUDGETS:
             path = DEFAULT_OUTPUT/f'{tier}.json'
-            self.assertEqual(path.read_bytes(), serialized(self.files[path]))
+            self.assertEqual(path.read_bytes(), serialized(files[path]))
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),
-                             self.selection['configurations'][tier]['config_sha256'])
-        self.assertEqual((DEFAULT_OUTPUT/'selection.json').read_bytes(), serialized(self.selection))
-        self.assertEqual(write_plan(check=True), self.selection)
+                             selection['configurations'][tier]['config_sha256'])
+        self.assertEqual((DEFAULT_OUTPUT/'selection.json').read_bytes(), serialized(selection))
+        self.assertEqual(write_plan(check=True), selection)
 
     def test_check_does_not_write_and_missing_check_does_not_create_directories(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,6 +135,87 @@ class DenseScaling(unittest.TestCase):
                 write_plan(output)
             self.assertEqual((output/'c4.json').read_text(), '{}\n')
             self.assertEqual(list(output.iterdir()), [output/'c4.json'])
+
+    def test_explicit_new_fit_uses_current_grid_and_never_falls_back(self):
+        fit,_ = synthetic_fit()
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)/'fit.json'
+            with self.assertRaises(FileNotFoundError):
+                build_plan(fit_source=source)
+            source.write_bytes(serialized(fit))
+            files,selection = build_plan(fit_source=source)
+            self.assertIsNone(selection['scale_prior'])
+            self.assertEqual(selection['current_architecture_fit']['sha256'], hashlib.sha256(source.read_bytes()).hexdigest())
+            self.assertEqual(selection['Na_log10_coefficients'],fit['Na_log10_coefficients'])
+            self.assertEqual(files[DEFAULT_OUTPUT/'c1.json']['model']['hidden'],512)
+            self.assertEqual(files[DEFAULT_OUTPUT/'c1.json']['train']['data'],fit['data_identity']['train']['path'])
+            self.assertEqual(files[DEFAULT_OUTPUT/'c1.json']['train']['tokenizer'],fit['tokenizer'])
+            with self.assertRaisesRegex(ValueError,'snapshot canonical path'):
+                build_plan(fit_source=source,data_root='/data/q38/different-unhashed-pool')
+            with self.assertRaisesRegex(ValueError,'Tokenizer location'):
+                build_plan(fit_source=source,tokenizer='/data/q38/different-tokenizer')
+            for tier,compute in BUDGETS.items():
+                choice = selection['configurations'][tier]
+                self.assertIn('unconstrained_grid_optimum',choice)
+                self.assertLessEqual(choice['selected_D'],choice['unique_training_tokens'])
+                if tier == 'c1':
+                    continue
+                scores = []
+                for hidden in range(64,1601,64):
+                    cfg = make_training_config(hidden,compute,DEFAULT_RUN_ROOT/tier)
+                    n,d = cfg['accounting']['active_params_excluding_embeddings'],cfg['train']['tokens']
+                    if d <= choice['unique_training_tokens']:
+                        scores.append((math.log(n/choice['predicted_Na'])**2+math.log(d/choice['predicted_D'])**2,hidden))
+                self.assertEqual((choice['selection_score'],choice['selected_hidden']),min(scores))
+            source.write_bytes(serialized(self.record['isoflops']))
+            with self.assertRaisesRegex(ValueError,'family'):
+                load_current_fit(source)
+
+    def test_raw_fit_rechecks_point_acceptance_counts_and_derived_numerics(self):
+        fit,_=synthetic_fit()
+        changed_cases=[]
+        changed=copy.deepcopy(fit)
+        for curve in changed['budget_fits']:
+            for point in curve['points']:point['loss']=point['Na']
+        changed_cases.append(changed)
+        changed=copy.deepcopy(fit);changed['budget_fits'][0]['points'][0]['loss']=float('nan')
+        changed_cases.append(changed)
+        changed=copy.deepcopy(fit);changed['Na_log10_coefficients'][0]+=.01
+        changed_cases.append(changed)
+        changed=copy.deepcopy(fit);changed['budget_fits'][0]['Na_opt']*=1.01
+        changed_cases.append(changed)
+        changed=copy.deepcopy(fit);changed['leave_one_budget_out'][0]['c1_D_prediction']*=1.01
+        changed_cases.append(changed)
+        # Even a self-consistent recomputation cannot legitimize wrong Na/D/FD inputs.
+        for field in ('Na','D','compute'):
+            changed=copy.deepcopy(fit)
+            points=[p for curve in changed['budget_fits'] for p in curve['points']]
+            for point in points:point[field]*=2
+            changed.update(fit_curves(points))
+            changed_cases.append(changed)
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'fit.json'
+            for i,changed in enumerate(changed_cases):
+                source.write_bytes(serialized(changed))
+                with self.subTest(case=i),self.assertRaises(ValueError):
+                    build_plan(fit_source=source)
+            # Float64 roundoff is tolerated, but the original bytes/values are retained.
+            changed=copy.deepcopy(fit);changed['Na_log10_coefficients'][0]+=1e-12
+            raw=serialized(changed);source.write_bytes(raw)
+            loaded,identity=load_current_fit(source)
+            self.assertEqual(loaded['Na_log10_coefficients'],changed['Na_log10_coefficients'])
+            self.assertEqual(identity['sha256'],hashlib.sha256(raw).hexdigest())
+            self.assertEqual(source.read_bytes(),raw)
+
+    def test_explicit_dataset_paths_do_not_change_the_graph(self):
+        files,_ = build_plan(fit_source=None,data_root='/data/q38/new-pool',tokenizer='/data/q38/new-pool/tokenizer')
+        for tier in BUDGETS:
+            cfg = files[DEFAULT_OUTPUT/f'{tier}.json']
+            self.assertEqual(cfg['train']['data'],'/data/q38/new-pool/train.bin')
+            self.assertEqual(cfg['train']['val_data'],'/data/q38/new-pool/valid.bin')
+            self.assertEqual(cfg['train']['tokenizer'],'/data/q38/new-pool/tokenizer')
+            self.assertEqual(cfg['model'],self.files[DEFAULT_OUTPUT/f'{tier}.json']['model'])
+            self.assertEqual(cfg['accounting'],self.files[DEFAULT_OUTPUT/f'{tier}.json']['accounting'])
 
 
 if __name__ == '__main__':

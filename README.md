@@ -25,6 +25,8 @@ GPUS=0 bash scripts/smoke_dense.sh runs/new-baseline-qualification baseline
 
 dense 实现、参数口径、配置生成与历史验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。当前 [`configs/dense_isoflops/c1.json`](configs/dense_isoflops/c1.json) 至 `c4.json` **全部使用无 mHC、因果全注意力和 BF16**，与当前 C1 使用同一 5.617B-token 训练池。C1 保留已验证的 h512；C2–C4 暂用旧拟合提供的 h640/h832/h1024，已按新结构重算参数和 FLOPs/token 预算，但尚未训练，也不是新结构已拟合最优值。新结构仍需按 3e15、1e16、3e16、1e17 四档重新拟合；`selection.json` 明确区分旧尺度参考与新拟合状态。历史 `configs/dense/q38_c1`–`q38_c4` 仅作保留 mHC/QSA 的 FFN-only 对照，不是当前推荐配置。
 
+新结构的固定 17 点、数据迁移身份核验、队列与拟合导出接口见 [当前 dense IsoFLOPs 方法](docs/experiments/q38_combined_isoflops.md)。配置生成和 CPU fixture 测试不代表真实训练或拟合完成。
+
 同一 dense checkpoint 的 BF16 / INT8 / FP8 推理质量对照见 [低精度 BPB 实验](docs/experiments/q38_low_precision.md)。入口为 `python -m q38.compare_precision`，默认只量化主干 FFN，关闭 EvalTime 计时。
 
 从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
