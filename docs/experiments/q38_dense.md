@@ -76,7 +76,7 @@ A100 40GB、Torch 2.7.1+cu126 实测通过：固定 h448/L9 的 C1 完整形状�
 
 短测设置 `--warmup 1`，不是完整预算或质量评测；正式实验不恢复该 checkpoint。独立结果复核退出码为 0，原件位于 `/shared/a100-209c/gzy/q38-dense-isoflops-20261027/qualification/c1-qsa-fixed/`；运行模型 SHA256 为 `2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a`。默认配置与短测配置的输出目录不同，不影响模型和预算。
 
-## IsoFLOPs
+## 历史 mHC/QSA IsoFLOPs
 
 四档 17 个 dense 规模点均完成完整预算，未用 C1 参与拟合。网格沿用 `scripts/make_q38_configs.py:shape_for`；h64 是原 64 步长规则的向下延伸，在读取质量结果前固定。
 
@@ -144,28 +144,24 @@ $$
 
 所选离散配置相对连续预测的 $N_a$ 为 −15.19%、$D$ 为 +0.5029%；完整训练实际 $D=806{,}354{,}944$、$F=370{,}159{,}616$，最终 checkpoint 与 285 个 HF 导出张量逐项核对通过。该 CE 是上述独立验证分区的完整训练终点，不是 BPB，也不是质量预测误差。单个 C1 配方完成训练不证明该预算的最优规模。
 
-### 当前 C1–C4 训练配置
+## 当前 C1–C4 训练配置
 
-[`configs/dense_isoflops/`](../../configs/dense_isoflops/) 的四级配置统一采用 **无 mHC、因果全注意力、BF16 和当前 5.617B-token 数据池**。C1 保留已完成训练的 h512；C2–C4 暂用旧拟合所选隐藏宽度，不把旧 mHC/QSA 拟合当作新结构证据。生成器 [`make_dense_scaling_configs.py`](../../scripts/make_dense_scaling_configs.py) 校验旧来源身份，按新计算图重新核算参数、每 token FLOPs、整步 token 预算和 warmup；不是只改开关而保留旧 D。
+[`configs/dense_isoflops/`](../../configs/dense_isoflops/) 的四级配置统一采用 **无 mHC、因果全注意力、BF16 和当前 5.617B-token 数据池**。新结构四档 17 点均已完成，生成器 [`make_dense_scaling_configs.py`](../../scripts/make_dense_scaling_configs.py) 只使用[当前原始拟合](q38_combined_isoflops_results.json)，不再以旧 mHC/QSA 结果生成暂用尺度。完整方法、实测曲线、敏感性与共享产物见[当前方法与结果](q38_combined_isoflops.md)。
 
 | 配置 | 目标 FLOPs | h / L / FFN 宽度 | $N_a$ | 训练 token $D$ | 验证状态 |
 |---|---:|---:|---:|---:|---|
 | `c1.json` | 3e17 | 512 / 10 / 768 | 33,776,160 | 813,432,832 | 新结构完整 C1 已验证 |
-| `c2.json` | 1e18 | 640 / 12 / 960 | 64,694,512 | 1,553,465,344 | 未训练的暂用规模 |
-| `c3.json` | 3e18 | 832 / 16 / 1248 | 142,902,672 | 2,368,208,896 | 未训练的暂用规模 |
-| `c4.json` | 1e19 | 1024 / 20 / 1536 | 276,155,858 | 4,443,865,088 | 未训练的暂用规模 |
+| `c2.json` | 1e18 | 704 / 14 / 1056 | 92,437,586 | 1,183,318,016 | 未训练外推 |
+| `c3.json` | 3e18 | 896 / 18 / 1344 | 188,347,804 | 1,895,563,264 | 未训练外推 |
+| `c4.json` | 1e19 | 1152 / 22 / 1728 | 377,872,340 | 3,375,366,144 | 未训练外推 |
 
-统一构造入口为 [`make_baseline_config.py:make_training_config`](../../scripts/make_baseline_config.py)：先按原 MoE 形状确定 N-gram 行数，再转 dense 并删除 mHC/indexer，以保持已验证 C1 的 61,440 行哈希表。C1 的模型、科学训练设置及预算与当前 `configs/baseline.json` 一致，仅输出目录和说明元数据不同。`selection.json` 将旧 fit 标为宽度参考，`current_architecture_fit=null` 表示新拟合尚未完成；不得将暂用宽度解释为新结构的已测最优规模。C2–C4 未做完整训练、质量或目标 GPU 显存验证。
+统一构造入口为 [`make_baseline_config.py:make_training_config`](../../scripts/make_baseline_config.py)：先按原 MoE 形状确定 N-gram 行数，再转 dense 并删除 mHC/indexer，以保持已验证 C1 的 61,440 行哈希表。C1 的模型、科学训练设置及预算与当前 `configs/baseline.json` 一致，数据、验证和分词器路径迁至内容相同的已鉴定 H100 副本，输出目录独立。`selection.json` 的 `current_architecture_fit` 绑定当前 raw 字节身份，逐项区分连续预测、无约束建议、实际选择及验证状态；所有配置仍满足完整 batch 和 0.5% FLOPs 预留规则。
 
-新结构采用相同四档预算 3e15、1e16、3e16、1e17 及原 4/4/4/5 共 17 个规模点重新拟合。C1 不加入拟合，也不因补配置而重复训练；已有组合 C1 仅用于事后核对。任何预算缺点、实测最小值位于边界、拟合非凸或顶点越界时，不发布新的拟合尺度，也不自动增加规模点。
+新结构采用 3e15、1e16、3e16、1e17 四档及原 4/4/4/5 网格。C1 不加入拟合，也不因补配置而重复训练；已有组合 C1 仅用于事后核对。新拟合自由选择 h576，按既定规则仍保留已验证 h512，不据此声称其最优。C2–C4 未做完整训练、质量或目标 GPU 显存验证；单 seed、曲线残差及 10–100 倍预算外推限制见当前结果。任何预算缺点、实测最小值位于边界、拟合非凸或顶点越界仍拒绝输出，不自动增加规模点。
 
 ```bash
-# 核对当前暂用配置，不读取训练数据、不重新拟合
+# 核对当前结果及配置，不读取大语料、不改写 raw、不启动训练
 CUDA_VISIBLE_DEVICES='' "$PY" scripts/make_dense_scaling_configs.py --check
-
-# 显式选择当前组合配置；不要用历史 train_dense.sh c1 代替
-PY="$PY" GPUS=0,1,2,3,4,5,6,7 bash scripts/train_dense.sh \
-  configs/dense_isoflops/c1.json --resume 0 --run_dir /path/to/new/c1
 ```
 
 ## 完整 A 评测

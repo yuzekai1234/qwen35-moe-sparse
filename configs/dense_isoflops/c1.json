@@ -33,9 +33,9 @@
   },
   "train": {
     "run_dir": "runs/q38_dense_isoflops/c1",
-    "data": "/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1/train.bin",
-    "val_data": "/home/shared/llm_pt_ablation/cache/ling-no-mtp-c1-global-pruned10k-scale-isoflops-v1/valid.bin",
-    "tokenizer": "/home/shared/llm_pt/cache/tokenizers/ling-no-mtp-c1-top10k-v1",
+    "data": "/data/q38/datasets/c1-pruned10k-v1/train.bin",
+    "val_data": "/data/q38/datasets/c1-pruned10k-v1/valid.bin",
+    "tokenizer": "/data/q38/datasets/c1-pruned10k-v1/tokenizer",
     "seq": 4096,
     "tokens": 813432832,
     "batch_tokens": 131072,

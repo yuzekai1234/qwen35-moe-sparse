@@ -1,0 +1,558 @@
+{
+  "metric": "pure_cross_entropy",
+  "metric_units": "nats/target including EOS",
+  "validation": {
+    "offset": 2002536,
+    "targets": 16001875,
+    "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+    "validation_sha256": "19d30b21482012f07062f46d2d204ef2b27a101728b33a66f992348623fda924"
+  },
+  "source_commit": "5ee96657df7d923c63b6dcddb38a53dd99a69a17",
+  "data_identity": {
+    "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+    "train": {
+      "path": "/data/q38/datasets/c1-pruned10k-v1/train.bin",
+      "bytes": 22468889244,
+      "mtime_ns": 1793380391659243818,
+      "sha256": "9990c2b1345f1fc2a567c76ced14618b5315bebe4bcaeed17359a834f0bd9cf5"
+    },
+    "validation": {
+      "path": "/data/q38/datasets/c1-pruned10k-v1/valid.bin",
+      "bytes": 313526136,
+      "mtime_ns": 1793380478730238628,
+      "sha256": "19d30b21482012f07062f46d2d204ef2b27a101728b33a66f992348623fda924"
+    }
+  },
+  "data_root": "/data/q38/datasets/c1-pruned10k-v1",
+  "tokenizer": "/data/q38/datasets/c1-pruned10k-v1/tokenizer",
+  "model_files_sha256": {
+    "modeling_qwen3_8_moe.py": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5",
+    "configuration_qwen3_8_moe.py": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3"
+  },
+  "manifest_sha256": "31326a3901ecb0f0354d5669a15ca7cecd10698b07370c6e1ea432df04397d70",
+  "fitting_code_sha256": "efc679023e234da4ef3d1e4b7d68ce642da2c9f4359f9377078877ea057eb98d",
+  "family": "dense_no_mhc_full_attention_bf16",
+  "fit_budgets": {
+    "3e15": 3000000000000000,
+    "1e16": 10000000000000000,
+    "3e16": 30000000000000000,
+    "1e17": 100000000000000000
+  },
+  "budget_fits": [
+    {
+      "budget": "3e15",
+      "compute": 2984025287294976.0,
+      "compute_min": 2982833396121600,
+      "compute_max": 2984838457982976,
+      "quadratic_coefficients": [
+        0.6437014649705637,
+        -8.062497048472297,
+        28.957974762325005
+      ],
+      "Na_opt": 1830651.9989426108,
+      "D_opt": 59635839.85485405,
+      "fitted_minimum_ce": 3.7118543967308746,
+      "residual_rmse": 0.011572678391565021,
+      "measured_best": {
+        "id": "dense_no_mhc_full_attention_bf16/3e15/h192_L4",
+        "family": "dense_no_mhc_full_attention_bf16",
+        "budget": "3e15",
+        "target_compute": 3000000000000000,
+        "compute": 2984133009604608,
+        "Na": 1872548,
+        "D": 56786944,
+        "loss": 3.7280396940254192,
+        "hidden": 192,
+        "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4",
+        "source_sha256": {
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/summary.json": "b8fef974ab1ca4fd8114829d35de571aae7e6d5b7be56bf17217ed161c96a6bb",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/final_eval.json": "61147ba37b0cc0142f1a4e492e1b48382137a6cbe5c242d67d8dea3b0ee99bd4",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/run_config.json": "5ac49857276748899dd7bba783ef323a0c67750f6de2954919c8046c07682c67",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/flops.json": "aa6870c71779081466dc5c1dddaa5d111e53536e2ab15012e5473f90004caeaa"
+        }
+      },
+      "points": [
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e15/h64_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e15",
+          "target_compute": 3000000000000000,
+          "compute": 2984838457982976,
+          "Na": 400164,
+          "D": 182157312,
+          "loss": 3.9964580065385404,
+          "hidden": 64,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h64_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h64_L4/summary.json": "82d06c50fd75ce5f3ab19ef9a87cb55e5547429e82749182c4d89f37af428f5d",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h64_L4/final_eval.json": "67ad91d54e167933eea022eccce04d16f57fc0be1c5e92d07a0e971270a67258",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h64_L4/run_config.json": "a7fe9557f2c1d294fd029ed7f3f411da92fca90d55c2ca7ba19e6c3b1d6a99f2",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h64_L4/flops.json": "adc57f1247d92ddade5b715b18387fb3404edd913a98bb3641ee29c65d87e255"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e15/h128_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e15",
+          "target_compute": 3000000000000000,
+          "compute": 2984296285470720,
+          "Na": 997092,
+          "D": 93552640,
+          "loss": 3.7411773321165365,
+          "hidden": 128,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h128_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h128_L4/summary.json": "54e73f5d79cd7c02ade4746d0d9dcd8ccee8b06677a5417fc9e203a85bf75ea4",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h128_L4/final_eval.json": "6517f48058ad76b9a4560bc7a6d969fa255330bcaba813ec0b2db4c2f81fa019",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h128_L4/run_config.json": "48c1328d8c6cbf9c9fd52e04df73bbcaa162db7ffc52c0ac9cf5673da0721574",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h128_L4/flops.json": "98c82a811263f20aed4ab640fb2891e05bd0c2d35c48465f23a88d3b34a055e7"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e15/h192_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e15",
+          "target_compute": 3000000000000000,
+          "compute": 2984133009604608,
+          "Na": 1872548,
+          "D": 56786944,
+          "loss": 3.7280396940254192,
+          "hidden": 192,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/summary.json": "b8fef974ab1ca4fd8114829d35de571aae7e6d5b7be56bf17217ed161c96a6bb",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/final_eval.json": "61147ba37b0cc0142f1a4e492e1b48382137a6cbe5c242d67d8dea3b0ee99bd4",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/run_config.json": "5ac49857276748899dd7bba783ef323a0c67750f6de2954919c8046c07682c67",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h192_L4/flops.json": "aa6870c71779081466dc5c1dddaa5d111e53536e2ab15012e5473f90004caeaa"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e15/h256_L5",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e15",
+          "target_compute": 3000000000000000,
+          "compute": 2982833396121600,
+          "Na": 4297416,
+          "D": 36012032,
+          "loss": 3.7957426258031286,
+          "hidden": 256,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h256_L5",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h256_L5/summary.json": "85ec41f0f4605a40a550de3c619dcc20873424b4cf1f8a5ca743ec73aa008012",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h256_L5/final_eval.json": "cafacb7551212322ac8c90a87282fa2ca491febfc7c49a04d079c4a102c91862",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h256_L5/run_config.json": "6f56baabb3e5c27a7ab11ee0d16205da9042d78e174201584333aae74d834614",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e15/h256_L5/flops.json": "a9580bf79fa1364f4390b0cf2271298f304905c4cf4eb7c934a3a3bc29eb04de"
+          }
+        }
+      ]
+    },
+    {
+      "budget": "1e16",
+      "compute": 9947412927873024.0,
+      "compute_min": 9944587409817600,
+      "compute_max": 9949405960470528,
+      "quadratic_coefficients": [
+        0.926228078110718,
+        -11.902064515599054,
+        41.694894098845076
+      ],
+      "Na_opt": 2660836.55592411,
+      "D_opt": 155489522.03458464,
+      "fitted_minimum_ce": 3.459403542773657,
+      "residual_rmse": 0.029776416607900178,
+      "measured_best": {
+        "id": "dense_no_mhc_full_attention_bf16/1e16/h256_L5",
+        "family": "dense_no_mhc_full_attention_bf16",
+        "budget": "1e16",
+        "target_compute": 10000000000000000,
+        "compute": 9944587409817600,
+        "Na": 4297416,
+        "D": 120061952,
+        "loss": 3.4607622475652877,
+        "hidden": 256,
+        "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5",
+        "source_sha256": {
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/summary.json": "650808dc3a03ca3a184e3552849bab8f8f88465f949aa272bd89fdc8ebf8c1d2",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/final_eval.json": "39eb1372305f0377e0fc533aee390481e2161f5af4b320df77eb7db36aa9c940",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/run_config.json": "abe06b6b93cb6330d1dc397e4cacbc4d207e406996d159cf86b449483d21336c",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/flops.json": "f67999d44e6f93aca4dbb3608ab84f3f7d60d68d592a4e38a78cc07e53c3cf3c"
+        }
+      },
+      "points": [
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e16/h128_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e16",
+          "target_compute": 10000000000000000,
+          "compute": 9949048001789952,
+          "Na": 997092,
+          "D": 311885824,
+          "loss": 3.6119122901246925,
+          "hidden": 128,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h128_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h128_L4/summary.json": "a868c3004637778ecf81f2443d71a4ad50bc8d943c449bbf0d75921f97e6cc2d",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h128_L4/final_eval.json": "0340c845861edaa9891d6f10e91c6eb9d0e5adc42491242c9a640a377d8785a3",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h128_L4/run_config.json": "6e865dc6999b0276d60edde84e58c58fd3de65e2d53311cf4a8a9052737e2dcb",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h128_L4/flops.json": "eb782c6f8bb38598483f1f286155d400e024aa62c139f2517805a94e84a0ad7b"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e16/h192_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e16",
+          "target_compute": 10000000000000000,
+          "compute": 9949405960470528,
+          "Na": 1872548,
+          "D": 189333504,
+          "loss": 3.5205595549334427,
+          "hidden": 192,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h192_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h192_L4/summary.json": "2d39cbf352a7348c9e026ad4b48fbf127a745927cdea3609d6ed0592f73cd5d8",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h192_L4/final_eval.json": "ba74b50436bbe1a730d7d8dcf12f59b1540d0b693738e7c3b9f786b43398b6d8",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h192_L4/run_config.json": "dbe6b5dda4366c2bd12a8013953e79521cce601bec936af0df73206d66c826b5",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h192_L4/flops.json": "8070c7026feb10051c627ccc8756a729530abc83c5de5958890baeef141ffadb"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e16/h256_L5",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e16",
+          "target_compute": 10000000000000000,
+          "compute": 9944587409817600,
+          "Na": 4297416,
+          "D": 120061952,
+          "loss": 3.4607622475652877,
+          "hidden": 256,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/summary.json": "650808dc3a03ca3a184e3552849bab8f8f88465f949aa272bd89fdc8ebf8c1d2",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/final_eval.json": "39eb1372305f0377e0fc533aee390481e2161f5af4b320df77eb7db36aa9c940",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/run_config.json": "abe06b6b93cb6330d1dc397e4cacbc4d207e406996d159cf86b449483d21336c",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h256_L5/flops.json": "f67999d44e6f93aca4dbb3608ab84f3f7d60d68d592a4e38a78cc07e53c3cf3c"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e16/h320_L6",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e16",
+          "target_compute": 10000000000000000,
+          "compute": 9946610339414016,
+          "Na": 8261368,
+          "D": 80347136,
+          "loss": 3.6986388172894777,
+          "hidden": 320,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h320_L6",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h320_L6/summary.json": "9bf61d6c5796b3b279bd4524ba0c629df3f00809f544f4a39cd220ff82c5a429",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h320_L6/final_eval.json": "4d6e4cdcd1b6a0aeef977b5d4bc3629d63d6c956ea72204259667f45c612f883",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h320_L6/run_config.json": "4ff7f71b66b7c72d371390585ed0cf155f852327120caeb4148e206ef46a0762",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e16/h320_L6/flops.json": "a3a4656b0e64b977b2b3c8cc088011bf4ccf29b4d1278e8daf4e5d48f3abcac0"
+          }
+        }
+      ]
+    },
+    {
+      "budget": "3e16",
+      "compute": 2.9846201595592704e+16,
+      "compute_min": 29844025657786368,
+      "compute_max": 29848217881411584,
+      "quadratic_coefficients": [
+        0.36040560894371115,
+        -4.989232030738388,
+        20.504550037174877
+      ],
+      "Na_opt": 8350073.952982859,
+      "D_opt": 235607378.47160113,
+      "fitted_minimum_ce": 3.2375905068407853,
+      "residual_rmse": 0.013263075202734578,
+      "measured_best": {
+        "id": "dense_no_mhc_full_attention_bf16/3e16/h256_L5",
+        "family": "dense_no_mhc_full_attention_bf16",
+        "budget": "3e16",
+        "target_compute": 30000000000000000,
+        "compute": 29844618765926400,
+        "Na": 4297416,
+        "D": 360316928,
+        "loss": 3.2506958604933383,
+        "hidden": 256,
+        "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5",
+        "source_sha256": {
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/summary.json": "e509a85d9fa47f9dd9ec892616eebf1167e45419169a49cc490dad72896c73a1",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/final_eval.json": "c4ddc7e8739e9cde95502622792955401d035fb469b2c11a44afbe4551adffc4",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/run_config.json": "57abc8b5cbd922315da47d25adbaa65300c66d8778eefc6fc8138c0eac76ffa7",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/flops.json": "20cd00e8872696839336d7b380e45f0e79145062af4c1c3f3fa999b86b79a355"
+        }
+      },
+      "points": [
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e16/h192_L4",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e16",
+          "target_compute": 30000000000000000,
+          "compute": 29848217881411584,
+          "Na": 1872548,
+          "D": 568000512,
+          "loss": 3.3940661720550325,
+          "hidden": 192,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h192_L4",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h192_L4/summary.json": "dfb6be784f5e160d5a85613036395f9b4103465b928d16d089df93dfed5efd50",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h192_L4/final_eval.json": "b973f21da82049e80847a4166eaaaa7dbdffe9bf4c351c899e25170b313d134e",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h192_L4/run_config.json": "d16376c3c6b890cd7f2439edf0920495a1389d80bdd1ce4ad336077c46a4f93b",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h192_L4/flops.json": "3ed5486d49cf008f1be482a69f59b4728a167e9bcd2263b3ef31f2e119569a44"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e16/h256_L5",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e16",
+          "target_compute": 30000000000000000,
+          "compute": 29844618765926400,
+          "Na": 4297416,
+          "D": 360316928,
+          "loss": 3.2506958604933383,
+          "hidden": 256,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/summary.json": "e509a85d9fa47f9dd9ec892616eebf1167e45419169a49cc490dad72896c73a1",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/final_eval.json": "c4ddc7e8739e9cde95502622792955401d035fb469b2c11a44afbe4551adffc4",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/run_config.json": "57abc8b5cbd922315da47d25adbaa65300c66d8778eefc6fc8138c0eac76ffa7",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h256_L5/flops.json": "20cd00e8872696839336d7b380e45f0e79145062af4c1c3f3fa999b86b79a355"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e16/h320_L6",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e16",
+          "target_compute": 30000000000000000,
+          "compute": 29847944077246464,
+          "Na": 8261368,
+          "D": 241106944,
+          "loss": 3.2564471984102816,
+          "hidden": 320,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h320_L6",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h320_L6/summary.json": "ae1a10ccb1130e4d108eace13281795245881995dd410e2adcc4d6db1f24dc00",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h320_L6/final_eval.json": "f7b641cedd7de98d2f6461febc08b82aee0e2ec5d7aa9b2472e440ce2fdbf977",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h320_L6/run_config.json": "f3eb2854b34dec542d922d02b1600f84291d57cb2871d7c501e0aeaba1a6936b",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h320_L6/flops.json": "4e1a71670502ad3572bb4b3c2d911c2b1975806b0cddea4d5939ccbdaeb5e49b"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/3e16/h384_L8",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "3e16",
+          "target_compute": 30000000000000000,
+          "compute": 29844025657786368,
+          "Na": 15942580,
+          "D": 141754368,
+          "loss": 3.2595093067325482,
+          "hidden": 384,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h384_L8",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h384_L8/summary.json": "6f1deff7bc935d93804fa47706901f21ea64ba909015bbd7f0b28c3d122c17fc",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h384_L8/final_eval.json": "34560ba472ab39268018adf3c87487d820bce8206bf7b9bf7094fa5a374b279b",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h384_L8/run_config.json": "9333070894af7b17ff8f914481af5ddc3b281967e663d9331a86ed03151871ab",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/3e16/h384_L8/flops.json": "af12a0477faf3181f2515e06aa6c3b750a02c779ae58296719ecb1b9176d98c8"
+          }
+        }
+      ]
+    },
+    {
+      "budget": "1e17",
+      "compute": 9.9480434867857e+16,
+      "compute_min": 99451946108190720,
+      "compute_max": 99498555630157824,
+      "quadratic_coefficients": [
+        0.2745795720253866,
+        -4.02094022456623,
+        17.744776006079192
+      ],
+      "Na_opt": 20989132.33730432,
+      "D_opt": 393510582.18368477,
+      "fitted_minimum_ce": 3.0241249300771713,
+      "residual_rmse": 0.0015498212405855223,
+      "measured_best": {
+        "id": "dense_no_mhc_full_attention_bf16/1e17/h448_L9",
+        "family": "dense_no_mhc_full_attention_bf16",
+        "budget": "1e17",
+        "target_compute": 100000000000000000,
+        "compute": 99482286830911488,
+        "Na": 24734588,
+        "D": 347209728,
+        "loss": 3.026588451525761,
+        "hidden": 448,
+        "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9",
+        "source_sha256": {
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/summary.json": "2ef433c413b6de7b9fd879c74c8d5bd6c4dd07eee1904237ce16cc44a6a204f8",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/final_eval.json": "f2f94297b095b361a2bd77d9299d45125d956f4913030e89a286fcb10b2113e9",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/run_config.json": "48d5a5eeb1b4753f38ed001ad3aa2e6b15615a7663577c7e42c0d5d5f5975fdc",
+          "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/flops.json": "7003d06a022191d4fad09559f374f8e4b5846da4ad42ca15285707f355bb3a6d"
+        }
+      },
+      "points": [
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e17/h256_L5",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99489300244070400,
+          "Na": 4297416,
+          "D": 1201143808,
+          "loss": 3.155275803166682,
+          "hidden": 256,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h256_L5",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h256_L5/summary.json": "e286188daeb6c396b52f74af1c98b13eeb41f7d2ff5aa7b48fd22d57b36952a0",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h256_L5/final_eval.json": "699263a444e2a45279564cbc88e4fc1cb35d23b5615318206dff4e3ba15d3c6d",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h256_L5/run_config.json": "95c6f9d7e61471e5d4c6c47e5740beeeda9b830adb2633f071b52323175f8c46",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h256_L5/flops.json": "7cb6e3e31d49fc47b9a6205914c5366e2f6f0a9be84993b82d626105fafdfbf7"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e17/h320_L6",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99498555630157824,
+          "Na": 8261368,
+          "D": 803733504,
+          "loss": 3.0667304678574654,
+          "hidden": 320,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h320_L6",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h320_L6/summary.json": "78688ed449bef593cc28c6e535d622efdf4745af56fc073e228b12610ae33072",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h320_L6/final_eval.json": "fd40378f48914535f638b0b7c18c263b6dc26266d5cf45229c2b8f3afbacd8c5",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h320_L6/run_config.json": "8bb5047da1215bfb6749266c82a915c20b808e3031f9d89aca0d62b2c58ccaa3",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h320_L6/flops.json": "debaf0868feebde4a42adcf15c09a95a13297b4d6b3ca85e7da333d89f98d41d"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e17/h384_L8",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99480085525954560,
+          "Na": 15942580,
+          "D": 472514560,
+          "loss": 3.029713051754189,
+          "hidden": 384,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h384_L8",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h384_L8/summary.json": "5878a5469df79b08f096bd7ea2eae69e41a57f140072b91a00c7351fbbcf1434",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h384_L8/final_eval.json": "a4f90892475d106c74f51305ae60899aed5aa08010b418bef957fe681df3fc49",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h384_L8/run_config.json": "d837c013233b82cfbd3356a87887047083e1992bef589f3e39e7e5e1a67c5a0c",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h384_L8/flops.json": "4e610cd709eb381d66865d072dff3eaeafbc222d0fd33a99c6c677a133e384d3"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e17/h448_L9",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99482286830911488,
+          "Na": 24734588,
+          "D": 347209728,
+          "loss": 3.026588451525761,
+          "hidden": 448,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/summary.json": "2ef433c413b6de7b9fd879c74c8d5bd6c4dd07eee1904237ce16cc44a6a204f8",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/final_eval.json": "f2f94297b095b361a2bd77d9299d45125d956f4913030e89a286fcb10b2113e9",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/run_config.json": "48d5a5eeb1b4753f38ed001ad3aa2e6b15615a7663577c7e42c0d5d5f5975fdc",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h448_L9/flops.json": "7003d06a022191d4fad09559f374f8e4b5846da4ad42ca15285707f355bb3a6d"
+          }
+        },
+        {
+          "id": "dense_no_mhc_full_attention_bf16/1e17/h512_L10",
+          "family": "dense_no_mhc_full_attention_bf16",
+          "budget": "1e17",
+          "target_compute": 100000000000000000,
+          "compute": 99451946108190720,
+          "Na": 33776160,
+          "D": 271056896,
+          "loss": 3.034645108803778,
+          "hidden": 512,
+          "run_dir": "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h512_L10",
+          "source_sha256": {
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h512_L10/summary.json": "83f7b87b5c76e4c356c203609a8f2ee1b4daf3b267a0846e2da944b15043a750",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h512_L10/final_eval.json": "2c6b900ad4e1ca35b54e2e763ab409aa2f9e5b831ff35071a5c4805017f72a33",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h512_L10/run_config.json": "550c39a217523fd5b5e7e6ec49159473f85ec975329af334a96b79d1c361d736",
+            "/data/q38/experiments/no-mhc-full-attention-isoflops-20261030/runs/1e17/h512_L10/flops.json": "b0c256dcb7759b5ae6a495b41ab67b6e7bb1379e3476c0c92404e527ac9d3f1c"
+          }
+        }
+      ]
+    }
+  ],
+  "Na_log10_coefficients": [
+    0.7264829321824297,
+    -5.06255662344007
+  ],
+  "D_log10_coefficients": [
+    0.5237856714175346,
+    -0.2707449171901136
+  ],
+  "leave_one_budget_out": [
+    {
+      "omitted_budget": "3e15",
+      "Na_prediction": 957205.0252077044,
+      "Na_observed": 1830651.9989426108,
+      "D_prediction": 94731802.7973236,
+      "D_observed": 59635839.85485405,
+      "c1_Na_prediction": 59265916.773726,
+      "c1_D_prediction": 609040345.260083
+    },
+    {
+      "omitted_budget": "1e16",
+      "Na_prediction": 4127615.253071483,
+      "Na_observed": 2660836.55592411,
+      "D_prediction": 118553911.12644206,
+      "D_observed": 155489522.03458464,
+      "c1_Na_prediction": 43412980.65904047,
+      "c1_D_prediction": 761121452.9004196
+    },
+    {
+      "omitted_budget": "3e16",
+      "Na_prediction": 7937497.797159641,
+      "Na_observed": 8350073.952982859,
+      "D_prediction": 225358330.2685177,
+      "D_observed": 235607378.47160113,
+      "c1_Na_prediction": 42039335.682780445,
+      "c1_D_prediction": 748516732.5621369
+    },
+    {
+      "omitted_budget": "1e17",
+      "Na_prediction": 15845094.907189174,
+      "Na_observed": 20989132.33730432,
+      "D_prediction": 527346210.4450236,
+      "D_observed": 393510582.18368477,
+      "c1_Na_prediction": 32595781.250343975,
+      "c1_D_prediction": 1022426433.894425
+    }
+  ],
+  "c1_prediction": {
+    "compute": 300000000000000000,
+    "predicted_Na": 43079799.34516413,
+    "predicted_D": 764752268.0489033,
+    "selected_hidden": 512,
+    "selected_layers": 10,
+    "selected_Na": 33776160,
+    "selected_D": 813432832,
+    "selection_score": 0.06300268488671205,
+    "selection_rule": "keep validated h512",
+    "unique_training_tokens": 5617221632,
+    "unconstrained_grid_optimum": {
+      "hidden": 576,
+      "layers": 11,
+      "Na": 47776378,
+      "D": 626393088,
+      "selection_score": 0.05053723529937905,
+      "fits_unique_pool": true
+    },
+    "quality_prediction": null,
+    "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+    "c1_free_choice_matches_validated": false
+  }
+}

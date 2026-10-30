@@ -21,13 +21,15 @@ GPUS=0 bash scripts/smoke_dense.sh runs/new-baseline-qualification baseline
 
 模型字段 `mhc_enabled=0`、`qsa_mode="full"` 明确选择新结构；旧配置和旧 HF 导出缺少这两个字段时仍按 mHC + learned QSA 解释。历史 `q38_c1`–`q38_c4` 与 `configs/dense/` 均保留原结构和预算；`train_dense.sh c1` 仍指历史 FFN-only 对照，主线请使用默认入口或显式 `baseline`。
 
-## 历史模型与实验
+## 模型与实验
 
-dense 实现、参数口径、配置生成与历史验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。当前 [`configs/dense_isoflops/c1.json`](configs/dense_isoflops/c1.json) 至 `c4.json` **全部使用无 mHC、因果全注意力和 BF16**，与当前 C1 使用同一 5.617B-token 训练池。C1 保留已验证的 h512；C2–C4 暂用旧拟合提供的 h640/h832/h1024，已按新结构重算参数和 FLOPs/token 预算，但尚未训练，也不是新结构已拟合最优值。新结构仍需按 3e15、1e16、3e16、1e17 四档重新拟合；`selection.json` 明确区分旧尺度参考与新拟合状态。历史 `configs/dense/q38_c1`–`q38_c4` 仅作保留 mHC/QSA 的 FFN-only 对照，不是当前推荐配置。
+dense 实现、参数口径、配置生成与历史验证结果见 [Q38 dense 基线与 IsoFLOPs 验证](docs/experiments/q38_dense.md)。当前 [`configs/dense_isoflops/c1.json`](configs/dense_isoflops/c1.json) 至 `c4.json` **全部使用无 mHC、因果全注意力和 BF16**，与当前 C1 使用同一 5.617B-token 训练池。新结构已完成 3e15、1e16、3e16、1e17 四档全部 17 点训练与 N/D 拟合；默认生成器绑定[原始结果](docs/experiments/q38_combined_isoflops_results.json)，C2–C4 更新为 **h704/h896/h1152**。C1 保留已验证的 h512；新拟合的自由选择为 h576，未另行训练，不能称 h512 已被新拟合验证为最优。C2–C4 仍是未训练的外推配方，不预测 CE/BPB 或保证最优性。历史 `configs/dense/q38_c1`–`q38_c4` 仅作保留 mHC/QSA 的 FFN-only 对照，不是当前推荐配置。
 
-新结构的固定 17 点、数据迁移身份核验、队列与拟合导出接口见 [当前 dense IsoFLOPs 方法](docs/experiments/q38_combined_isoflops.md)。配置生成和 CPU fixture 测试不代表真实训练或拟合完成。
+新结构的实测曲线、拟合敏感性、数据身份和复现接口见 [当前 dense IsoFLOPs 方法与结果](docs/experiments/q38_combined_isoflops.md)。这四份配置的数据位置为已鉴定的 `/data/q38/datasets/c1-pruned10k-v1/`；异机迁移须重新核验身份，不会静默回退旧路径。`selection.json` 绑定原始拟合和最终配置哈希；配置生成不代表 C2–C4 已训练。
 
 同一 dense checkpoint 的 BF16 / INT8 / FP8 推理质量对照见 [低精度 BPB 实验](docs/experiments/q38_low_precision.md)。入口为 `python -m q38.compare_precision`，默认只量化主干 FFN，关闭 EvalTime 计时。
+
+### 历史模型
 
 从 `ef25716ff031345d156abf791010ed2d0a5c381c` 创建的 `q38` 版本，破坏式替换原 Q35 代码。
 架构参考 [hzh-q38f-sparse](https://github.com/huangzhenhua111/hzh-q38f-sparse)，固定参考提交 `12862f6ded28d4cedf7de411d3a632d660ade140`。

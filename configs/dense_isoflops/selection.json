@@ -1,17 +1,15 @@
 {
   "schema_version": 2,
   "family": "dense_no_mhc_full_attention_bf16",
-  "scale_prior": {
-    "path": "docs/experiments/q38_dense_results.json",
-    "sha256": "d38e59ba3745d43c881af12132f0e6b730dfe44c4835d04204611fb07ee01493",
-    "fit_sha256": "9161ac55ead50f7ab8b238f30fb8ff29d8be78bf181e6fb268075c42cca0e76d",
-    "training_source_commit": "c4157511af8f6ab00f9ed2fdece09edb7c67303c",
-    "manifest_sha256": "372ba5247ef3188e83a7bc5e85d8925cd8dd349035e4a5d68558521e5ff59bd4",
-    "fitting_code_sha256": "0f92e25fef80dd4b2b52a09ad39ce4d3352b6a6782a53b06ce776564728ecb3b",
-    "architecture": "dense with mHC and learned QSA, trained on the original 16B-token pool",
-    "role": "Hidden-width reference only; not an N/D fit of the current architecture"
+  "scale_prior": null,
+  "current_architecture_fit": {
+    "path": "docs/experiments/q38_combined_isoflops_results.json",
+    "sha256": "238e4669fbf4d7b9d7b8e4929af3fa9b67d051f867b400b960f31da1f5a05621",
+    "training_source_commit": "5ee96657df7d923c63b6dcddb38a53dd99a69a17",
+    "manifest_sha256": "31326a3901ecb0f0354d5669a15ca7cecd10698b07370c6e1ea432df04397d70",
+    "fitting_code_sha256": "efc679023e234da4ef3d1e4b7d68ce642da2c9f4359f9377078877ea057eb98d",
+    "data_identity_sha256": "7a3b8dc5817b2bcfd550dedab2a4f2345a7e4c4e285ec884c135c2fe541f773c"
   },
-  "current_architecture_fit": null,
   "planned_fit_budgets": {
     "3e15": 3000000000000000,
     "1e16": 10000000000000000,
@@ -22,52 +20,113 @@
   "configurations": {
     "c1": {
       "compute": 300000000000000000,
+      "predicted_Na": 43079799.34516413,
+      "predicted_D": 764752268.0489033,
       "selected_hidden": 512,
       "selected_layers": 10,
       "selected_Na": 33776160,
       "selected_D": 813432832,
-      "config": "c1.json",
-      "config_sha256": "2e07d441d6629461e159410c877defaf3c7daf82ae5e438d30d823cf50ee617d",
-      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "selection_score": 0.06300268488671205,
+      "selection_rule": "keep validated h512",
+      "unique_training_tokens": 5617221632,
+      "unconstrained_grid_optimum": {
+        "hidden": 576,
+        "layers": 11,
+        "Na": 47776378,
+        "D": 626393088,
+        "selection_score": 0.05053723529937905,
+        "fits_unique_pool": true
+      },
       "quality_prediction": null,
+      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "c1_free_choice_matches_validated": false,
+      "config": "c1.json",
+      "config_sha256": "c2db611b3e0abd1daabd00118fa45a59ab4096d59e9bd58016478b09f3d10522",
       "validation_status": "combined_c1_validated"
     },
     "c2": {
       "compute": 1000000000000000000,
-      "selected_hidden": 640,
-      "selected_layers": 12,
-      "selected_Na": 64694512,
-      "selected_D": 1553465344,
-      "config": "c2.json",
-      "config_sha256": "0cc2b9c6c374729727188a5de25f50b499c24be80051141707f2ba387f0cd90f",
-      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "predicted_Na": 103308523.79790233,
+      "predicted_D": 1436802808.8030639,
+      "selected_hidden": 704,
+      "selected_layers": 14,
+      "selected_Na": 92437586,
+      "selected_D": 1183318016,
+      "selection_score": 0.05003640957481837,
+      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600, D <= unique tokens",
+      "unique_training_tokens": 5617221632,
+      "unconstrained_grid_optimum": {
+        "hidden": 704,
+        "layers": 14,
+        "Na": 92437586,
+        "D": 1183318016,
+        "selection_score": 0.05003640957481837,
+        "fits_unique_pool": true
+      },
       "quality_prediction": null,
-      "validation_status": "untrained_provisional"
+      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "config": "c2.json",
+      "config_sha256": "cd5b6a7298e9b01a9891a550033fde04aecc2d9fa631e485e5763ccc6caf783f",
+      "validation_status": "untrained_fitted_extrapolation"
     },
     "c3": {
       "compute": 3000000000000000000,
-      "selected_hidden": 832,
-      "selected_layers": 16,
-      "selected_Na": 142902672,
-      "selected_D": 2368208896,
-      "config": "c3.json",
-      "config_sha256": "968f703fa28a3baef921898bc17d494f35b053e233793349cfb551d81553fd59",
-      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "predicted_Na": 229486215.49846372,
+      "predicted_D": 2554503164.835005,
+      "selected_hidden": 896,
+      "selected_layers": 18,
+      "selected_Na": 188347804,
+      "selected_D": 1895563264,
+      "selection_score": 0.1280348455066601,
+      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600, D <= unique tokens",
+      "unique_training_tokens": 5617221632,
+      "unconstrained_grid_optimum": {
+        "hidden": 896,
+        "layers": 18,
+        "Na": 188347804,
+        "D": 1895563264,
+        "selection_score": 0.1280348455066601,
+        "fits_unique_pool": true
+      },
       "quality_prediction": null,
-      "validation_status": "untrained_provisional"
+      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "config": "c3.json",
+      "config_sha256": "ac84fddd4c508bdc559030d9a89c126f3f1220d08f5af5d479fb7760bf9a184d",
+      "validation_status": "untrained_fitted_extrapolation"
     },
     "c4": {
       "compute": 10000000000000000000,
-      "selected_hidden": 1024,
-      "selected_layers": 20,
-      "selected_Na": 276155858,
-      "selected_D": 4443865088,
-      "config": "c4.json",
-      "config_sha256": "367479b942c6d4bff27d8cf4f0ca64ffd9b2727a74e6a295e46be800a85ba93b",
-      "selection_rule": "fixed provisional hidden width; current graph budget recomputed",
+      "predicted_Na": 550324804.5600492,
+      "predicted_D": 4799354608.905234,
+      "selected_hidden": 1152,
+      "selected_layers": 22,
+      "selected_Na": 377872340,
+      "selected_D": 3375366144,
+      "selection_score": 0.26522835361203945,
+      "selection_rule": "min log(Na/Na_pred)^2 + log(D/D_pred)^2 on h64:64:1600, D <= unique tokens",
+      "unique_training_tokens": 5617221632,
+      "unconstrained_grid_optimum": {
+        "hidden": 1152,
+        "layers": 22,
+        "Na": 377872340,
+        "D": 3375366144,
+        "selection_score": 0.26522835361203945,
+        "fits_unique_pool": true
+      },
       "quality_prediction": null,
-      "validation_status": "untrained_provisional"
+      "limitation": "N/D power laws do not predict CE or prove that a selected size is optimal",
+      "config": "c4.json",
+      "config_sha256": "621b62ee152cd8d60b8db22f707a204cab339e76009619935bed26f09052c0aa",
+      "validation_status": "untrained_fitted_extrapolation"
     }
   },
-  "scope": "C1 keeps its validated h512 shape. C2-C4 are untrained provisional sizes. The old N/D fit is only a width reference, not evidence for the current graph. No current-architecture fit, quality prediction or proof of optimal size."
+  "scope": "The current graph was fitted on all 17 low-budget runs. C1 keeps its validated h512 shape; C2-C4 are untrained extrapolations constrained to the unique token pool. No quality prediction or proof of optimal size.",
+  "Na_log10_coefficients": [
+    0.7264829321824297,
+    -5.06255662344007
+  ],
+  "D_log10_coefficients": [
+    0.5237856714175346,
+    -0.2707449171901136
+  ]
 }
