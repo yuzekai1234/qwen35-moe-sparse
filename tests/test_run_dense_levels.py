@@ -60,6 +60,22 @@ def evaluation_output(job):
 
 
 class DenseLevels(unittest.TestCase):
+    def test_exporter_private_modes_are_published_without_following_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "run"
+            root.mkdir(mode=0o700)
+            weight = root / "model.safetensors"
+            weight.write_bytes(b"fixture")
+            weight.chmod(0o600)
+            external = Path(directory) / "external"
+            external.write_bytes(b"private")
+            external.chmod(0o600)
+            (root / "link").symlink_to(external)
+            runner.share_outputs(root)
+            self.assertEqual(root.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(weight.stat().st_mode & 0o777, 0o644)
+            self.assertEqual(external.stat().st_mode & 0o777, 0o600)
+
     def test_import_has_no_torch_or_cuda_side_effect(self):
         subprocess.run([sys.executable, "-c", "import scripts.run_dense_levels,sys; assert 'torch' not in sys.modules"],
                        cwd=runner.ROOT, check=True, timeout=20)

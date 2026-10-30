@@ -45,6 +45,18 @@ def atomic_json(path, value):
     temporary.replace(path)
 
 
+def share_outputs(root):
+    """Exporters may force mode 0600, independently of the inherited umask."""
+    for directory, _, files in os.walk(root):
+        path = Path(directory)
+        if not path.is_symlink():
+            path.chmod(0o755)
+        for name in files:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                path.chmod(0o644)
+
+
 def sha256(path):
     digest = hashlib.sha256()
     with Path(path).open("rb") as stream:
@@ -413,6 +425,7 @@ class Campaign:
                         current.update(child_pid=pid, heartbeat_utc=utc())
                         self.save()
                     run_command(command, devices, level_root / (stage + ".log"), timeout, heartbeat)
+                    share_outputs(level_root)
                     current.pop("child_pid", None)
                     if stage == "training":
                         current["training"] = validate_training(job, self.plan)
@@ -430,6 +443,7 @@ class Campaign:
         finally:
             self.state["finished_utc"] = utc()
             self.save()
+            share_outputs(self.root)
             atomic_json(self.root / "completion.json", self.state)
         return self.state
 
