@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--warmup', type=int, default=3)
     parser.add_argument('--iters', type=int, default=3)
     parser.add_argument('--profile', action='store_true', help='record one profiled forward of the first batch')
+    parser.add_argument('--memory-history', action='store_true', help='record allocator history of the warmup forwards to memory-history.pickle')
     parser.add_argument('--output', type=Path, required=True, help='new output directory')
     return parser.parse_args()
 
@@ -85,10 +86,17 @@ def main():
                   torch=torch.__version__)
     with torch.inference_mode():
         compile_start = time.time()
+        if args.memory_history:
+            torch.cuda.memory._record_memory_history(max_entries=1000000, stacks='python')
         for _ in range(args.warmup):
             logits = forward(batches[0][0]); del logits
         torch.cuda.synchronize()
+        if args.memory_history:
+            torch.cuda.memory._dump_snapshot(str(args.output / 'memory-history.pickle'))
+            torch.cuda.memory._record_memory_history(enabled=None)
         result['warmup_seconds'] = time.time() - compile_start
+        result['warmup_peak_allocated_gib'] = torch.cuda.max_memory_allocated(device) / 2**30
+        torch.cuda.reset_peak_memory_stats(device)
 
         nll = torch.zeros((), device=device, dtype=torch.float64)
         timings = []
@@ -110,7 +118,7 @@ def main():
         result.update(forward_seconds=timings, forward_seconds_min=min(timings),
                       us_per_scored_token=min(timings) / scored * 1e6, slice_nll=float(nll),
                       slice_nats_per_token=float(nll) / scored,
-                      peak_allocated_gib=torch.cuda.max_memory_allocated(device) / 2**30)
+                      timed_peak_allocated_gib=torch.cuda.max_memory_allocated(device) / 2**30)
 
         if args.profile:
             from torch.profiler import profile, ProfilerActivity
