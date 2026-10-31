@@ -51,9 +51,9 @@ def _attention_piece(attn,x,cos,sin,indexer,budget_blocks,dense,want_kl):
     if os.environ.get('Q38_ATTN_MERGED_PROJ','0')=='1':
         from prequant_norm import quant_rows
         q8,scale=quant_rows(x.reshape(-1,x.shape[-1]))
+        (q0,q1),(k0,k1),(v0,v1)=attn._merged_slices
         y=torch._scaled_mm(q8,attn._merged_q8_weight.t(),scale_a=scale[:,None],
             scale_b=attn._merged_q8_scale[None,:],out_dtype=torch.bfloat16,use_fast_accum=True)
-        (q0,q1),(k0,k1),(v0,v1)=attn._merged_slices
         qraw=y[:,q0:q1].view(b,s,-1,128);kraw=y[:,k0:k1].view(b,s,-1,64)
         v=y[:,v0:v1].view(b,s,-1,64).transpose(1,2)
     else:

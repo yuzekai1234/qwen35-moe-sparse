@@ -141,9 +141,16 @@ def install(model, forward, paths):
     info['trunk_chunk'] = chunked_prefill.chunk_size()
     import scaled_pending
     info['deferred_scale'] = scaled_pending.enabled()
-    if info['deferred_scale'] and not 0 < info['trunk_chunk'] <= 256:
-        # Deferred-scale outputs are not concatenated across GDN/attention batch tiles.
-        raise ValueError('Q38_DEFERRED_SCALE=1 requires 0 < Q38_TRUNK_CHUNK <= 256')
+    if info['deferred_scale']:
+        # Deferred-scale outputs are consumed only by the prequantized residual producer and
+        # are never concatenated across GDN or attention batch tiles.
+        attention_limit = int(os.environ.get('Q38_ATTENTION_BATCH_LIMIT', '512'))
+        if not 0 < info['trunk_chunk'] <= 256 or 0 < attention_limit < info['trunk_chunk']:
+            raise ValueError('Q38_DEFERRED_SCALE=1 requires 0 < Q38_TRUNK_CHUNK <= 256 and '
+                             'Q38_ATTENTION_BATCH_LIMIT of 0 or at least the trunk chunk')
+        if any(os.environ.get(name, '1') != '1' for name in
+               ('Q38_PREQUANT_NORM', 'Q38_PREQUANT_INPUT', 'Q38_PREQUANT_FFN')):
+            raise ValueError('Q38_DEFERRED_SCALE=1 requires the prequantized residual producer')
     paths['full_compile'] = info
     paths['variant_details']['development']['gdn'].update(
         direct_out=False, functional_output_assembly=True)
