@@ -5,10 +5,27 @@ import types
 import torch
 from fla.modules.l2norm import l2norm_fwd
 from fla.ops.gated_delta_rule import chunk_gated_delta_rule as reference
+from fla.ops.utils.cumsum import chunk_local_cumsum as fla_chunk_local_cumsum
 from flash_qla import chunk_gated_delta_rule as flashqla
+import flash_qla.ops.gated_delta_rule.chunk as flashqla_chunk
 
 EVIDENCE={'calls':0,'backend':'flash-qla','version':importlib.metadata.version('flash-qla'),
-          'local_patch':'SM90_D64_guards_and_block_DV_cap','auto_cp':False}
+          'local_patch':'SM90_D64_guards_and_block_DV_cap','auto_cp':False,
+          'odd_head_cumsum':'fla_triton'}
+_tilelang_chunk_local_cumsum=flashqla_chunk.chunk_local_cumsum
+
+
+def _chunk_local_cumsum(g,chunk_size=64,cu_seqlens=None,**kwargs):
+    """TileLang's gate cumsum finds no register layout for an odd head count (C2 27, C3 33).
+    FLA's Triton cumsum is bitwise equal to it on the C1/C4 head counts but slower, so it
+    serves only odd head counts."""
+    if g.shape[-1]%2==0:
+        return _tilelang_chunk_local_cumsum(g=g,chunk_size=chunk_size,cu_seqlens=cu_seqlens,**kwargs)
+    assert cu_seqlens is None and not kwargs.get('reverse') and not kwargs.get('zero_last_chunk')
+    return fla_chunk_local_cumsum(g,chunk_size,output_dtype=g.dtype)
+
+
+flashqla_chunk.chunk_local_cumsum=_chunk_local_cumsum
 
 
 def run(q,k,v,g,beta,scale=None,initial_state=None,output_final_state=False,
