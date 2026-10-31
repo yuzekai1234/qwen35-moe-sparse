@@ -1,0 +1,20 @@
+[
+  [
+    "cuda_nvcc",
+    "cuda_nvcc-linux-x86_64-12.8.93-archive.tar.xz",
+    79015464,
+    "9961b3484b6b71314063709a4f9529654f96782ad39e72bf1e00f070db8210d3"
+  ],
+  [
+    "cuda_cudart",
+    "cuda_cudart-linux-x86_64-12.8.90-archive.tar.xz",
+    1354240,
+    "8d566b5fe745c46842dc16945cf36686227536decd2302c372be86da37faca68"
+  ],
+  [
+    "cuda_cccl",
+    "cuda_cccl-linux-x86_64-12.8.90-archive.tar.xz",
+    928524,
+    "0740e9e01e4f15e17c5ab8d68bba4f8ec0eb6b84edccba4ac45112d2d2174e4b"
+  ]
+]

@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "scope": "independent production fixed entry, complete A, single H10080GB physicalGPU1 B938 S4096",
+  "release_metrics": {
+    "bpb": 0.9387014573578255,
+    "forward_seconds": 206.32328552246096,
+    "evaltime": 4.544695146507651,
+    "peak_allocated_bytes": 84069535744
+  },
+  "canonical_metrics": {
+    "bpb": 0.9387014573578255,
+    "forward_seconds": 206.3110681152344,
+    "evaltime": 4.544426032960023
+  },
+  "difference": {
+    "bpb": 0.0,
+    "forward_seconds": 0.012217407226557953,
+    "relative_forward_change_percent": 0.005921837998412727
+  },
+  "checks": {
+    "native_quant_attention_AST_exact_to_candidate": true,
+    "BPB_exact_to_candidate": true,
+    "full_A_tokens_bytes_Na_dataset_equal": true,
+    "runtime_39_file_manifest_unchanged": true,
+    "private_FA3_6_files_unchanged": true,
+    "dependency_49_sources_pass": true,
+    "fullgraph_no_eager_fallback": true,
+    "fusion_and_deferred_scale_preserved": true,
+    "full_BF16_logits": true
+  },
+  "result_sha256": "e5c9d83cc704ccd3f11037e00a5837deae1af62ad2c3316d50aad54da0da3af1",
+  "metadata_sha256": "6f941ae7d9bad06c2e72c248295de334e90cdf6bbc066ca35db65cac85eec43e",
+  "reproduction_command": [
+    "bash",
+    "/data/q38/experiments/c4-fused-fa3-fp8-20261031/submission/run_baseline.sh",
+    "/data/q38/datasets/evaluation-a-v1/dolma3_mix_100M_a.jsonl",
+    "/data/q38/experiments/c4-fused-fa3-fp8-20261031/submission/models/FLOPs_1e19",
+    "/data/q38/experiments/c4-fused-fa3-fp8-20261031/release-full-a-b938"
+  ],
+  "note": "Canonical user-selected experiment score retained; this additional run validates packaging, not another optimization."
+}

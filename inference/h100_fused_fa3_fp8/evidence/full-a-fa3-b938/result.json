@@ -1,0 +1,5 @@
+{
+  "model_path": "/data/q38/experiments/c4-fused-baseline-20261031/submission/models/FLOPs_1e19",
+  "bpb": 0.9387014573578255,
+  "evaltime": 4.544426032960023
+}

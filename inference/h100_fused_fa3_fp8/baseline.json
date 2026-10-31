@@ -1,0 +1,79 @@
+{
+  "baseline_id": "c4-fused-fa3-fp8-b938-20261031",
+  "status": "user-selected",
+  "version_tag": "baseline-c4-fused-fa3-fp8-h100-20261031",
+  "entry": "run_baseline.sh",
+  "code": "evaluation",
+  "hardware": {
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "physical_gpu": 1,
+    "gpu_count": 1,
+    "not_official_H200": true
+  },
+  "metrics": {
+    "batch_size": 938,
+    "sequence_length": 4096,
+    "forward_seconds": 206.3110681152344,
+    "active_nonvocab_params": 377872340,
+    "peak_allocated_bytes": 84069535744,
+    "bpb": 0.9387014573578255,
+    "evaltime": 4.544426032960023,
+    "trunk_chunk": 256,
+    "attention_batch_limit": 512
+  },
+  "dataset": {
+    "sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+    "scored_tokens": 120142976,
+    "text_utf8_bytes": 445910984
+  },
+  "model": {
+    "checkpoint": "/data/q38/experiments/dense-c1-c4-20261030/c4/train/hf",
+    "weights_sha256": "ec8e8ab0434c66927bb734f2306388d2f7d37f9105bff28d3592dc7349462bf6"
+  },
+  "source": {
+    "fusion_commit": "c5fd8e8bbd8dd17e0ad29397581984e1731dc887",
+    "original_fa3_candidate": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy",
+    "FA3_commit": "4616f5116d33e3ba3cbb71d582caffcfcb49649c",
+    "CUTLASS_commit": "7127592069c2fe01b041e174ba4345ef9b279671",
+    "math_functions_AST_equal_to_candidate": [
+      "native",
+      "quant",
+      "attention"
+    ]
+  },
+  "same_card_comparison": {
+    "scope": "C4 single H10080GB GPU1 B938 S4096 complete A, not official H200 qualification",
+    "baseline": {
+      "bpb": 0.9383548908748438,
+      "forward_seconds": 209.87386584472654,
+      "evaltime": 4.622903988117676
+    },
+    "candidate": {
+      "bpb": 0.9387014573578255,
+      "forward_seconds": 206.3110681152344,
+      "evaltime": 4.544426032960023
+    },
+    "delta_bpb": 0.0003465664829817028,
+    "forward_seconds_saved": 3.5627977294921322,
+    "forward_time_reduction_percent": 1.6975899858479915,
+    "evaltime_reduction": 0.07847795515765288,
+    "checks": {
+      "all_scored_tokens_bytes_Na_dataset_shape_equal": true,
+      "native_FA3_E4M3_route": true,
+      "frozen37_sources_and_overlays_unchanged": true,
+      "fullgraph_trunk_merged_projection_deferredscale_preserved": true,
+      "native_head_and_BF16_full_logits": true,
+      "dependency_guard49": true
+    },
+    "files_sha256": {
+      "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/result.json": "7643cfae33adb6d2cedc401379a54f726d7dbe57195401d1910f7ba5c6449a04",
+      "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/run-metadata.json": "ad1b2a57e8ac06f5cbe4c4c8cad36d0e614123efc79dcf0907dd9fa454eab620",
+      "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/result.json": "61db567d77290d4e1a13f5813796fcccd63fabd82b559e77a292f32f56a2f3b8",
+      "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/run-metadata.json": "9afa96250d72968cb5522b5f976739de663b6b9ad4df25bed57d956a2f73a100",
+      "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/launch.json": "68dfaf15a072652b5b6112ee1e0b51f68b26ce95351fd5b0924bc55f13132ac0"
+    },
+    "decision": "Retain fusion as user-selected baseline; FA3 is separately qualified C4 experimental candidate; static scalar line not promoted"
+  },
+  "release_entry_validation": "release-validation.json",
+  "scope": "C4 on single H100; other tiers and official H200 are not qualified by these measurements"
+}

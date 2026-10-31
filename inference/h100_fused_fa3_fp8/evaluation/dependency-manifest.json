@@ -1,0 +1,82 @@
+{
+  "python_major_minor": [
+    3,
+    12
+  ],
+  "distributions": {
+    "torch": "2.8.0",
+    "triton": "3.4.0",
+    "flash-linear-attention": "0.5.1",
+    "fla-core": "0.5.1",
+    "flash-qla": "0.1.3",
+    "tilelang": "0.1.12",
+    "torch-c-dlpack-ext": "0.1.5",
+    "nvidia-cudnn-cu12": "9.10.2.21",
+    "nvidia-cublas-cu12": "12.8.4.1",
+    "nvidia-cuda-runtime-cu12": "12.8.90",
+    "nvidia-cuda-nvrtc-cu12": "12.8.93",
+    "transformers": "5.19.0",
+    "numpy": "2.2.6",
+    "safetensors": "0.8.0"
+  },
+  "source_files": {
+    "flash_qla": {
+      "__init__.py": "7d88dfe8de94a1b068e3c9fc69d44b8be692fca7ada025605d4df196797e70b1",
+      "ops/__init__.py": "11a015b6ae07579fb13caa13f1a53655de1822699fc38f48183c06a118be0d0e",
+      "utils/__init__.py": "27705cf86f1d45cd7321d51deb25d66e2cbf12195ab3ae4b3c6fd01ac323b194",
+      "utils/math.py": "9c2cca70a25a94b9d3a76f49cb96e4a07dbe7125aa7b3fbd477ac4ec0f045262",
+      "utils/index.py": "880fa12ce972381efb21a35a4d8db50c71a07db7735612a43f4c03890cc3ad23",
+      "utils/pack.py": "6d25e9e20e7b3561a143e8e6dc5f7e3306cb22434a66086d2da241de2f90e194",
+      "utils/contiguous.py": "5247202896791a9f42231ed6eb15d3cb5c862aa8dd8d79f1e13c4f9106c8d2ef",
+      "ops/utils/__init__.py": "1160518eb78922141426c4099a1f7b657309a0eab13ab931e3f24510d64fd8b7",
+      "ops/utils/group_reduce.py": "df8b85ca5a6c5c975a63015e426056f80903d5b1ce6e1b4347a8104a9d470335",
+      "ops/utils/cumsum.py": "cbf6ee0195fb4e76d5cca7972641a98c3f58d9eadb7d749aa584a71e1e8b113f",
+      "ops/gated_delta_rule/__init__.py": "4acf66148abac82d97bc36dc920b9c8d6560e4a1b89253aa3232d31a4a0d90d1",
+      "ops/gated_delta_rule/chunk/__init__bak.py": "ca76582999de147b71571f697a6d5f3c974881782efdc171d2850dfaeee13560",
+      "ops/gated_delta_rule/chunk/__init__.py": "76a00f8660bb38605839f015be533604b84b8300adadebbf7597ed98e3cc4fa3",
+      "ops/gated_delta_rule/chunk/cp/comm.py": "fb8a7e82b921a85e425c5ea6514c5ad847ec63d46f93cea02c191bf18ffe4abe",
+      "ops/gated_delta_rule/chunk/cp/context.py": "69272d6c1a71f6759ffd966e508fa159243e0c306c3516c7cbbb5a6d43c4b66a",
+      "ops/gated_delta_rule/chunk/cp/__init__.py": "bb066f51f31783ca422638ae23902ca4173fa6a94829a4650800958a17a7be45",
+      "ops/gated_delta_rule/chunk/cp/preprocess.py": "33ef18369b1acfaea325203f543bf12086608473e42a3b0389bb6af7770de107",
+      "ops/gated_delta_rule/chunk/blackwell/kkt_solve.py": "0a540e89de1a253adcb5bbe4ca1bf521d465940132757d4327e8689a1d335f7f",
+      "ops/gated_delta_rule/chunk/blackwell/__init__.py": "9c40b30754369a280d5a22495483001f5164a72eff80dd07306f3e65f193d9cf",
+      "ops/gated_delta_rule/chunk/blackwell/prepare_h.py": "640c57ef42df338f4c2e7ba9015888205975be4bc5d5a55111dc4847159b29f5",
+      "ops/gated_delta_rule/chunk/blackwell/cp_bwd.py": "995d71f6ef1b32f2cd4147418e6cc4b2cdc9e51e6fd4941871edad9a6a35ac1d",
+      "ops/gated_delta_rule/chunk/blackwell/cp_fwd.py": "34f55d456b713424236c2d822c36f37756a0ffb673827ca2a0404b28b5b5f615",
+      "ops/gated_delta_rule/chunk/blackwell/fused_fwd.py": "4f06e3106647842a5b3e8744d1094df48dd0e59f94f2434317d729e646d6f1a7",
+      "ops/gated_delta_rule/chunk/blackwell/cp_bwd_triton.py": "c10ff63558b104a8c5ac79a436af3f88ea05cdce35fc2a4cb351770b9fa88034",
+      "ops/gated_delta_rule/chunk/blackwell/fused_bwd.py": "1ae8d180be15f87b81e070e191236623f4deee6f7519991ea6c77e477be18908",
+      "ops/gated_delta_rule/chunk/hopper/kkt_solve.py": "8a3678ee34810d1a88728fc02f368689b1ea0596a4b00a43de36fa838d3f89cc",
+      "ops/gated_delta_rule/chunk/hopper/__init__.py": "9c40b30754369a280d5a22495483001f5164a72eff80dd07306f3e65f193d9cf",
+      "ops/gated_delta_rule/chunk/hopper/prepare_h.py": "88d9f1d63e7526f9475f9672d461bfbe043e06d99711613a1df2cd413565d1f8",
+      "ops/gated_delta_rule/chunk/hopper/cp_bwd.py": "05d0b1d1f7c5ecc1022dae63176aafcfe4461de32cdb4f57c528ef7bd9776844",
+      "ops/gated_delta_rule/chunk/hopper/cp_fwd.py": "e45cdd829d756c60970d3fad7891fd4fff358d6a8af2d0fe397e21d7ae7eeff7",
+      "ops/gated_delta_rule/chunk/hopper/fused_fwd.py": "6a0e5d35f4b0ad57ada1b9d302f18fd731b6b5efc641bd1f0134f1f40ca7bfa4",
+      "ops/gated_delta_rule/chunk/hopper/fused_bwd.py": "3a2466ec325a3e2e0eea0bbfec2dc6f6cf7406c1e1830f9688c86885924ac343",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/kkt_solve.py": "3001d242b831e7bd3d490247f66e8b2bace3f058bda1560e07828ad56d4ccfc5",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/__init__.py": "dd8e57d5e669b81000c8138a09a74ab5e1841038a41d14682f089c2fba0f6a78",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/prepare_h.py": "7d45ab66e8bd4d3ceed0a58815528a752c49bf6132c2cf5a359776147583eeaf",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/cp_bwd.py": "6dd2743b5c20bfc25a94489cdc67317b3e538b74548fbb93f745951a5726f1ca",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/cp_fwd.py": "6e8bb950310d1dbb2beaed11ca749a45f6cd5798d3ed82189d23cb09d465cfa7",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/fused_fwd.py": "a68fc9996d3cf4592a74f7d40965ba92acc680eea579b3571461ec389da9f17e",
+      "ops/gated_delta_rule/chunk/blackwell_sm120/fused_bwd.py": "dab6b119d12bc1bd436a851202d5be3923faa829a8bc098da8737af5ba9ba945",
+      "ops/gated_delta_rule/chunk/cp/autocp/__init__.py": "054fe2e6a60c8b63a08ad155b50e517a8ef2b67482af4ea2308783c0feddcb6b",
+      "ops/gated_delta_rule/chunk/cp/autocp/decision.py": "bb6968d34c722989f43e68deb484b4bb462e58a0f98077d32f7ea03b0f6024bc",
+      "ops/gated_delta_rule/chunk/cp/autocp/utils.py": "fcd4f7b077ba607e6c1aaf3aaee5f457fbe34c200d066f90112fe4b9efb93959",
+      "ops/gated_delta_rule/chunk/cp/autocp/launch.py": "86128e4b87aeae41e517f3206632e4cb5ecbe7c94cc785e0d404735080975530"
+    },
+    "fla": {
+      "modules/l2norm.py": "f86d6e072b6a46bcdeba6b1ead2e319dce3ca2cb849c3cabf525dd5702d4c52e",
+      "modules/conv/causal_conv1d.py": "492039398362a9f7352005e76454774e75f6aabe7cea0e857650ff263db3b33e"
+    },
+    "torch": {
+      "__init__.py": "2f0deb66d5dff6b9c02a62832c3bf3824c2ee031c462a3afeb9ca170466da5bf",
+      "version.py": "ba23e699ea8931779f14ccfcb3ed6dc67a14452d5e49ebd91875d418dba2a7f1"
+    },
+    "triton": {
+      "language/core.py": "52c6eb4a6bfdd8c74d5bd25f2a4c83843380648f1daeb4b53caec0bf6ba7ec0e",
+      "compiler/compiler.py": "63b9eee7d82feea9757d3582580583ea5c2e512baecd1c9ba2890a29dba0b9ae"
+    }
+  },
+  "source_scope": "43 accepted FlashQLA Python sources including D64 patch; selected FLA/Torch/Triton core sources"
+}

@@ -1,0 +1,37 @@
+{
+  "command": [
+    "/data/q38/environments/q38-flashqla-torch280-cu128-py312/bin/python",
+    "setup.py",
+    "build_ext",
+    "--inplace"
+  ],
+  "env": {
+    "CUDA_VISIBLE_DEVICES": "1",
+    "CUDA_HOME": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round2/cuda-12.8",
+    "FLASH_ATTENTION_FORCE_BUILD": "TRUE",
+    "FLASH_ATTENTION_OFFLINE_BUILD": "TRUE",
+    "MAX_JOBS": "4",
+    "NVCC_THREADS": "2",
+    "FLASH_ATTENTION_DISABLE_BACKWARD": "TRUE",
+    "FLASH_ATTENTION_DISABLE_SPLIT": "TRUE",
+    "FLASH_ATTENTION_DISABLE_PAGEDKV": "TRUE",
+    "FLASH_ATTENTION_DISABLE_APPENDKV": "TRUE",
+    "FLASH_ATTENTION_DISABLE_LOCAL": "TRUE",
+    "FLASH_ATTENTION_DISABLE_SOFTCAP": "TRUE",
+    "FLASH_ATTENTION_DISABLE_FP16": "TRUE",
+    "FLASH_ATTENTION_DISABLE_VARLEN": "TRUE",
+    "FLASH_ATTENTION_DISABLE_CLUSTER": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIM96": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIM128": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIM192": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIM256": "TRUE",
+    "FLASH_ATTENTION_DISABLE_SM80": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIMDIFF64": "TRUE",
+    "FLASH_ATTENTION_DISABLE_HDIMDIFF192": "TRUE",
+    "CPATH": "/data/q38/environments/python312-development-headers/usr/include/python3.12:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cublas/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_cupti/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_nvrtc/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_runtime/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cudnn/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cufft/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cufile/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/curand/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusolver/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusparse/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusparselt/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nccl/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nvjitlink/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nvtx/include",
+    "CPLUS_INCLUDE_PATH": "/data/q38/environments/python312-development-headers/usr/include/python3.12:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cublas/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_cupti/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_nvrtc/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cuda_runtime/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cudnn/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cufft/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cufile/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/curand/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusolver/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusparse/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/cusparselt/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nccl/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nvjitlink/include:/data/q38/environments/q38-dense-c1-torch280-cu128-py312/lib/python3.12/site-packages/nvidia/nvtx/include",
+    "FLASH_ATTENTION_HOME": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round2/build-cache"
+  },
+  "returncode": 0,
+  "updated_at": 1793446520.6320608
+}

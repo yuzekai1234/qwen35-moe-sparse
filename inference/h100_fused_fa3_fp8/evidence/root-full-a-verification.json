@@ -1,0 +1,33 @@
+{
+  "scope": "C4 single H10080GB GPU1 B938 S4096 complete A, not official H200 qualification",
+  "baseline": {
+    "bpb": 0.9383548908748438,
+    "forward_seconds": 209.87386584472654,
+    "evaltime": 4.622903988117676
+  },
+  "candidate": {
+    "bpb": 0.9387014573578255,
+    "forward_seconds": 206.3110681152344,
+    "evaltime": 4.544426032960023
+  },
+  "delta_bpb": 0.0003465664829817028,
+  "forward_seconds_saved": 3.5627977294921322,
+  "forward_time_reduction_percent": 1.6975899858479915,
+  "evaltime_reduction": 0.07847795515765288,
+  "checks": {
+    "all_scored_tokens_bytes_Na_dataset_shape_equal": true,
+    "native_FA3_E4M3_route": true,
+    "frozen37_sources_and_overlays_unchanged": true,
+    "fullgraph_trunk_merged_projection_deferredscale_preserved": true,
+    "native_head_and_BF16_full_logits": true,
+    "dependency_guard49": true
+  },
+  "files_sha256": {
+    "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/result.json": "7643cfae33adb6d2cedc401379a54f726d7dbe57195401d1910f7ba5c6449a04",
+    "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/run-metadata.json": "ad1b2a57e8ac06f5cbe4c4c8cad36d0e614123efc79dcf0907dd9fa454eab620",
+    "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/result.json": "61db567d77290d4e1a13f5813796fcccd63fabd82b559e77a292f32f56a2f3b8",
+    "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/run-metadata.json": "9afa96250d72968cb5522b5f976739de663b6b9ad4df25bed57d956a2f73a100",
+    "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/launch.json": "68dfaf15a072652b5b6112ee1e0b51f68b26ce95351fd5b0924bc55f13132ac0"
+  },
+  "decision": "Retain fusion as user-selected baseline; FA3 is separately qualified C4 experimental candidate; static scalar line not promoted"
+}

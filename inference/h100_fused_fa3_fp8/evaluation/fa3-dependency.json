@@ -1,0 +1,16 @@
+{
+  "FA3_commit": "4616f5116d33e3ba3cbb71d582caffcfcb49649c",
+  "CUTLASS_commit": "7127592069c2fe01b041e174ba4345ef9b279671",
+  "files": {
+    "flash_attn_interface.py": "887eb85ea5380707a78cd15dc04169e654f4dee58f9bddab49a2ce71f1680e35",
+    "flash_attn_config.py": "dd5fcce4a6733d3e51c34b66832c11ac32df57173bebadc5730572dac42f91c5",
+    "flash_attn_3/_C.abi3.so": "cf6b2ca5d31d9121a8d7c92e006e7cffcc7fc84b48dd99b95b2c8c14fbb27616",
+    "flash_attn_3/__init__.py": "362bca1d0502eca70a2d051eea4ad27b5ea8ec94132df156d61ff4326e6aaa23",
+    "flash_attn_3/flash_attn_config.py": "255bbac5b1c027fc5862396753e81cf66ffbc7e3c40ee3b5d1a098efc842be00",
+    "flash_attn_3/flash_attn_interface.py": "39f173452b4906d0ba7371e4c21947be7c7156d06825ec058364fd3fa4b0de49"
+  },
+  "source_archives": {
+    "fa3-source.tar.gz": "2893d98c61c359b6ccbfc714f654b53022be12de296af6d23eb148fdd2d89d75",
+    "cutlass-source.tar.gz": "12baa9c2bf22eaca065b5e55387c21bb4ac742992a6ecd2dd1d3b016dfd25a0a"
+  }
+}

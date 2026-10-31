@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-31",
   "timezone": "Asia/Shanghai",
-  "selection": "C1 unchanged; C4 attention-memory fix explicitly selected by user",
+  "selection": "C1 unchanged; user selects C4 fusion + FA3 FP8 attention",
   "baselines": {
     "c1": {
       "baseline_id": "c1-fullcompile-b989-20261031",
@@ -20,20 +20,21 @@
       }
     },
     "c4": {
-      "baseline_id": "c4-attention-tiled512-b940-20261031",
-      "record": "h100_attention_memory/baseline.json",
-      "code": "h100_attention_memory/evaluation",
-      "entry": "h100_attention_memory/run_baseline.sh",
-      "version_tag": "baseline-c1-c4-h100-attention-memory-20261031",
+      "baseline_id": "c4-fused-fa3-fp8-b938-20261031",
+      "record": "h100_fused_fa3_fp8/baseline.json",
+      "code": "h100_fused_fa3_fp8/evaluation",
+      "entry": "h100_fused_fa3_fp8/run_baseline.sh",
+      "version_tag": "baseline-c4-fused-fa3-fp8-h100-20261031",
       "metrics": {
-        "batch_size": 940,
-        "attention_batch_limit": 512,
+        "batch_size": 938,
         "sequence_length": 4096,
-        "bpb": 0.9383550647909364,
-        "forward_seconds": 275.1607272949219,
-        "evaltime": 6.060981525571003,
+        "forward_seconds": 206.3110681152344,
         "active_nonvocab_params": 377872340,
-        "peak_allocated_bytes": 84211266560
+        "peak_allocated_bytes": 84069535744,
+        "bpb": 0.9387014573578255,
+        "evaltime": 4.544426032960023,
+        "trunk_chunk": 256,
+        "attention_batch_limit": 512
       }
     }
   }

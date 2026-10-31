@@ -1,0 +1,77 @@
+{
+  "status": "complete_experimental_tradeoff_not_active_baseline",
+  "baseline_id": "c4-fused-trunk256-b938-20261031",
+  "hardware": "single H10080GB physical GPU1; not official H200 qualification",
+  "same_GPU_control": {
+    "bpb": 0.9383548908748438,
+    "forward_seconds": 209.87386584472654,
+    "evaltime": 4.622903988117676,
+    "batch": 938,
+    "seq": 4096,
+    "peak_allocated_bytes": 84069535744,
+    "peak_reserved_bytes": 84253081600
+  },
+  "FA3_candidate": {
+    "bpb": 0.9387014573578255,
+    "forward_seconds": 206.3110681152344,
+    "evaltime": 4.544426032960023,
+    "batch": 938,
+    "seq": 4096,
+    "peak_allocated_bytes": 84069535744,
+    "peak_reserved_bytes": 84253081600
+  },
+  "difference": {
+    "BPB_increase": 0.0003465664829817028,
+    "forward_seconds_saved": 3.5627977294921322,
+    "forward_time_reduction_percent": 1.6975899858479946,
+    "EvalTime_delta": -0.07847795515765288
+  },
+  "paired_ABBA": {
+    "baseline_median_seconds": 6.7023837890625,
+    "FA3_median_seconds": 6.58027783203125,
+    "speedup": 1.0185563528088233,
+    "faster_pairs": "6/6"
+  },
+  "scope": {
+    "scored_tokens": 120142976,
+    "UTF8_bytes": 445910984,
+    "Na": 377872340,
+    "trunk_chunk": 256,
+    "BF16_full_logits": true,
+    "merged_projection_deferredscale_preserved": true,
+    "fullgraph_trunk_no_fallback": true,
+    "unchanged_native_output_head": true,
+    "four_tier_submission_qualified": false
+  },
+  "code": {
+    "frozen_commit": "c5fd8e8bbd8dd17e0ad29397581984e1731dc887",
+    "frozen37_manifest_sha256": "cc95243867960c52cb20a3cf210371fa87b2d5e6218a2e7169ae3145396f4568",
+    "overlay_sha256": {
+      "common.py": "09acea2dc874b7a7e63a4336660c814dbf6d0aef0ceed047f4bdd2fc78fd5457",
+      "ledger.py": "8c13e8e6be821984f86edf937ba123b86fd15ebc440a893fc2e8cf8165681109",
+      "pipeline.py": "5bce96ffa91af0b2586549594ec5c6730b0d1961a4bbb4ed1582c9f067d9e85c",
+      "run_frozen_baseline.py": "13e6b10c0f04a928b0aa8dbfb1810a2be381cd8370674865d2fd2fa7de8fdbc5",
+      "fa3_overlay.py": "c4ef9942faaf14f6f8039150b1b92f04dc522bd0cbd284b89429bf8a9b5bac44",
+      "full_a.py": "01f35f5588893d6a4a185ba6adc49ba1a8d83b232afbd44125c6e6e2b4f14f53",
+      "bench.py": "a61a4e8bac7ff5dc47cad15069ea3a667d391a024130435210c9977cb0e5e51c"
+    },
+    "checkpoint_sha256": "ec8e8ab0434c66927bb734f2306388d2f7d37f9105bff28d3592dc7349462bf6",
+    "FA3_extension_sha256": "cf6b2ca5d31d9121a8d7c92e006e7cffcc7fc84b48dd99b95b2c8c14fbb27616",
+    "source37_overlay49guard_verified": true
+  },
+  "raw_paths": {
+    "control_result": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/result.json",
+    "control_metadata": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/frozen-full-a-b938/run-metadata.json",
+    "candidate_result": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/result.json",
+    "candidate_metadata": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/full-a-fa3-b938/run-metadata.json",
+    "root_proof": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/root-full-a-verification.json",
+    "final_integrity": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/FINAL_INTEGRITY.json",
+    "capacity938": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/capacity-b938.json",
+    "capacity939_OOM": "/data/q38/experiments/c4-lowprecision-20261031/fp8-attention/round3-gzy/capacity-b939.json"
+  },
+  "proof_sha256": "1e2541d07448c77a13c781d075e76e5a7d23551cac033a3f0d990133709fea4a",
+  "integrity_sha256": "ddefb3027f1571394d862a20079dd2244a820b821a1f3deacd146e88d6105b3b",
+  "GPU1_released": true,
+  "active_baseline_changed": false,
+  "completed_at": 1793451030.2077675
+}
