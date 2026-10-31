@@ -12,6 +12,7 @@ accounting recorded in MODEL_CARD.md.
 """
 
 import argparse
+import gc
 import hashlib
 import json
 import math
@@ -174,6 +175,7 @@ def main():
     with torch.inference_mode():
         last_step = (num_sequences - 1 - rank * args.batch_size) // global_batch_size
         warmed = set()
+        allocated_before_warmup = torch.cuda.memory_allocated(device)
         for step in (0, last_step):
             if step < 0:
                 continue
@@ -185,6 +187,11 @@ def main():
                 logits = forward_only(batch[0])
                 del logits
             torch.cuda.synchronize(device)
+        # Compilation can leave reference cycles that hold tensors of the first forwards;
+        # collect them before timing and log what the warmup left allocated.
+        gc.collect()
+        print("WARMUP_MEMORY", json.dumps(dict(allocated_before=allocated_before_warmup,
+              allocated_after=torch.cuda.memory_allocated(device))), flush=True)
         if use_dist:
             dist.barrier()
 
