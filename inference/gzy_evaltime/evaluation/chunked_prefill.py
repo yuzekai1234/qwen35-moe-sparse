@@ -39,17 +39,23 @@ def build(model, compile_function, size):
 
     compiled = compile_function(trunk)
 
-    def forward(ids):
-        batch, length = ids.shape
-        heads = [compiled(ids[start:start + size]) for start in range(0, batch, size)]
-        logits = torch.empty((batch * length, vocab), device=ids.device, dtype=torch.bfloat16)
+    def head(heads, batch, length, device):
+        # Pops the FP8 rows from the caller's list: if anything keeps the frame of forward
+        # alive after it returns (it called the compiled trunk), that frame then holds
+        # neither the rows nor the logits.
+        logits = torch.empty((batch * length, vocab), device=device, dtype=torch.bfloat16)
         row = 0
-        for q, scale in heads:
+        while heads:
+            q, scale = heads.pop(0)
             torch.ops.aten._scaled_mm.out(q, weight, scale[:, None], weight_scale, bias=None,
                                           out_dtype=torch.bfloat16, use_fast_accum=True,
                                           out=logits[row:row + q.shape[0]])
             row += q.shape[0]
-        del heads
         return logits.view(batch, length, vocab)
+
+    def forward(ids):
+        batch, length = ids.shape
+        heads = [compiled(ids[start:start + size]) for start in range(0, batch, size)]
+        return head(heads, batch, length, ids.device)
 
     return forward

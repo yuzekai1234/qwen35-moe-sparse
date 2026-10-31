@@ -1,17 +1,16 @@
-"""Tiled D64 full-prefill Q/K RMSNorm + partial RoPE + Q gate packing."""
+"""Tiled D64 full-prefill Q/K RMSNorm + partial RoPE; the Q gate stays in the projection output."""
 import os
 import torch,triton
 import triton.language as tl
 from triton.language.extra.cuda import libdevice
 
 @triton.jit
-def _norm_rope(X,W,COS,SIN,Q,G,N:tl.constexpr,S:tl.constexpr,H:tl.constexpr,R:tl.constexpr,
+def _norm_rope(X,W,COS,SIN,Q,N:tl.constexpr,S:tl.constexpr,H:tl.constexpr,R:tl.constexpr,
                CB:tl.constexpr,CS:tl.constexpr,SB:tl.constexpr,SS:tl.constexpr,
-               EPS:tl.constexpr,HAS_GATE:tl.constexpr,BT:tl.constexpr,XS:tl.constexpr):
+               EPS:tl.constexpr,STEP:tl.constexpr,BT:tl.constexpr,XS:tl.constexpr):
     row=tl.program_id(0).to(tl.int64)*BT+tl.arange(0,BT);d=tl.arange(0,64)
     token=row//H;b=token//S;t=token%S
-    step=128 if HAS_GATE else 64
-    source=token*XS+(row%H)*step
+    source=token*XS+(row%H)*STEP
     x=tl.load(X+source[:,None]+d[None,:],row[:,None]<N,0.).to(tl.float32)
     w=tl.load(W+d).to(tl.float32)
     inv=libdevice.rsqrt(tl.sum(x*x,1)/64.+EPS)
@@ -25,23 +24,20 @@ def _norm_rope(X,W,COS,SIN,Q,G,N:tl.constexpr,S:tl.constexpr,H:tl.constexpr,R:tl
     z=(rotated*s).to(tl.bfloat16).to(tl.float32)
     y=(a+z).to(tl.bfloat16)
     tl.store(Q+row[:,None]*64+d[None,:],tl.where((d<R)[None,:],y,norm),row[:,None]<N)
-    if HAS_GATE:
-        gate=tl.load(X+source[:,None]+64+d[None,:],row[:,None]<N,0.)
-        tl.store(G+row[:,None]*64+d[None,:],gate,row[:,None]<N)
 
 def norm_rope(x,weight,eps,cos,sin,has_gate):
     b,s,h,width=x.shape
-    # Token-major rows, possibly a column slice of a wider projection output.
+    # Token-major rows, possibly a column slice of a wider projection output. With a gate each
+    # head holds 64 query then 64 gate columns, and the gate is returned as a strided view.
     assert width==(128 if has_gate else 64) and x.stride(3)==1 and x.stride(2)==width
     assert x.stride(0)==s*x.stride(1)
     assert cos.shape==sin.shape and cos.shape[:2]==(b,s) and cos.shape[-1] in (16,32,64)
     cos=cos.to(torch.bfloat16);sin=sin.to(torch.bfloat16)
     q=torch.empty((b,s,h,64),device=x.device,dtype=torch.bfloat16)
-    gate=torch.empty((b,s,h*64),device=x.device,dtype=torch.bfloat16) if has_gate else None
     bt=int(os.environ.get('Q38_ROPE_BT','16'));warps=8 if bt>=32 else 4
-    _norm_rope[(triton.cdiv(b*s*h,bt),)](x,weight,cos,sin,q,gate if has_gate else q,b*s*h,s,h,cos.shape[-1],
-        cos.stride(0),cos.stride(1),sin.stride(0),sin.stride(1),eps,has_gate,bt,x.stride(1),num_warps=warps,enable_fp_fusion=False)
-    return q.transpose(1,2),gate
+    _norm_rope[(triton.cdiv(b*s*h,bt),)](x,weight,cos,sin,q,b*s*h,s,h,cos.shape[-1],
+        cos.stride(0),cos.stride(1),sin.stride(0),sin.stride(1),eps,width,bt,x.stride(1),num_warps=warps,enable_fp_fusion=False)
+    return q.transpose(1,2),(x[...,64:] if has_gate else None)
 
 def _attention_piece(attn,x,cos,sin,indexer,budget_blocks,dense,want_kl):
     from full_compile import cudnn_attention
