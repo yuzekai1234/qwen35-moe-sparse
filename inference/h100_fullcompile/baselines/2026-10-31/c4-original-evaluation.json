@@ -1,0 +1,16 @@
+{
+  "model_path": "/data/q38/experiments/dense-c1-c4-20261030/c4/train/hf",
+  "bpb": 0.9369962943702319,
+  "evaltime": 9.73794838869281,
+  "forward_seconds": 442.09027031157166,
+  "timing_enabled": true,
+  "active_params_excluding_embeddings": 377872340,
+  "scored_tokens": 120142976,
+  "text_bytes": 445910984,
+  "total_nll_nats": 289608633.6926287,
+  "sequence_length": 4096,
+  "batch_size": 16,
+  "num_sequences": 29348,
+  "num_steps": 1835,
+  "gpu_count": 1
+}

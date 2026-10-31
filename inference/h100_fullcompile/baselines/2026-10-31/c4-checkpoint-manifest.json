@@ -1,0 +1,33 @@
+{
+  "model_path": "/data/q38/experiments/dense-c1-c4-20261030/c4/train/hf",
+  "files": {
+    "model.safetensors": {
+      "sha256": "ec8e8ab0434c66927bb734f2306388d2f7d37f9105bff28d3592dc7349462bf6",
+      "bytes": 2215983624,
+      "mtime_ns": 1793405926133721845
+    },
+    "config.json": {
+      "sha256": "f793874f097fbcd5efe74aa2f85b0f784fac4e9ac7b3713c4c3dc2fc11bd4b60",
+      "bytes": 1994,
+      "mtime_ns": 1793405924258721957
+    },
+    "configuration_qwen3_8_moe.py": {
+      "sha256": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3",
+      "bytes": 6108,
+      "mtime_ns": 1793405924256721957
+    },
+    "modeling_qwen3_8_moe.py": {
+      "sha256": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5",
+      "bytes": 71176,
+      "mtime_ns": 1793405924254721957
+    }
+  },
+  "tokenizer": {
+    "files": {
+      "tokenizer.json": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+      "tokenizer_config.json": "fd51c5472a77b86ba0bc3a6a7c7cc94ab04f65bcc588242e7be360b86c5d097c"
+    },
+    "sha256": "4c2568b330b6a453543b11caefddd9e78fe6a22dd4e3d843a1f75322190f57c6"
+  },
+  "fingerprint": "2bb11faafd7aada457573048bccf2e53bde7b48d98ed7038a38e306a140b69db"
+}

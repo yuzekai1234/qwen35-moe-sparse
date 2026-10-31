@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-10-31",
+  "timezone": "Asia/Shanghai",
+  "hardware": {
+    "host": "zkrh-54",
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "gpu_count": 1,
+    "gpu_total_bytes": 85017493504
+  },
+  "dataset": {
+    "path": "/data/q38/datasets/evaluation-a-v1/dolma3_mix_100M_a.jsonl",
+    "sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+    "scored_tokens": 120142976,
+    "text_utf8_bytes": 445910984
+  },
+  "timing": {
+    "scope": "sum_of_CUDA_event_forward_time_over_complete_A",
+    "compile_and_warmup_included": false,
+    "cross_entropy_included": false,
+    "warmups_per_shape": 5,
+    "formula": "EvalTime = forward_seconds / ((active_nonvocab_params / 1e9) * (scored_tokens / 1e6))"
+  },
+  "inference": {
+    "path": "../../evaluation",
+    "precision": "dynamic per-row E4M3 W8A8 native torch._scaled_mm; BF16 residual/logits; FP32 norm/state",
+    "fullgraph": true,
+    "silent_eager_fallback": false,
+    "cuda_graphs": false,
+    "ffn_path": "native CUTLASS FP8 gate/up GEMM then separate SwiGLU/FP8 quantization",
+    "excluded_experiment": "CUTLASS SwiGLU epilogue experiment stopped and not adopted"
+  },
+  "baselines": {
+    "c1": {
+      "baseline_id": "c1-fullcompile-b989-20261031",
+      "status": "recorded_baseline",
+      "model_path": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/submission/models/FLOPs_3e17",
+      "weights_sha256": "127e70821263996202b5631be5919388eca703230fe4055abe535751f834201d",
+      "config_sha256": "1a0a0b52d6bba9c8827040c0044268b96e478e7b3d70f23dc9b46ef66d502277",
+      "model_source_sha256": {
+        "configuration_qwen3_8_moe.py": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3",
+        "modeling_qwen3_8_moe.py": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5"
+      },
+      "architecture": {
+        "hidden_size": 512,
+        "num_hidden_layers": 10,
+        "intermediate_size": 768,
+        "num_attention_heads": 20,
+        "num_key_value_heads": 2,
+        "head_dim": 64,
+        "linear_num_key_heads": 6,
+        "linear_num_value_heads": 18,
+        "ngram_rows": 61440,
+        "mhc_enabled": false,
+        "qsa_mode": "full"
+      },
+      "metrics": {
+        "batch_size": 989,
+        "sequence_length": 4096,
+        "bpb": 1.1234243392688898,
+        "forward_seconds": 43.03095544433592,
+        "evaltime": 10.604063761004959,
+        "active_nonvocab_params": 33776160,
+        "peak_allocated_bytes": 84260955136
+      },
+      "evidence_directory": "c1",
+      "full_compile": {
+        "fullgraph": true,
+        "dynamic": false,
+        "cudagraphs": false,
+        "silent_eager_fallback": false,
+        "functional_gdn": true,
+        "fused_qk_norm_rope_gate_pack": true,
+        "rope_token_head_tile": 16,
+        "external_ops": [
+          "q38infra::causal_conv",
+          "q38infra::flashqla",
+          "q38infra::cudnn_attention"
+        ],
+        "graphs": [
+          {
+            "nodes": 3164,
+            "input_token_shapes": [
+              [
+                989,
+                4096
+              ]
+            ]
+          },
+          {
+            "nodes": 2532,
+            "input_token_shapes": [
+              [
+                667,
+                4096
+              ]
+            ]
+          }
+        ],
+        "options": {
+          "emulate_precision_casts": true,
+          "triton.cudagraphs": false,
+          "reorder_for_peak_memory": false,
+          "layout_optimization": false,
+          "allow_buffer_reuse": false
+        }
+      },
+      "runtime_paths": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release",
+      "capacity": {
+        "largest_verified_complete_batch": 989,
+        "adjacent_batch": 990,
+        "adjacent_status": "oom",
+        "qualification_scope": "current_implementation_and_qualified_environment_not_architectural_upper_bound"
+      }
+    },
+    "c4": {
+      "baseline_id": "c4-fullcompile-b768-20261031",
+      "status": "recorded_baseline",
+      "model_path": "/data/q38/experiments/c4-infra-fullcompile-20261031/submission/models/FLOPs_1e19",
+      "weights_sha256": "ec8e8ab0434c66927bb734f2306388d2f7d37f9105bff28d3592dc7349462bf6",
+      "config_sha256": "f793874f097fbcd5efe74aa2f85b0f784fac4e9ac7b3713c4c3dc2fc11bd4b60",
+      "model_source_sha256": {
+        "configuration_qwen3_8_moe.py": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3",
+        "modeling_qwen3_8_moe.py": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5"
+      },
+      "architecture": {
+        "hidden_size": 1152,
+        "num_hidden_layers": 22,
+        "intermediate_size": 1728,
+        "num_attention_heads": 44,
+        "num_key_value_heads": 2,
+        "head_dim": 64,
+        "linear_num_key_heads": 14,
+        "linear_num_value_heads": 42,
+        "ngram_rows": 303104,
+        "mhc_enabled": false,
+        "qsa_mode": "full"
+      },
+      "metrics": {
+        "batch_size": 768,
+        "sequence_length": 4096,
+        "bpb": 0.9383547679682429,
+        "forward_seconds": 261.69925671386716,
+        "evaltime": 5.764464921254351,
+        "active_nonvocab_params": 377872340,
+        "peak_allocated_bytes": 84289450496
+      },
+      "evidence_directory": "c4",
+      "full_compile": {
+        "fullgraph": true,
+        "dynamic": false,
+        "cudagraphs": false,
+        "silent_eager_fallback": false,
+        "functional_gdn": true,
+        "fused_qk_norm_rope_gate_pack": true,
+        "rope_token_head_tile": 16,
+        "external_ops": [
+          "q38infra::causal_conv",
+          "q38infra::flashqla",
+          "q38infra::cudnn_attention"
+        ],
+        "graphs": [
+          {
+            "nodes": 5301,
+            "input_token_shapes": [
+              [
+                768,
+                4096
+              ]
+            ]
+          },
+          {
+            "nodes": 2496,
+            "input_token_shapes": [
+              [
+                164,
+                4096
+              ]
+            ]
+          }
+        ],
+        "options": {
+          "emulate_precision_casts": true,
+          "triton.cudagraphs": false,
+          "reorder_for_peak_memory": false,
+          "layout_optimization": false,
+          "allow_buffer_reuse": false
+        }
+      },
+      "runtime_paths": "/data/q38/experiments/c4-infra-fullcompile-20261031",
+      "capacity": {
+        "largest_verified_complete_batch": 768,
+        "adjacent_batch": 769,
+        "adjacent_status": "oom",
+        "qualification_scope": "current_implementation_and_qualified_environment_not_architectural_upper_bound"
+      }
+    }
+  },
+  "C4_reference_comparison": {
+    "old": {
+      "model_path": "/data/q38/experiments/dense-c1-c4-20261030/c4/train/hf",
+      "bpb": 0.9369962943702319,
+      "evaltime": 9.73794838869281,
+      "forward_seconds": 442.09027031157166,
+      "timing_enabled": true,
+      "active_params_excluding_embeddings": 377872340,
+      "scored_tokens": 120142976,
+      "text_bytes": 445910984,
+      "total_nll_nats": 289608633.6926287,
+      "sequence_length": 4096,
+      "batch_size": 16,
+      "num_sequences": 29348,
+      "num_steps": 1835,
+      "gpu_count": 1
+    },
+    "new_minus_old_BPB": 0.0013584735980110008,
+    "forward_speedup": 1.6893065569343124,
+    "interpretation": "Historical old-result comparison; batch and inference path differ. BPB difference has not been isolated to a single cause."
+  },
+  "known_limitation": {
+    "component": "C4 compiled attention Q/gate packing",
+    "batch_768_simultaneously_live_Q_gate_buffers_GiB": {
+      "raw_Q_gate": 33.0,
+      "normalized_Q": 16.5,
+      "copied_gate": 16.5,
+      "sum": 66.0
+    },
+    "batch_900_same_buffers_GiB": 77.34375,
+    "status": "diagnosed; optimization not implemented in this snapshot",
+    "note": "The batch 768 boundary is implementation-specific. Batch near 900 has not been qualified with a memory-optimized path."
+  },
+  "trained_source_parent_commit": "5316bc3dc70434a5127ce3e95de17b5b6db99af6"
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "file": "/data/q38/environments/q38-flashqla-torch280-cu128-py312/lib/python3.12/site-packages/flash_qla/ops/gated_delta_rule/chunk/hopper/kkt_solve.py",
+    "before_sha256": "2b6a0ad49194881f5e3eda7812ea3ec07b42f41f3745e4239dbe767598dc92be",
+    "after_sha256": "8a3678ee34810d1a88728fc02f368689b1ea0596a4b00a43de36fa838d3f89cc"
+  },
+  {
+    "file": "/data/q38/environments/q38-flashqla-torch280-cu128-py312/lib/python3.12/site-packages/flash_qla/ops/gated_delta_rule/chunk/hopper/fused_fwd.py",
+    "before_sha256": "9a129fc89d22264fdacfcaf1e616af78e9b33bd2f91c7ca1a96cba12be7992d2",
+    "after_sha256": "6a0e5d35f4b0ad57ada1b9d302f18fd731b6b5efc641bd1f0134f1f40ca7bfa4"
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "model_path": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/submission/models/FLOPs_3e17",
+  "bpb": 1.1234243392688898,
+  "evaltime": 10.604063761004959
+}

@@ -1,0 +1,33 @@
+{
+  "model_path": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/submission/models/FLOPs_3e17",
+  "files": {
+    "config.json": {
+      "bytes": 1708,
+      "sha256": "1a0a0b52d6bba9c8827040c0044268b96e478e7b3d70f23dc9b46ef66d502277"
+    },
+    "configuration_qwen3_8_moe.py": {
+      "bytes": 6108,
+      "sha256": "44deba2d1f6a325fb47e945eb5ac162ee76c5571dc374d45f9ed851e50e15db3"
+    },
+    "generation_config.json": {
+      "bytes": 218,
+      "sha256": "99e1fef6c23f4e6fdb1eda123cef451a87974bdeaa24b097471267622c8989ee"
+    },
+    "model.safetensors": {
+      "bytes": 211544264,
+      "sha256": "127e70821263996202b5631be5919388eca703230fe4055abe535751f834201d"
+    },
+    "modeling_qwen3_8_moe.py": {
+      "bytes": 71176,
+      "sha256": "3f59c7322a50d28b9474426c166f70869e2d3254b6dbd4be2a02aa1bc8a301f5"
+    },
+    "tokenizer.json": {
+      "bytes": 749009,
+      "sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7"
+    },
+    "tokenizer_config.json": {
+      "bytes": 471,
+      "sha256": "fd51c5472a77b86ba0bc3a6a7c7cc94ab04f65bcc588242e7be360b86c5d097c"
+    }
+  }
+}

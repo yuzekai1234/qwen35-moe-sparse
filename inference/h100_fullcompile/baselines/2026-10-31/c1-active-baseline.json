@@ -1,0 +1,106 @@
+{
+  "baseline_id": "c1-fullcompile-b989-20261031",
+  "status": "active",
+  "selected_by": "user explicit instruction",
+  "selected_unix": 1793438001.641465,
+  "release": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release",
+  "submission": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/submission",
+  "model": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/submission/models/FLOPs_3e17",
+  "metrics": {
+    "batch_size": 989,
+    "sequence_length": 4096,
+    "bpb": 1.1234243392688898,
+    "forward_seconds": 43.03095544433592,
+    "evaltime": 10.604063761004959
+  },
+  "evaluation": {
+    "dataset_path": "/data/q38/datasets/evaluation-a-v1/dolma3_mix_100M_a.jsonl",
+    "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+    "scored_tokens": 120142976,
+    "text_utf8_bytes": 445910984,
+    "active_nonvocab_params": 33776160,
+    "materialized_logits_dtype": "torch.bfloat16",
+    "full_compile": {
+      "fullgraph": true,
+      "dynamic": false,
+      "cudagraphs": false,
+      "silent_eager_fallback": false,
+      "functional_gdn": true,
+      "fused_qk_norm_rope_gate_pack": true,
+      "rope_token_head_tile": 16,
+      "external_ops": [
+        "q38infra::causal_conv",
+        "q38infra::flashqla",
+        "q38infra::cudnn_attention"
+      ],
+      "graphs": [
+        {
+          "nodes": 3164,
+          "input_token_shapes": [
+            [
+              989,
+              4096
+            ]
+          ]
+        },
+        {
+          "nodes": 2532,
+          "input_token_shapes": [
+            [
+              667,
+              4096
+            ]
+          ]
+        }
+      ],
+      "options": {
+        "emulate_precision_casts": true,
+        "triton.cudagraphs": false,
+        "reorder_for_peak_memory": false,
+        "layout_optimization": false,
+        "allow_buffer_reuse": false
+      }
+    }
+  },
+  "ffn_path": "original native CUTLASS gate/up GEMM + separate fused SwiGLU/FP8-quantization; experimental CUTLASS SwiGLU epilogue is excluded",
+  "release_defaults": {
+    "Q38_VARIANT": "general_dense_fused_norm",
+    "Q38_INFRA_ATTENTION": "1",
+    "Q38_CUDNN_ATTENTION": "1",
+    "Q38_FLASHQLA_BACKEND": "1",
+    "Q38_PREQUANT_NORM": "1",
+    "Q38_PREQUANT_INPUT": "1",
+    "Q38_PREQUANT_FFN": "1",
+    "Q38_RESIDUAL_DTYPE": "bf16",
+    "Q38_GDN_COPYFREE": "0",
+    "Q38_GDN_BATCH_LIMIT": "256",
+    "Q38_CUDA_GRAPH": "0",
+    "Q38_SINGLE_GRAPH": "0",
+    "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    "OMP_NUM_THREADS": "1",
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "TOKENIZERS_PARALLELISM": "false",
+    "FLASHINFER_DISABLE_JIT": "1",
+    "Q38_DEV_DIRECT_OUT": "1",
+    "Q38_DEV_QKV_NORM": "1",
+    "Q38_DEV_NORM_BT": "64",
+    "Q38_DEV_FFN": "0",
+    "Q38_DEV_KKT": "0",
+    "Q38_DEV_CORE_DV": "",
+    "EVAL_BATCH_SIZE": "989",
+    "Q38_ROPE_BT": "16"
+  },
+  "integrity": {
+    "baseline_41_protected_files_verified": true,
+    "model_weight_sha256": "127e70821263996202b5631be5919388eca703230fe4055abe535751f834201d",
+    "bundle_manifest_sha256": "23ddce446d435d3d940fe3bf2c9b616e5d9296d74cc32fc0e74d7580b468a7d1"
+  },
+  "qualification_result": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/qualification-max/result.json",
+  "qualification_metadata": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-infra-fullcompile-20261031/release/qualification-max/run-metadata.json",
+  "previous_ffn_experiment": {
+    "path": "/data/q38/experiments/dense-c1-inference-h100-20261030/c1-ffn-cutlass-swiglu-20261031",
+    "status": "stopped_by_user",
+    "adopted": false
+  }
+}
