@@ -36,6 +36,10 @@ def _forward(self,x):
     hidden_scale=torch.empty(rows,device=x.device,dtype=torch.float32)
     _swiglu_quant[(rows,)](gu,hidden,hidden_scale,width,triton.next_power_of_2(width),num_warps=4)
     del gu
+    import scaled_pending
+    if scaled_pending.enabled():
+        return scaled_pending.gemm(hidden,hidden_scale,self._dense_q_down,self._dense_s_down,
+                                   (*shape[:-1],self.down_proj.out_features))
     y=torch._scaled_mm(hidden,self._dense_q_down.t(),scale_a=hidden_scale[:,None],
         scale_b=self._dense_s_down[None,:],out_dtype=torch.bfloat16,use_fast_accum=True)
     return y.reshape(*shape[:-1],self.down_proj.out_features)

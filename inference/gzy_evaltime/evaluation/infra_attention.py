@@ -31,6 +31,9 @@ def project(attn,o,gate):
     q=torch.empty((b*s,width),device=o.device,dtype=torch.float8_e4m3fn)
     scales=torch.empty(b*s,device=o.device,dtype=torch.float32)
     _gate_quant[(b*s,)](o,gate,q,scales,s,h,d,*o.stride(),triton.next_power_of_2(width),num_warps=4)
+    import scaled_pending
+    if scaled_pending.enabled():
+        return scaled_pending.gemm(q,scales,linear._q8_weight,linear._q8_weight_scale,(b,s,linear.out_features))
     result=torch._scaled_mm(q,linear._q8_weight.t(),scale_a=scales[:,None],
         scale_b=linear._q8_weight_scale[None,:],bias=linear._q8_bias,
         out_dtype=torch.bfloat16,use_fast_accum=True)

@@ -93,7 +93,9 @@ def prepare(model):
     gdn_flashqla_backend.run = core
     model.model._common_full_qsa = attention
     import gdn_fused
+    import compiled_attention
     model._gdn_fused = gdn_fused.install(model)
+    model._gdn_fused['attention'] = compiled_attention.install(model)
 
     def prefill(ids):
         hidden, _ = model.model.trunk(ids)
@@ -137,6 +139,11 @@ def install(model, forward, paths):
     import chunked_prefill
     info['gdn'] = model._gdn_fused
     info['trunk_chunk'] = chunked_prefill.chunk_size()
+    import scaled_pending
+    info['deferred_scale'] = scaled_pending.enabled()
+    if info['deferred_scale'] and not 0 < info['trunk_chunk'] <= 256:
+        # Deferred-scale outputs are not concatenated across GDN/attention batch tiles.
+        raise ValueError('Q38_DEFERRED_SCALE=1 requires 0 < Q38_TRUNK_CHUNK <= 256')
     paths['full_compile'] = info
     paths['variant_details']['development']['gdn'].update(
         direct_out=False, functional_output_assembly=True)

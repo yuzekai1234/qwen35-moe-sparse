@@ -37,11 +37,15 @@ def quant_rows(x):
 
 
 @triton.jit
-def _kernel(R,P,W,OUT,Q,S,K:tl.constexpr,EPS:tl.constexpr,BLOCK:tl.constexpr,HAS_PENDING:tl.constexpr,ROUND_RESIDUAL:tl.constexpr):
+def _kernel(R,P,W,OUT,Q,S,PRS,PCS,K:tl.constexpr,EPS:tl.constexpr,BLOCK:tl.constexpr,HAS_PENDING:tl.constexpr,ROUND_RESIDUAL:tl.constexpr,
+            SCALED:tl.constexpr):
     row=tl.program_id(0).to(tl.int64);col=tl.arange(0,BLOCK)
     r=tl.load(R+row*K+col,col<K,other=0).to(tl.float32)
     if HAS_PENDING:
         p=tl.load(P+row*K+col,col<K,other=0).to(tl.float32)
+        if SCALED:
+            # Deferred row-wise GEMM scales, rounded as the GEMM epilogue output would be.
+            p=(p*tl.load(PRS+row)*tl.load(PCS+col,col<K,other=0)).to(tl.bfloat16).to(tl.float32)
         value=r+p
     else:
         value=r
@@ -57,15 +61,21 @@ def _kernel(R,P,W,OUT,Q,S,K:tl.constexpr,EPS:tl.constexpr,BLOCK:tl.constexpr,HAS
 
 
 def produce(residual,pending,weight,eps):
+    from scaled_pending import ScaledPending
     assert residual.dtype in (torch.float32,torch.bfloat16) and residual.is_contiguous()
+    scaled=isinstance(pending,ScaledPending)
+    if scaled:
+        row_scale,col_scale,pending=pending.row_scale,pending.col_scale,pending.raw
     if pending is not None:assert pending.dtype==torch.bfloat16 and pending.is_contiguous()
     shape=tuple(residual.shape);width=shape[-1];rows=residual.numel()//width
+    if scaled:assert pending.shape==(rows,width) and row_scale.shape==(rows,) and col_scale.shape==(width,)
+    else:row_scale=col_scale=residual
     updated=torch.empty_like(residual) if pending is not None else residual
     q=torch.empty((rows,width),device=residual.device,dtype=torch.float8_e4m3fn)
     scale=torch.empty(rows,device=residual.device,dtype=torch.float32)
     _kernel[(rows,)](residual,pending if pending is not None else residual,weight,
-        updated,q,scale,width,eps,triton.next_power_of_2(width),pending is not None,residual.dtype==torch.bfloat16,
-        num_warps=4,enable_fp_fusion=False)
+        updated,q,scale,row_scale,col_scale,width,eps,triton.next_power_of_2(width),pending is not None,residual.dtype==torch.bfloat16,
+        scaled,num_warps=4,enable_fp_fusion=False)
     return updated,FP8Activation(q,scale,shape)
 
 
@@ -109,10 +119,12 @@ def _trunk(self,ids):
         del y
         pending=layer.mlp(x);del x
         if index==0 and self.ngram is not None:
-            residual=_add_store_compiled(residual,pending);pending=None
+            from scaled_pending import materialize
+            residual=_add_store_compiled(residual,materialize(pending));pending=None
             delta=self.ngram.delta(residual.to(torch.bfloat16),ids)
             residual=_add_store_compiled(residual,delta);del delta
-    return _finish_compiled(residual,pending),[]
+    from scaled_pending import materialize
+    return _finish_compiled(residual,materialize(pending)),[]
 
 
 def install(model):

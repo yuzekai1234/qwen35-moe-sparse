@@ -174,6 +174,10 @@ def piece(self, x):
     else:
         normed = self.norm(output.reshape(-1, self.head_v_dim), z.reshape(-1, self.head_v_dim))
         hq, hs = quant_rows(normed.reshape(batch * length, -1))
+    import scaled_pending
+    if scaled_pending.enabled():
+        return scaled_pending.gemm(hq, hs, out_proj._q8_weight, out_proj._q8_weight_scale,
+                                   (batch, length, out_proj.out_features))
     y = _gemm(hq, hs, out_proj._q8_weight, out_proj._q8_weight_scale)[:, :out_proj.out_features]
     return y.reshape(batch, length, -1)
 
