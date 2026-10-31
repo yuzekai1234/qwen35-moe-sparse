@@ -1,0 +1,85 @@
+{
+  "baseline_id": "c4-attention-tiled512-b940-20261031",
+  "status": "active",
+  "selected_by": "user explicit instruction: use the attention memory fix as the new baseline",
+  "experiment": "/data/q38/experiments/c4-attention-memory-20261031",
+  "submission": "/data/q38/experiments/c4-attention-memory-20261031/submission",
+  "model": "/data/q38/experiments/c4-attention-memory-20261031/submission/models/FLOPs_1e19",
+  "weights_sha256": "ec8e8ab0434c66927bb734f2306388d2f7d37f9105bff28d3592dc7349462bf6",
+  "metrics": {
+    "batch_size": 940,
+    "attention_batch_limit": 512,
+    "sequence_length": 4096,
+    "bpb": 0.9383550647909364,
+    "forward_seconds": 275.1607272949219,
+    "evaltime": 6.060981525571003,
+    "active_nonvocab_params": 377872340,
+    "peak_allocated_bytes": 84211266560
+  },
+  "environment": {
+    "EVAL_BATCH_SIZE": "940",
+    "Q38_ATTENTION_BATCH_LIMIT": "512",
+    "EVAL_SEQ": "4096",
+    "EVAL_GPUS": "1",
+    "Q38_CUDA_GRAPH": "0"
+  },
+  "code_sha256_manifest": "evaluation-source-sha256.json",
+  "result": "evidence/max/result.json",
+  "metadata": "evidence/max/metadata.json",
+  "full_compile": {
+    "fullgraph": true,
+    "dynamic": false,
+    "cudagraphs": false,
+    "silent_eager_fallback": false,
+    "functional_gdn": true,
+    "fused_qk_norm_rope_gate_pack": true,
+    "rope_token_head_tile": 16,
+    "attention_batch_limit": 512,
+    "attention_memory_strategy": "batch_tiled_projection_through_output",
+    "external_ops": [
+      "q38infra::causal_conv",
+      "q38infra::flashqla",
+      "q38infra::cudnn_attention"
+    ],
+    "graphs": [
+      {
+        "nodes": 6994,
+        "input_token_shapes": [
+          [
+            940,
+            4096
+          ]
+        ]
+      },
+      {
+        "nodes": 2496,
+        "input_token_shapes": [
+          [
+            208,
+            4096
+          ]
+        ]
+      }
+    ],
+    "options": {
+      "emulate_precision_casts": true,
+      "triton.cudagraphs": false,
+      "reorder_for_peak_memory": false,
+      "layout_optimization": false,
+      "allow_buffer_reuse": false
+    }
+  },
+  "previous_baseline": "../h100_fullcompile/baselines/2026-10-31/c4",
+  "comparison_to_previous": {
+    "BPB_delta": 2.968226935351481e-07,
+    "forward_seconds_delta": 13.461470581054755,
+    "forward_reduction_percent": -5.143870391566696,
+    "forward_speedup": 0.9510777911027015,
+    "EvalTime_delta": 0.2965166043166514,
+    "baseline_physical_gpu": "0",
+    "candidate_physical_gpu": "0"
+  },
+  "version_tag": "baseline-c1-c4-h100-attention-memory-20261031",
+  "entry": "run_baseline.sh",
+  "entry_sha256": "cccc5429740079c6b072f27025d2220c41996ad5ef030aa0830f13168d2db22b"
+}

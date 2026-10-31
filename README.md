@@ -2,6 +2,8 @@
 
 2026-10-31 的单卡 H100 **C1 / C4 full compile 推理 baseline** 已冻结在 [inference/h100_fullcompile](inference/h100_fullcompile/README.md)。C1：batch989、BPB 1.123424339、forward 43.030955 秒、EvalTime 10.604064；C4：batch768、BPB 0.938354768、forward 261.699257 秒、EvalTime 5.764465。目录包含实际推理源码、checkpoint/数据身份、原始评测证据和复现方法；C4 的 attention 显存问题及历史 BPB 差异也单独记录。
 
+当前 C4 baseline 已按用户指示切换到 [attention 显存修复版本](inference/h100_attention_memory/README.md)：batch940（941 OOM）、attention tile512、BPB 0.938355065、forward 275.160727 秒、EvalTime 6.060982。C1 保持原版本，当前选择见 [inference/BASELINES.json](inference/BASELINES.json)。旧 C4 作为历史对照保留；新版本解决容量限制，但同卡满显存评测比旧版慢 5.14%。
+
 当前主线为 **dense FFN + 无 mHC + 因果全注意力**，入口配置是 [`configs/baseline.json`](configs/baseline.json)。
 C1 固定 h512/L10/F768：8 层 Gated DeltaNet、2 层全注意力，使用单路 FP32 Pre-Norm 残差；保留 N-gram、GQA、Q/K norm、attention 输出门及训练专用 MTP。主路径不构造 mHC 或 indexer，也不计算 indexer KL。
 

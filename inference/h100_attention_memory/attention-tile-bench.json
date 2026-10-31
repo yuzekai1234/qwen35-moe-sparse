@@ -1,0 +1,69 @@
+{
+  "scope": "isolated_C4_attention_only_not_complete_A_not_EvalTime",
+  "batch": 940,
+  "sequence_length": 4096,
+  "dependency_guard": {
+    "status": "ok",
+    "versions": {
+      "torch": "2.8.0",
+      "triton": "3.4.0",
+      "flash-linear-attention": "0.5.1",
+      "fla-core": "0.5.1",
+      "flash-qla": "0.1.3",
+      "tilelang": "0.1.12",
+      "torch-c-dlpack-ext": "0.1.5",
+      "nvidia-cudnn-cu12": "9.10.2.21",
+      "nvidia-cublas-cu12": "12.8.4.1",
+      "nvidia-cuda-runtime-cu12": "12.8.90",
+      "nvidia-cuda-nvrtc-cu12": "12.8.93",
+      "transformers": "5.19.0",
+      "numpy": "2.2.6",
+      "safetensors": "0.8.0"
+    },
+    "source_files_checked": 49,
+    "manifest_sha256": "ed4b49cc74f7711f24619a2eaac0f12bd34eefa97bb700eb35fd9ee855a6a687"
+  },
+  "rows": [
+    {
+      "tile": 512,
+      "milliseconds": [
+        336.95361328125,
+        335.30194091796875,
+        331.5088195800781,
+        334.9873046875,
+        336.82086181640625,
+        332.08245849609375,
+        336.7839660644531
+      ],
+      "median_ms": 335.30194091796875
+    },
+    {
+      "tile": 256,
+      "milliseconds": [
+        341.2701110839844,
+        336.5917053222656,
+        328.9198303222656,
+        340.77587890625,
+        336.1904602050781,
+        337.6572570800781,
+        339.09161376953125
+      ],
+      "median_ms": 337.6572570800781
+    },
+    {
+      "tile": 128,
+      "milliseconds": [
+        349.460205078125,
+        335.2655334472656,
+        335.7535705566406,
+        342.4974365234375,
+        339.6345520019531,
+        338.66937255859375,
+        341.85321044921875
+      ],
+      "median_ms": 339.6345520019531
+    }
+  ],
+  "status": "finished",
+  "finished_unix": 1793440718.665385
+}

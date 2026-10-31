@@ -1,0 +1,5 @@
+{
+  "model_path": "/data/q38/experiments/c4-attention-memory-20261031/submission/models/FLOPs_1e19",
+  "bpb": 0.9383550647909364,
+  "evaltime": 6.060981525571003
+}
