@@ -1,0 +1,152 @@
+{
+  "completed_utc": "2026-10-30T05:49:29Z",
+  "run_directory": "runs/q38_fused_precision/c1_20261030",
+  "completed": true,
+  "code_commit": "559cfc748a805a94b30b2f76bb03ab91c1e03b82",
+  "training": {
+    "seed": 0,
+    "shared_bf16_prefix_steps": 5500,
+    "final_steps": 6206,
+    "tokens_per_branch": 813432832,
+    "logical_train_flops_per_branch": 298452020090634240,
+    "fp8_adaptation_steps": 706
+  },
+  "evaluation": {
+    "scope": "complete_A",
+    "dataset_sha256": "4689036c6d9b413b03b68f0042509e0f3ea7b4d98cb210da4ef5b157a18c9f5c",
+    "tokenizer_sha256": "5186311f982eb27783fe3c0f4d6417f61c92a1f2aff4c9b0611b5d00bd6645a7",
+    "scored_tokens": 120142976,
+    "text_bytes": 445910984,
+    "batch_size": 16,
+    "sequence_length": 4096,
+    "gpu_uuid": "GPU-b6110d0e-7eeb-4918-f0be-26f59a91bfa4",
+    "active_params_excluding_embeddings": 33776160,
+    "full_A_repeats": 1,
+    "short_interleaved_rounds": 3,
+    "short_samples_per_round": 11
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "bpb": 1.1214662086754588,
+      "delta_bpb": 0.0,
+      "relative_bpb_increase_percent": 0.0,
+      "evaltime": 52.255916009102286,
+      "forward_seconds": 212.05285484604974,
+      "forward_time_reduction_percent": 0.0,
+      "speedup_vs_baseline": 1.0,
+      "short_timing_medians_ms": [
+        115.47647857666016,
+        115.19487762451172,
+        115.30035400390625
+      ],
+      "short_timing_median_ms": 115.30035400390625,
+      "short_timing_reduction_percent": 0.0,
+      "short_timing_trial_spread_percent": 0.24423251305793664,
+      "model_files_sha256": {
+        "model.safetensors": "797b8e0caeba0871294989cd3a603f2f88041e8931734d8d192b6ee74e825062"
+      },
+      "evaluation_file": "runs/q38_fused_precision/c1_20261030/baseline.evaluation.json"
+    },
+    {
+      "name": "bf16_fused",
+      "bpb": 1.121466857286032,
+      "delta_bpb": 6.486105732506076e-07,
+      "relative_bpb_increase_percent": 5.783594443364848e-05,
+      "evaltime": 45.35307782571518,
+      "forward_seconds": 184.0413557638676,
+      "forward_time_reduction_percent": 13.209677890221505,
+      "speedup_vs_baseline": 1.152202199152032,
+      "short_timing_medians_ms": [
+        99.48553466796875,
+        99.42928314208984,
+        99.43968200683594
+      ],
+      "short_timing_median_ms": 99.43968200683594,
+      "short_timing_reduction_percent": 13.755961231942937,
+      "short_timing_trial_spread_percent": 0.056568489302931665,
+      "model_files_sha256": {
+        "model.safetensors": "797b8e0caeba0871294989cd3a603f2f88041e8931734d8d192b6ee74e825062"
+      },
+      "evaluation_file": "runs/q38_fused_precision/c1_20261030/bf16_fused.evaluation.json"
+    },
+    {
+      "name": "fp8_ffn_ptq",
+      "bpb": 1.122178551633043,
+      "delta_bpb": 0.0007123429575841556,
+      "relative_bpb_increase_percent": 0.06351889625149099,
+      "evaltime": 43.071684897483316,
+      "forward_seconds": 174.7835353981718,
+      "forward_time_reduction_percent": 17.57548582636883,
+      "speedup_vs_baseline": 1.213231294143211,
+      "short_timing_medians_ms": [
+        94.71180725097656,
+        94.69526672363281,
+        94.78348541259766
+      ],
+      "short_timing_median_ms": 94.71180725097656,
+      "short_timing_reduction_percent": 17.85644712958312,
+      "short_timing_trial_spread_percent": 0.09314434126578673,
+      "model_files_sha256": {
+        "model.safetensors": "797b8e0caeba0871294989cd3a603f2f88041e8931734d8d192b6ee74e825062"
+      },
+      "evaluation_file": "runs/q38_fused_precision/c1_20261030/fp8_ffn_ptq.evaluation.json"
+    },
+    {
+      "name": "fp8_all_ptq",
+      "bpb": 1.1230525766854993,
+      "delta_bpb": 0.0015863680100405286,
+      "relative_bpb_increase_percent": 0.14145482028515843,
+      "evaltime": 41.90113604154087,
+      "forward_seconds": 170.03348515321704,
+      "forward_time_reduction_percent": 19.815517090462542,
+      "speedup_vs_baseline": 1.2471240864996038,
+      "short_timing_medians_ms": [
+        92.32383728027344,
+        92.3289566040039,
+        92.3289566040039
+      ],
+      "short_timing_median_ms": 92.3289566040039,
+      "short_timing_reduction_percent": 19.923093557131743,
+      "short_timing_trial_spread_percent": 0.005544656756412156,
+      "model_files_sha256": {
+        "model.safetensors": "797b8e0caeba0871294989cd3a603f2f88041e8931734d8d192b6ee74e825062"
+      },
+      "evaluation_file": "runs/q38_fused_precision/c1_20261030/fp8_all_ptq.evaluation.json"
+    },
+    {
+      "name": "fp8_adapted",
+      "bpb": 1.1228678892327197,
+      "delta_bpb": 0.0014016805572609758,
+      "relative_bpb_increase_percent": 0.12498642816143324,
+      "evaltime": 41.91132345406925,
+      "forward_seconds": 170.07482535113377,
+      "forward_time_reduction_percent": 19.79602185756566,
+      "speedup_vs_baseline": 1.2468209472404208,
+      "short_timing_medians_ms": [
+        92.27571105957031,
+        92.3135986328125,
+        92.3934097290039
+      ],
+      "short_timing_median_ms": 92.3135986328125,
+      "short_timing_reduction_percent": 19.936413525941976,
+      "short_timing_trial_spread_percent": 0.12749873385583543,
+      "model_files_sha256": {
+        "model.safetensors": "dddbe6fec7c50a81fc42505ef456c55e74322d918f16e71df0e3bb9051d09431"
+      },
+      "evaluation_file": "runs/q38_fused_precision/c1_20261030/fp8_adapted.evaluation.json"
+    }
+  ],
+  "verification": [
+    "All metrics recomputed from NLL, bytes, forward seconds and active parameters.",
+    "Full-A data/tokenizer/packing/counts and evaluation GPU identities match.",
+    "Both models completed equal C1 logical budgets.",
+    "All 15 interleaved timing blocks completed."
+  ],
+  "limitations": [
+    "Single training seed and one full A measurement per candidate.",
+    "Three short timing rounds do not constitute three full A evaluations.",
+    "The baseline full-A run partly overlapped parallel quality-only GPU jobs; interleaved timings were taken after those jobs finished.",
+    "BF16 tail resumed at step 5501 on healthy GPUs after a CUDA device failure; frozen source and logical budget were preserved."
+  ]
+}

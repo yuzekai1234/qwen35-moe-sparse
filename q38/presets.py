@@ -15,11 +15,13 @@ from .models.qwen3_8_moe import Qwen3_8MoeTextConfig
 ROOT = Path(__file__).resolve().parents[1]
 PRESET_DIR = ROOT / "configs"
 
-# Model-shape arguments shared by train.py and the presets.
+# Legacy defaults preserve unspecified fields in historical configs/checkpoints.
+# configs/baseline.json explicitly selects the current dense/full-attention model.
 MODEL_DEFAULTS = dict(layers=5, hidden=96, heads=2, kv_heads=1, head_dim=64, lin_k_heads=1, lin_v_heads=2,
                       lin_head_dim=64, experts=64, topk=5, moe_ffn=24, shared_ffn=24, layer_types="",
                       aux_coef=0.001, rope_theta=1e7, partial_rotary=0.25, experts_impl="eager",
-                      n_branch=4, mhc_iters=20, qsa_blocks=8, indexer_heads=4, indexer_head_dim=64,
+                      n_branch=4, mhc_iters=20, mhc_enabled=1, qsa_mode="learned",
+                      qsa_blocks=8, indexer_heads=4, indexer_head_dim=64,
                       ngram_rows=-1, mtp=1, dense_ffn=0)
 
 
@@ -78,10 +80,15 @@ def model_config(shape, vocab_size, seq, bos_token_id=None, eos_token_id=None, p
         partial_rotary_factor=s["partial_rotary"], tie_word_embeddings=True, attention_bias=False, initializer_range=0.02,
         bos_token_id=bos_token_id if bos_token_id is not None else eos_token_id, eos_token_id=eos_token_id,
         pad_token_id=pad_token_id if pad_token_id is not None else eos_token_id)
-    for key in ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "mtp"):
-        setattr(cfg, key, bool(s[key]) if key == "mtp" else s[key])
+    if s["mhc_enabled"] not in (0, 1) or s["qsa_mode"] not in ("learned", "full"):
+        raise ValueError("Invalid mHC enable flag or attention mode")
+    if s["mhc_enabled"] and (s["n_branch"] < 1 or s["mhc_iters"] < 1):
+        raise ValueError("Enabled mHC requires positive branches and Sinkhorn iterations")
+    for key in ("n_branch", "mhc_iters", "mhc_enabled", "qsa_mode", "qsa_blocks", "indexer_heads", "indexer_head_dim", "mtp"):
+        setattr(cfg, key, bool(s[key]) if key in ("mtp", "mhc_enabled") else s[key])
     cfg.ngram_rows = max(1024, round(0.205 * count({**cfg.to_dict(), "ngram_rows": 0, "mtp": False}, seq)["total_nonvocab_params"] / s["hidden"] / 1024) * 1024) if s["ngram_rows"] == -1 else s["ngram_rows"]
-    if cfg.indexer_head_dim != cfg.head_dim or cfg.qsa_blocks < 1 or cfg.ngram_rows < 0:
+    if ((cfg.qsa_mode == "learned" and (cfg.indexer_head_dim != cfg.head_dim or cfg.qsa_blocks < 1))
+            or cfg.ngram_rows < 0):
         raise ValueError("Invalid Q38 indexer head dimension, sparse budget or N-gram rows")
     cfg.use_cache = False
     cfg._experts_implementation = s["experts_impl"]

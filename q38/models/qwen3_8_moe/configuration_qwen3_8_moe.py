@@ -87,7 +87,11 @@ class Qwen3_8MoeTextConfig(PreTrainedConfig):
     num_experts: int = 256
     n_branch: int = 4
     mhc_iters: int = 20
+    # Missing fields retain the architecture of historical checkpoints.
+    # The current baseline preset explicitly disables mHC and selects full SDPA.
+    mhc_enabled: bool = True
     qsa_blocks: int = 8
+    qsa_mode: str = "learned"
     indexer_heads: int = 4
     indexer_head_dim: int = 64
     ngram_rows: int = 0
@@ -102,6 +106,10 @@ class Qwen3_8MoeTextConfig(PreTrainedConfig):
     ignore_keys_at_rope_validation = {"mrope_section", "mrope_interleaved"}
 
     def __post_init__(self, **kwargs):
+        if self.qsa_mode not in ("learned", "full"):
+            raise ValueError("qsa_mode must be learned or full")
+        if self.mhc_enabled and (self.n_branch < 1 or self.mhc_iters < 1):
+            raise ValueError("Enabled mHC requires positive branches and Sinkhorn iterations")
         if self.num_experts < 0:
             raise ValueError("num_experts must be nonnegative")
         if self.num_experts == 0:

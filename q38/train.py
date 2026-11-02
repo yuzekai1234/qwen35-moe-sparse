@@ -43,15 +43,20 @@ TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_V
                       ckpt_every=200, resume=1, max_steps=0, tensorboard=1,
                       warmup_ratio=0.01, warmup_min=10, data_sampling="random", data_seed=-1,
                       eval_sampling="random", eval_offset=0, final_eval_tokens=0, final_eval_offset=0,
-                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92, mtp_coef=0.3, kl_coef=0.05, muon=1, dense_warmup=1)
+                      require_ready_pool=0, auto_micro_bs=0, probe_mem_frac=0.92, mtp_coef=0.3, kl_coef=0.05, muon=1, dense_warmup=1,
+                      ffn_precision='bf16', ffn_calibration='', precision_transition=0, projection_precision='bf16')
 # A resumed run must agree on everything that shapes the model, data stream or LR schedule.
 RESUME_KEYS = ("layers", "hidden", "heads", "kv_heads", "head_dim", "lin_k_heads", "lin_v_heads", "lin_head_dim", "experts",
                "topk", "moe_ffn", "shared_ffn", "layer_types", "aux_coef", "rope_theta", "partial_rotary", "seq", "tokens",
                "batch_tokens", "seed", "data", "val_data", "tokenizer", "eval_tokens", "lr", "min_lr_ratio", "warmup", "wd", "clip",
                "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")
 RESUME_KEYS += ("n_branch", "mhc_iters", "qsa_blocks", "indexer_heads", "indexer_head_dim", "ngram_rows", "mtp", "mtp_coef", "kl_coef", "muon", "dense_warmup", "dense_ffn")
+RESUME_KEYS += ("mhc_enabled", "qsa_mode")
+RESUME_KEYS += ('ffn_precision', 'ffn_calibration_sha256', 'projection_precision')
 NEW_RESUME_DEFAULTS = {k: TRAIN_DEFAULTS[k] for k in (
     "data_sampling", "data_seed", "eval_sampling", "eval_offset", "final_eval_tokens", "final_eval_offset")}
+NEW_RESUME_DEFAULTS.update(mhc_enabled=1, qsa_mode="learned")
+NEW_RESUME_DEFAULTS.update(ffn_precision='bf16', ffn_calibration_sha256=None, projection_precision='bf16')
 
 
 def int_like(s):   # accept 3e9-style token counts
@@ -107,6 +112,18 @@ def parse_args(argv=None):
         ap.error("Invalid training or evaluation sampling mode")
     if a.data_seed < -1:
         ap.error("data_seed must be -1 (use model seed) or nonnegative")
+    if a.ffn_precision not in ('bf16', 'fp8') or a.precision_transition not in (0, 1):
+        ap.error('Invalid FFN precision or precision-transition flag')
+    if a.projection_precision not in ('bf16', 'fp8') or (a.projection_precision == 'fp8' and a.ffn_precision != 'fp8'):
+        ap.error('FP8 projections require FP8 FFN and a shared calibration file')
+    a.ffn_calibration_sha256 = None
+    if a.ffn_precision == 'fp8':
+        if not a.ffn_calibration:
+            ap.error('FP8 training requires --ffn_calibration from training data')
+        a.ffn_calibration = str(Path(a.ffn_calibration).resolve())
+        a.ffn_calibration_sha256 = hashlib.sha256(Path(a.ffn_calibration).read_bytes()).hexdigest()
+    elif a.ffn_calibration or a.precision_transition:
+        ap.error('Calibration/transition flags apply only to FP8 training')
     return a
 
 
@@ -424,6 +441,11 @@ def main(argv=None):
     assert model.lm_head.weight.data_ptr() == model.model.embed_tokens.weight.data_ptr(), "embeddings are not tied"
     log0("GDN kernel:", gdn_kernel())
     log0("Fast paths:", install_fast_paths(model))
+    if a.ffn_precision == 'fp8':
+        from .fused_precision import install_fp8_training
+        calibration = json.loads(Path(a.ffn_calibration).read_text())
+        log0('Low precision training:', install_fp8_training(model, calibration,
+             projections=a.projection_precision == 'fp8'))
     n_all = sum(p.numel() for p in model.parameters()); n_total_nv = n_all - model.get_input_embeddings().weight.numel()
     n_active_nv = fc["active_nonvocab_params"]
     flops_per_token = fc["train_flops_per_token"]
@@ -465,6 +487,8 @@ def main(argv=None):
     lr_at = lr_schedule(a, steps)
 
     ckpt_path = f"{a.run_dir}/ckpt.pt"; resuming = a.resume and os.path.exists(ckpt_path)
+    if a.precision_transition and not resuming:
+        raise ValueError('A precision transition requires an existing BF16 checkpoint')
     if resuming:
         previous = json.load(open(f"{a.run_dir}/run_config.json"))
         validate_resume_accounting(previous, fc)
@@ -473,6 +497,9 @@ def main(argv=None):
         for key in RESUME_KEYS:
             fallback = previous.get("seed", 0) if key == "data_seed" else NEW_RESUME_DEFAULTS.get(key)
             if previous.get(key, fallback) != vars(a)[key]:
+                if (a.precision_transition and key in ('ffn_precision', 'ffn_calibration_sha256', 'projection_precision')
+                        and previous.get('ffn_precision', 'bf16') == 'bf16' and a.ffn_precision == 'fp8'):
+                    continue
                 raise ValueError(f"Unsafe resume: {key} changed; use a new run_dir")
         if "data_identity" in previous and previous["data_identity"] != plan["data_identity"]:
             raise ValueError("Unsafe resume: corpus identity changed")

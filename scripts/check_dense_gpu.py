@@ -73,14 +73,32 @@ def verify(run_dir, updates):
     torch.testing.assert_close(actual_logits, expected_logits, rtol=0, atol=0)
     if not torch.isfinite(actual_logits).all():
         raise AssertionError("Nonfinite exported sparse logits")
+    tail_lengths = []
+    if model.config.qsa_mode == "full":
+        # Full attention no longer needs QSA's 64-token input padding. Exercise
+        # both the recurrent single-token GDN path and a non-aligned prefill.
+        with torch.inference_mode():
+            for length in (1, 65):
+                tail = ids[:, :length]
+                expected_tail = model(input_ids=tail, use_cache=False).logits
+                actual_tail = portable(input_ids=tail, use_cache=False).logits
+                torch.testing.assert_close(actual_tail, expected_tail, rtol=0, atol=0)
+                if not torch.isfinite(actual_tail).all():
+                    raise AssertionError(f"Nonfinite full-attention tail logits at length {length}")
+                tail_lengths.append(length)
     return dict(passed=True, verification_kind="GPU short-run qualification, not final quality",
         torch=torch.__version__, cuda=torch.version.cuda, gpu=torch.cuda.get_device_name(),
         updates=updates, trained_tokens=summary["tokens_trained"], full_budget_completed=False,
-        warmup_updates=config["warmup"], sparse_training_updates=max(0, updates-config["warmup"]),
+        warmup_updates=config["warmup"],
+        attention_mode=model.config.qsa_mode, mhc_enabled=model.config.mhc_enabled,
+        sparse_training_updates=max(0, updates-config["warmup"]) if model.config.qsa_mode == "learned" else 0,
         sequence_length=seq, batch_tokens=config["batch_tokens"], micro_bs=config["micro_bs"],
         adam_steps=adam_steps, verified_hf_tensors=verified_tensors,
         mtp_tensors_verified=sum(n.startswith("mtp.") for n in verified_tensors),
-        export_sparse_logits_bitwise_equal=True, suppress_compile_errors=False,
+        export_logits_bitwise_equal=True,
+        export_tail_lengths_verified=tail_lengths,
+        export_sparse_logits_bitwise_equal=True if model.config.qsa_mode == "learned" else None,
+        suppress_compile_errors=False,
         total_params=fc["total_params_all"], active_params_excluding_embeddings=fc["active_params_excluding_embeddings"],
         source=source_info(), run_dir=str(run_dir), elapsed_seconds=time.monotonic()-start)
 

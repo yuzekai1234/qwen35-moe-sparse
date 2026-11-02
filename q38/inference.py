@@ -192,6 +192,11 @@ def _gdn_prefill_forward(self, hidden_states, cache_params=None, attention_mask=
 
 def compile_inference_norms(model):
     """Fuse normalization without tracing dynamic expert dispatch or the FLA kernels."""
+    # All RMSNorm instances share one forward code object. FP32 residuals,
+    # BF16 Q/K and strided MTP inputs need distinct training/eval guards; a
+    # full-attention validation tail exceeds Dynamo's default eight entries.
+    # Keep compilation strict while allowing these legitimate layout variants.
+    torch._dynamo.config.cache_size_limit = max(torch._dynamo.config.cache_size_limit, 32)
     count = 0
     for module in model.modules():
         if isinstance(module, (Qwen3_8MoeRMSNorm, Qwen3_8MoeRMSNormGated)):

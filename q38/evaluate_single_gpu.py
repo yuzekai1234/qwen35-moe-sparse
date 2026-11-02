@@ -36,7 +36,8 @@ def load_model(model_path, device):
     return model
 
 
-def evaluate_model(model, tokens, is_text, metadata, batch_size, sequence_length, device, active_params):
+def evaluate_model(model, tokens, is_text, metadata, batch_size, sequence_length, device, active_params,
+                   measure_time=True, warmup_steps=5, progress_every=0):
     """Score every packed target on one device; time only the complete forward."""
     import torch
     import torch.nn.functional as F
@@ -44,6 +45,8 @@ def evaluate_model(model, tokens, is_text, metadata, batch_size, sequence_length
 
     if batch_size < 1 or sequence_length < 1 or active_params <= 0:
         raise ValueError("Batch size, sequence length and active parameter count must be positive")
+    if warmup_steps < 0 or progress_every < 0:
+        raise ValueError("Warmup and progress intervals must be nonnegative")
     if len(tokens) < 2 or len(tokens) != len(is_text):
         raise ValueError("Packed token and scoring-mask lengths must agree and contain targets")
     num_sequences = math.ceil((len(tokens)-1)/sequence_length)
@@ -64,24 +67,27 @@ def evaluate_model(model, tokens, is_text, metadata, batch_size, sequence_length
     forward_seconds = 0.0
     with torch.inference_mode():
         warmed_shapes = set()
-        for step in (0, num_steps-1):
+        for step in ((0, num_steps-1) if warmup_steps else ()):
             batch = prepare_batch(step)
             if tuple(batch[0].shape) in warmed_shapes:
                 continue
             warmed_shapes.add(tuple(batch[0].shape))
-            for _ in range(5):
+            for _ in range(warmup_steps):
                 logits = forward_only(batch[0])
                 del logits
-            torch.cuda.synchronize(device)
+            if measure_time:
+                torch.cuda.synchronize(device)
 
         set_seed(0)
         for step in range(num_steps):
             inputs, labels, count = prepare_batch(step)
-            torch.cuda.synchronize(device)
-            started = time.perf_counter()
+            if measure_time:
+                torch.cuda.synchronize(device)
+                started = time.perf_counter()
             logits = forward_only(inputs)
-            torch.cuda.synchronize(device)
-            forward_seconds += time.perf_counter()-started
+            if measure_time:
+                torch.cuda.synchronize(device)
+                forward_seconds += time.perf_counter()-started
 
             flat_logits, flat_labels = logits.reshape(-1, logits.shape[-1]), labels.reshape(-1)
             for offset in range(0, flat_labels.numel(), 512):
@@ -90,14 +96,17 @@ def evaluate_model(model, tokens, is_text, metadata, batch_size, sequence_length
                 total_nll += loss.double().sum()
             scored_tokens += count
             del flat_logits, flat_labels, loss, logits
+            if progress_every and ((step+1) % progress_every == 0 or step+1 == num_steps):
+                print(f"Scored {step+1}/{num_steps} batches, {scored_tokens:,} text tokens", flush=True)
 
     if scored_tokens != metadata["total_tokens"]:
         raise RuntimeError("Scored token count does not match the original text token count")
     bpb = total_nll.item()/(math.log(2)*metadata["total_bytes"])
-    evaltime = forward_seconds/((active_params/1e9)*(scored_tokens/1e6))
-    if not math.isfinite(bpb) or not math.isfinite(evaltime) or evaltime <= 0:
+    evaltime = forward_seconds/((active_params/1e9)*(scored_tokens/1e6)) if measure_time else None
+    if not math.isfinite(bpb) or (measure_time and (not math.isfinite(evaltime) or evaltime <= 0)):
         raise RuntimeError("Evaluation produced a non-finite loss or invalid forward time")
-    return dict(bpb=bpb, evaltime=evaltime, forward_seconds=forward_seconds,
+    return dict(bpb=bpb, evaltime=evaltime, forward_seconds=forward_seconds if measure_time else None,
+                timing_enabled=measure_time,
                 active_params_excluding_embeddings=active_params, scored_tokens=scored_tokens,
                 text_bytes=metadata["total_bytes"], total_nll_nats=total_nll.item(),
                 sequence_length=sequence_length, batch_size=batch_size, num_sequences=num_sequences,

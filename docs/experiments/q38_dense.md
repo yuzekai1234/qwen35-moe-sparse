@@ -1,13 +1,13 @@
 # Q38 dense
 
-这是技术说明。四档 17 点与留出 C1（3e17 FLOPs 预算）均完成完整预算训练。按官方单卡样例适配后，在同一张 RTX 4090 48GB 上，外推 dense 的 EvalTime 降低 15.44%，累计 forward 计时延长 14.63%，BPB 增加 0.03173；未达到 50 倍目标。
+这里记录保留 mHC、learned QSA 的历史 dense 实验：四档 17 点与留出 C1（3e17 FLOPs 预算）均完成完整预算训练。按官方单卡样例适配后，在同一张 RTX 4090 48GB 上，原外推 dense 的 EvalTime 降低 15.44%，累计 forward 计时延长 14.63%，BPB 增加 0.03173；未达到 50 倍目标。当前无 mHC/全注意力四配置见下文“当前 C1–C4 训练配置”，其新结构拟合尚未完成。
 
 $N_a$ 是每 token 主预测路径激活参数量，排除全部 Embedding、输出头和未调用的 MTP；$T$ 为累计完整 forward 计时，不是程序墙钟时间。本文 A 指官方 A 榜评测集 `dolma3_mix_100M_a.jsonl`；配置缩写中的 h、L 分别表示隐藏宽度、层数。
 
 | 模型 / 角色 | 隐藏宽度 / 层数 | batch | $N_a$，M | BPB ↓ | $T$，秒 ↓ | EvalTime ↓ |
 |---|---:|---:|---:|---:|---:|---:|
 | 26 号提交包 MoE / 基线 | 448 / 9 | 256 | 27.12 | 1.102 | 337.2 [337.2–337.3] | 103.51 [103.49–103.53] |
-| 外推 dense / 当前 | 512 / 10 | 256 | 36.76 | 1.133 | 386.6 [386.5–386.6] | 87.54 [87.52–87.54] |
+| 原外推 dense / 历史对照 | 512 / 10 | 256 | 36.76 | 1.133 | 386.6 [386.5–386.6] | 87.54 [87.52–87.54] |
 
 同一完整 A、同一设备与实现，seq4096，各三次完整评测；数值为中位数 [最小值–最大值]，不是三个训练种子。MoE/dense 的 EvalTime 中位数比为 1.183，$T$ 中位数比为 0.8723。dense 的 $N_a$ 更大，归一化后 EvalTime 较低，但本次 $T$ 反而更长；结构与训练 token 数也不同，不是仅替换 FFN 的单因素对照或相同 BPB 下的加速。
 
@@ -76,7 +76,7 @@ A100 40GB、Torch 2.7.1+cu126 实测通过：固定 h448/L9 的 C1 完整形状�
 
 短测设置 `--warmup 1`，不是完整预算或质量评测；正式实验不恢复该 checkpoint。独立结果复核退出码为 0，原件位于 `/shared/a100-209c/gzy/q38-dense-isoflops-20261027/qualification/c1-qsa-fixed/`；运行模型 SHA256 为 `2b89565fa1c966a7725ab825e18aa1150c460d8520f400087f8efc091012313a`。默认配置与短测配置的输出目录不同，不影响模型和预算。
 
-## IsoFLOPs
+## 历史 mHC/QSA IsoFLOPs
 
 四档 17 个 dense 规模点均完成完整预算，未用 C1 参与拟合。网格沿用 `scripts/make_q38_configs.py:shape_for`；h64 是原 64 步长规则的向下延伸，在读取质量结果前固定。
 
@@ -88,6 +88,8 @@ A100 40GB、Torch 2.7.1+cu126 实测通过：固定 h448/L9 的 C1 完整形状�
 | 1e17 | 256、320、384、448、512 | 5 |
 
 来源为 [`make_q38_isoflops_configs.py`](../../scripts/make_q38_isoflops_configs.py)。序列长度为 4096，seed0；每点独立完成完整预算与 cosine 调度。指标为用于拟合的独立验证分区上的纯交叉熵（CE，含 EOS，单位 nats/target）。该分区在 `configs/q35_isoflops/validation.json` 中的键为 `curve`，起始 token 偏移 `offset=2002536`、计分目标数 `targets=16001875`；它与 A 榜 BPB 不是同一指标。默认单任务超时 4 小时、整队列 6 小时、监控间隔 600 秒，均为运行器参数。
+
+下面的命令对应历史源码 `c4157511af8f6ab00f9ed2fdece09edb7c67303c`，复现旧 mHC/QSA 结果时应使用该提交的独立检出。当前同名脚本仅处理无 mHC/全注意力家族，必须显式提供迁移后的数据路径与独立全文哈希快照，接口见 [当前拟合方法](q38_combined_isoflops.md)。
 
 ```bash
 "$PY" scripts/make_q38_isoflops_configs.py \
@@ -141,6 +143,26 @@ $$
 | 独立验证分区纯 CE，nats/target | 未预测 | 2.847 |
 
 所选离散配置相对连续预测的 $N_a$ 为 −15.19%、$D$ 为 +0.5029%；完整训练实际 $D=806{,}354{,}944$、$F=370{,}159{,}616$，最终 checkpoint 与 285 个 HF 导出张量逐项核对通过。该 CE 是上述独立验证分区的完整训练终点，不是 BPB，也不是质量预测误差。单个 C1 配方完成训练不证明该预算的最优规模。
+
+## 当前 C1–C4 训练配置
+
+[`configs/dense_isoflops/`](../../configs/dense_isoflops/) 的四级配置统一采用 **无 mHC、因果全注意力、BF16 和当前 5.617B-token 数据池**。新结构四档 17 点均已完成，生成器 [`make_dense_scaling_configs.py`](../../scripts/make_dense_scaling_configs.py) 只使用[当前原始拟合](q38_combined_isoflops_results.json)，不再以旧 mHC/QSA 结果生成暂用尺度。完整方法、实测曲线、敏感性与共享产物见[当前方法与结果](q38_combined_isoflops.md)。
+
+| 配置 | 目标 FLOPs | h / L / FFN 宽度 | $N_a$ | 训练 token $D$ | 验证状态 |
+|---|---:|---:|---:|---:|---|
+| `c1.json` | 3e17 | 512 / 10 / 768 | 33,776,160 | 813,432,832 | 新结构完整 C1 已验证 |
+| `c2.json` | 1e18 | 704 / 14 / 1056 | 92,437,586 | 1,183,318,016 | 未训练外推 |
+| `c3.json` | 3e18 | 896 / 18 / 1344 | 188,347,804 | 1,895,563,264 | 未训练外推 |
+| `c4.json` | 1e19 | 1152 / 22 / 1728 | 377,872,340 | 3,375,366,144 | 未训练外推 |
+
+统一构造入口为 [`make_baseline_config.py:make_training_config`](../../scripts/make_baseline_config.py)：先按原 MoE 形状确定 N-gram 行数，再转 dense 并删除 mHC/indexer，以保持已验证 C1 的 61,440 行哈希表。C1 的模型、科学训练设置及预算与当前 `configs/baseline.json` 一致，数据、验证和分词器路径迁至内容相同的已鉴定 H100 副本，输出目录独立。`selection.json` 的 `current_architecture_fit` 绑定当前 raw 字节身份，逐项区分连续预测、无约束建议、实际选择及验证状态；所有配置仍满足完整 batch 和 0.5% FLOPs 预留规则。
+
+新结构采用 3e15、1e16、3e16、1e17 四档及原 4/4/4/5 网格。C1 不加入拟合，也不因补配置而重复训练；已有组合 C1 仅用于事后核对。新拟合自由选择 h576，按既定规则仍保留已验证 h512，不据此声称其最优。C2–C4 未做完整训练、质量或目标 GPU 显存验证；单 seed、曲线残差及 10–100 倍预算外推限制见当前结果。任何预算缺点、实测最小值位于边界、拟合非凸或顶点越界仍拒绝输出，不自动增加规模点。
+
+```bash
+# 核对当前结果及配置，不读取大语料、不改写 raw、不启动训练
+CUDA_VISIBLE_DEVICES='' "$PY" scripts/make_dense_scaling_configs.py --check
+```
 
 ## 完整 A 评测
 
