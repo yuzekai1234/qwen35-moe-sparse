@@ -1,0 +1,159 @@
+{
+  "source": "Official leaderboard visible in Chrome, refreshed 2026-11-09 Asia/Shanghai",
+  "published": "2026-11-06 15:00",
+  "displayed_lambda": 0.0091,
+  "rounded_inputs": true,
+  "performance_relative_iqr_weight": 5,
+  "teams": [
+    {
+      "team": "SQ2026AAA012681",
+      "performance": 0.8673,
+      "evaltime": 0.58
+    },
+    {
+      "team": "SQ2026AAA012553",
+      "performance": 0.9278,
+      "evaltime": 1.98
+    },
+    {
+      "team": "SQ2026AAA012664",
+      "performance": 0.9457,
+      "evaltime": 2.97
+    },
+    {
+      "team": "SQ2026AAA012601",
+      "performance": 0.9686,
+      "evaltime": 0.56
+    },
+    {
+      "team": "SQ2026AAA012651",
+      "performance": 0.969,
+      "evaltime": 0.56
+    },
+    {
+      "team": "SQ2026AAA012627",
+      "performance": 0.9607,
+      "evaltime": 2.06
+    },
+    {
+      "team": "SQ2026AAA012562",
+      "performance": 0.9814,
+      "evaltime": 0.35
+    },
+    {
+      "team": "SQ2026AAA012663",
+      "performance": 0.9644,
+      "evaltime": 2.65
+    },
+    {
+      "team": "SQ2026AAA012611",
+      "performance": 0.9702,
+      "evaltime": 1.97
+    },
+    {
+      "team": "SQ2026AAA012610",
+      "performance": 0.9628,
+      "evaltime": 5.87
+    },
+    {
+      "team": "SQ2026AAA012543",
+      "performance": 1.0172,
+      "evaltime": 0.43
+    },
+    {
+      "team": "SQ2026AAA012588",
+      "performance": 1.0006,
+      "evaltime": 2.61
+    },
+    {
+      "team": "SQ2026AAA012661",
+      "performance": 1.0162,
+      "evaltime": 2.09
+    },
+    {
+      "team": "SQ2026AAA012598",
+      "performance": 1.0305,
+      "evaltime": 0.7
+    },
+    {
+      "team": "SQ2026AAA012585",
+      "performance": 1.0182,
+      "evaltime": 5.28
+    },
+    {
+      "team": "SQ2026AAA012671",
+      "performance": 1.0487,
+      "evaltime": 0.29
+    },
+    {
+      "team": "SQ2026AAA012556",
+      "performance": 1.0615,
+      "evaltime": 0.12
+    },
+    {
+      "team": "SQ2026AAA012613",
+      "performance": 1.0183,
+      "evaltime": 14.67
+    },
+    {
+      "team": "SQ2026AAA012594",
+      "performance": 1.0424,
+      "evaltime": 4.56
+    },
+    {
+      "team": "SQ2026AAA012587",
+      "performance": 1.0631,
+      "evaltime": 0.54
+    },
+    {
+      "team": "SQ2026AAA012641",
+      "performance": 1.0761,
+      "evaltime": 0.27
+    },
+    {
+      "team": "SQ2026AAA012582",
+      "performance": 1.0869,
+      "evaltime": 0.09
+    },
+    {
+      "team": "SQ2026AAA012667",
+      "performance": 1.0416,
+      "evaltime": 19.46
+    },
+    {
+      "team": "SQ2026AAA012552",
+      "performance": 1.0777,
+      "evaltime": 2.39
+    },
+    {
+      "team": "SQ2026AAA012637",
+      "performance": 1.0984,
+      "evaltime": 15.65
+    },
+    {
+      "team": "SQ2026AAA012581",
+      "performance": 1.1256,
+      "evaltime": 7.06
+    },
+    {
+      "team": "SQ2026AAA012554",
+      "performance": 1.1679,
+      "evaltime": 2.02
+    },
+    {
+      "team": "SQ2026AAA012559",
+      "performance": 1.1529,
+      "evaltime": 16.03
+    },
+    {
+      "team": "SQ2026AAA012615",
+      "performance": 1.1904,
+      "evaltime": 7.99
+    },
+    {
+      "team": "SQ2026AAA012658",
+      "performance": 1.265,
+      "evaltime": 17.37
+    }
+  ]
+}

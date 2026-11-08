@@ -24,3 +24,11 @@ H100 由多人共用。启动前查看 `nvidia-smi` 和 `running/`。每人默�
 ## Baseline
 
 当前 C1/C4 baseline 以 H100 上的 `/data/q38/experiments/C1_C4_ACTIVE_BASELINES.json` 为准。
+
+
+## 2026-11-09 B 榜工作台（新服务器）
+
+新服务器 gpu1 的协作入口为 `campaigns/b_round_20261109/AGENTS.md` 和同目录 README。
+共享根目录 `/data/quark-7db0d9a22ffb/b-round-20261109/`；用工作台 `launch.sh status`核对任务和GPU。
+旧 H100 的日志/baseline 保留为历史证据；新工作不要写入旧矿工控制器或继承过期实验时限。
+四档配置、完整评测、动态权重总分和提交准备统一从新工作台接手。

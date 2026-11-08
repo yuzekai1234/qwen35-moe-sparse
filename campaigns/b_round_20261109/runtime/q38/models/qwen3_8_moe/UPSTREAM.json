@@ -1,0 +1,18 @@
+{
+  "transformers_version": "5.19.0",
+  "source": "Installed transformers 5.19.0 on 4090-8; transformers.models.qwen3_5_moe",
+  "license": "Apache-2.0",
+  "upstream_sha256": {
+    "modeling_qwen3_5_moe.py": "2050fe9387309901dc5c7a38951dfd834dc44fa6475211b4833d973d9b68d2e2",
+    "configuration_qwen3_5_moe.py": "3ba07e1edc690144e46d49ee3d98fd36268d87d98fc64dad6f36923e81fe880e"
+  },
+  "local_changes": [
+    "Rename local model/config to Qwen3_8Moe and model_type=qwen38_moe_sparse; breaking checkpoint change.",
+    "Integrate QSA, 4-branch mHC, N-gram and training-only MTP into the local model and HF export.",
+    "Add Muon/AdamW training, MTP and indexer KL losses, and Q38 FLOPs accounting."
+  ],
+  "architecture_reference": {
+    "repository": "https://github.com/huangzhenhua111/hzh-q38f-sparse",
+    "commit": "12862f6ded28d4cedf7de411d3a632d660ade140"
+  }
+}
