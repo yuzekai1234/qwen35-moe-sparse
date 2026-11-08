@@ -34,7 +34,9 @@ def source_hash(root=HERE):
     h = hashlib.sha256()
     root = Path(root)
     for p in sorted(root.rglob('*')):
-        if p.is_file() and '__pycache__' not in p.parts and p.suffix in ('.py', '.sh', '.json'):
+        if (p.is_file() and '__pycache__' not in p.parts
+                and not any(part.startswith('._') for part in p.relative_to(root).parts)
+                and p.suffix in ('.py', '.sh', '.json')):
             h.update(str(p.relative_to(root)).encode() + b'\0' + p.read_bytes())
     return h.hexdigest()
 

@@ -12,3 +12,4 @@ libcuda/
 .env
 .env.*
 .DS_Store
+._*

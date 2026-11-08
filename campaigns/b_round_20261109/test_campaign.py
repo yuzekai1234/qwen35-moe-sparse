@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import numpy as np
-from common import HERE, Lease, claim, record, show_status
+from common import HERE, Lease, claim, record, show_status, source_hash
 from prepare import build, counter, hf_config
 from score import fit_performance, quantile, rerank
 
@@ -17,6 +17,16 @@ spec.loader.exec_module(sampling)
 
 
 class CampaignTests(unittest.TestCase):
+    def test_transfer_metadata_does_not_change_source_identity(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root/'entry.py').write_text('answer = 42\n')
+            before = source_hash(root)
+            (root/'._entry.py').write_bytes(b'filesystem metadata, not Python')
+            self.assertEqual(before, source_hash(root))
+            (root/'entry.py').write_text('answer = 43\n')
+            self.assertNotEqual(before, source_hash(root))
+
     def test_first_epoch_matches_frozen_sampler(self):
         s = sampling.ShuffledBlockSampler(101, 4, 7, epochs=3)
         expected = np.random.default_rng(7).permutation(25)*4

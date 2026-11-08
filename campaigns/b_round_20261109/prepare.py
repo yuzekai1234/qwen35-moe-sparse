@@ -95,7 +95,7 @@ def build(level, workspace, run_id, experts=1024, taps=2048, world=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workspace', type=Path, default=DEFAULT_WORKSPACE)
-    p.add_argument('--run-id', default='combined-v1')
+    p.add_argument('--run-id', default='combined-v2')
     p.add_argument('--experts', type=int, default=1024)
     p.add_argument('--taps', type=int, default=2048)
     p.add_argument('--world', type=int, help='Override all four native worlds before the first run')
@@ -109,7 +109,7 @@ def main():
             raise RuntimeError('An immutable source snapshot already exists; use another run id')
     else:
         root.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(HERE, snapshot, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        shutil.copytree(HERE, snapshot, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '._*'))
     rows = []
     for level in BUDGETS:
         c, report = build(level, a.workspace.resolve(), a.run_id, a.experts, a.taps, a.world)
