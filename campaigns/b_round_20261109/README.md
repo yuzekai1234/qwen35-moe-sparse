@@ -31,8 +31,8 @@
 source /data/quark-7db0d9a22ffb/activate-c1.sh
 cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109
 export PYTHONPATH="$PWD/runtime:$C1_MODEL_ROOT/compat-source"
-python prepare.py --run-id combined-v2
-CUDA_VISIBLE_DEVICES='' python preflight.py --run-id combined-v2 --level all
+python prepare.py --run-id combined-v3
+CUDA_VISIBLE_DEVICES='' python preflight.py --run-id combined-v3 --level all
 python test_campaign.py
 bash launch.sh status
 ```
@@ -45,16 +45,16 @@ bash launch.sh status
 
 ```bash
 tmux new-session -d -s br-yzk-c4 \
-  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh train --run-id combined-v2 --level c4 --owner yzk --gpus 0,1,2,3'
+  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh train --run-id combined-v3 --level c4 --owner yzk --gpus 0,1,2,3'
 ```
 
-日志：`/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v2/c4/training.log`。训练结束检查 `training-complete.json`，包含预算完成核对和 FP32 控制参数导出。`--wait`只在明确想等待指定GPU时使用，不会停止其他进程。失败后先读日志；自己的同版本断点可加 `--resume`，不得覆盖或拼接不同训练历史。
+日志：`/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v3/c4/training.log`。训练结束检查 `training-complete.json`，包含预算完成核对和 FP32 控制参数导出。`--wait`只在明确想等待指定GPU时使用，不会停止其他进程。失败后先读日志；自己的同版本断点可加 `--resume`，不得覆盖或拼接不同训练历史。
 
 完整训练后，单独认领完整 A 集评测，释放其余卡：
 
 ```bash
 tmux new-session -d -s br-yzk-c4-eval \
-  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh eval --run-id combined-v2 --level c4 --owner yzk --gpus 0'
+  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh eval --run-id combined-v3 --level c4 --owner yzk --gpus 0'
 ```
 
 评测结果位于 `.../c4/evaluations/raw-s10240-auto/`；包括 `result.json`、`run-metadata.json`、`campaign-result.json`和日志。只有完整120142976计分token结果才登记完成。重复评测使用新的 `--eval-tag`，保留原始输出。
@@ -62,7 +62,7 @@ tmux new-session -d -s br-yzk-c4-eval \
 随后分配 C2、C3。C1 可先复测已迁移的现有权重，避免无必要重训：
 
 ```bash
-bash launch.sh eval --run-id combined-v2 --level c1 --owner csy --gpus 4 \
+bash launch.sh eval --run-id combined-v3 --level c1 --owner csy --gpus 4 \
   --model "$C1_HF_MODEL" --eval-tag raw-baseline-s10240-auto
 ```
 
@@ -94,4 +94,6 @@ python score.py --suite /path/to/suite.json --output /path/to/score.json
 
 先读本文件、`AGENTS.md`、共享 `BOARD.md`和实时status；每个结果保留source/config哈希、完整命令、模型路径、GPU、原始日志和状态。仓库只同步代码/配置/摘要，不放密钥、权重、数据或环境。本目录导入代码的原始哈希见 `provenance/imported-source.json`，可移植性改动与训练流改动都在Git中可审查。
 
-当前已准备并核验的run-id为`combined-v2`；v1仅保留初次准备记录，不作为接手入口。
+当前已准备并核验的run-id为`combined-v3`；v1仅保留初次准备记录，不作为接手入口。
+
+2026-11-09启动修复：训练控制器的CPU预检在独立、隐藏GPU的Python进程中执行，避免依赖探测提前初始化CUDA。v2首次启动在预检阶段退出，没有开始训练。

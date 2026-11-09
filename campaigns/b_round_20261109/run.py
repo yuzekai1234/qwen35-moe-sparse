@@ -64,10 +64,21 @@ def acquire(a, task):
             time.sleep(30)
 
 
+def run_cpu_preflight(a, root):
+    # Imports such as FLA can probe CUDA when GPUs are visible. Keep every CPU
+    # check in a separate hidden-GPU interpreter; the controller must stay
+    # CUDA-free until it owns the physical GPU leases.
+    env = environment(a.workspace)
+    env['CUDA_VISIBLE_DEVICES'] = ''
+    command = [sys.executable, str(HERE/'preflight.py'), '--workspace', str(a.workspace),
+               '--run-id', a.run_id, '--level', a.level]
+    with (root/a.level/'preflight-launch.log').open('a') as stream:
+        subprocess.run(command, cwd=HERE, env=env, stdout=stream, stderr=subprocess.STDOUT, check=True)
+
+
 def train(a, task):
-    from preflight import check
-    check(a.workspace, a.run_id, a.level)
     root = state_root(a.workspace)/'runs'/a.run_id
+    run_cpu_preflight(a, root)
     row = next(r for r in read(root/'manifest.json')['levels'] if r['level'] == a.level)
     if len(a.gpus) != row['world']:
         raise ValueError(f'Prepared native world={row["world"]}; supply that many GPUs, or prepare another run id')
@@ -192,7 +203,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('action', choices=['train', 'eval', 'status'])
     p.add_argument('--workspace', type=Path, default=DEFAULT_WORKSPACE)
-    p.add_argument('--run-id', default='combined-v2')
+    p.add_argument('--run-id', default='combined-v3')
     p.add_argument('--level', choices=['c1', 'c2', 'c3', 'c4'])
     p.add_argument('--owner')
     p.add_argument('--gpus', type=lambda s: list(map(int, s.split(','))))

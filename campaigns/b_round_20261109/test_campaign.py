@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 import numpy as np
 from common import HERE, Lease, claim, record, show_status, source_hash
@@ -17,6 +18,17 @@ spec.loader.exec_module(sampling)
 
 
 class CampaignTests(unittest.TestCase):
+    def test_launch_preflight_hides_gpus_even_when_controller_sees_them(self):
+        import run
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            (root/'c4').mkdir()
+            (root/'preflight.py').write_text("import os; assert os.environ['CUDA_VISIBLE_DEVICES'] == ''; print('cpu-only preflight')\n")
+            a=SimpleNamespace(workspace=root,run_id='fixture',level='c4')
+            with patch('run.HERE',root), patch.dict('os.environ',{'CUDA_VISIBLE_DEVICES':'0,1,2,3'}):
+                run.run_cpu_preflight(a,root)
+            self.assertIn('cpu-only preflight',(root/'c4/preflight-launch.log').read_text())
+
     def test_transfer_metadata_does_not_change_source_identity(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

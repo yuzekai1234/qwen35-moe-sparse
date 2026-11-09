@@ -95,7 +95,7 @@ def build(level, workspace, run_id, experts=1024, taps=2048, world=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workspace', type=Path, default=DEFAULT_WORKSPACE)
-    p.add_argument('--run-id', default='combined-v2')
+    p.add_argument('--run-id', default='combined-v3')
     p.add_argument('--experts', type=int, default=1024)
     p.add_argument('--taps', type=int, default=2048)
     p.add_argument('--world', type=int, help='Override all four native worlds before the first run')

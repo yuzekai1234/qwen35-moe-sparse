@@ -44,7 +44,7 @@ def check(workspace, run_id, level):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workspace', type=Path, default=DEFAULT_WORKSPACE)
-    p.add_argument('--run-id', default='combined-v2')
+    p.add_argument('--run-id', default='combined-v3')
     p.add_argument('--level', choices=['c1', 'c2', 'c3', 'c4', 'all'], default='all')
     a = p.parse_args()
     levels = ['c1', 'c2', 'c3', 'c4'] if a.level == 'all' else [a.level]
