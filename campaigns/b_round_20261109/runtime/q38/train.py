@@ -36,6 +36,7 @@ from .models.qwen3_8_moe import Qwen3_8MoeForCausalLM, source_info
 from .models.qwen3_8_moe import modeling_qwen3_8_moe as M
 from .presets import MODEL_DEFAULTS, ROOT, budget_tokens, load_preset, load_training_config, model_config
 from .sampling import ShuffledBlockSampler, sequential_windows
+from .ddp_memory import accumulate_without_sync, clear_gradients_to_none
 
 TRAIN_DEFAULTS = dict(run_dir="", data=str(DEFAULT_DATA), val_data=str(DEFAULT_VAL_DATA), tokenizer=str(DEFAULT_TOKENIZER),
                       seq=4096, tokens=0, compute=0.0, batch_tokens=524288, micro_bs=8, lr=3.6e-3, min_lr_ratio=0.1,
@@ -628,7 +629,7 @@ def main(argv=None):
         for mi in range(accum):
             offsets = sampler.micro_offsets(step, mi, rank, world, a.micro_bs, a.batch_tokens) if sampler else None
             x, y = sample_batch(rng, train_data, a.micro_bs, a.seq, dev, offsets=offsets)
-            sync = lm.no_sync() if (ddp and mi < accum - 1) else contextlib.nullcontext()
+            sync = lm.no_sync() if accumulate_without_sync(ddp, step, start_step, mi, accum) else contextlib.nullcontext()
             with sync, torch.autocast("cuda", dtype=torch.bfloat16):
                 ce, aux, mtp_loss, kl = lm(x, y)
                 loss = (ce + a.aux_coef * aux + a.mtp_coef * mtp_loss + a.kl_coef * kl) / accum
@@ -652,7 +653,7 @@ def main(argv=None):
         if a.paper_loss_free:
             for layer in model.model.layers:
                 layer.mlp.gate.update_bias(distributed=ddp)
-        opt.zero_grad(set_to_none=True); tok_seen += accum * per_micro
+        opt.zero_grad(set_to_none=clear_gradients_to_none(ddp)); tok_seen += accum * per_micro
         if ddp:
             dist.all_reduce(totals); totals /= world
         # One host transfer per optimizer step, rather than four synchronizations per micro batch.

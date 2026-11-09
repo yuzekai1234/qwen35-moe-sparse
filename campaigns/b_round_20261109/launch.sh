@@ -4,7 +4,7 @@ set -euo pipefail
 here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 workspace="${Q38_WORKSPACE:-/data/quark-7db0d9a22ffb}"
 source "$workspace/activate-c1.sh"
-run_id=combined-v4
+run_id=combined-v5
 args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   if [[ "${args[i]}" == --run-id ]]; then run_id="${args[i+1]}"; fi
