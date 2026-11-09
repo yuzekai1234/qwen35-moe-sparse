@@ -17,13 +17,13 @@
 | C1 | 3e17 | 512 / 10 | 1024 / 4 | 10.55亿 | 2 |
 | C2 | 1e18 | 640 / 12 | 1024 / 4 | 20.24亿 | 2 |
 | C3 | 3e18 | 768 / 14 | 1024 / 4 | 41.47亿 | 4 |
-| C4 | 1e19 | 832 / 16 | 1024 / 4 | 101.61亿 | 4 |
+| C4 | 1e19 | 768 / 16 | 1024 / 4 | 122.01亿 | 4 |
 
 共同规则：Engram、loss-free routing、DenseFormer；两处 LC 位于 floor(L/3)、floor(2L/3)，通道等于 hidden，K=2048；训练4096；初始评测10240、FP8 trunk/BF16完整 logits、单卡、自动 batch。专家宽与 Engram 维度随 hidden 缩放。
 
-这些是以 C1 结果和显存负担为依据的**起始网格**，没有声称已找到 N–D 最优值。C4 的参数/梯度/分片优化器常驻内存下界约76.9 GiB/卡，另有 FFT、激活、通信和临时内存，仍需实际显存验证。显存不足时另开小一档 run-id，或在相同全局 batch 下调整 micro batch；不能把四卡断点当成两卡断点恢复。
+这些是以 C1 结果和显存负担为依据的**起始网格**，没有声称已找到 N–D 最优值。C4 的参数/梯度/分片优化器常驻内存下界约65.8 GiB/卡，另有 FFT、激活、通信和临时内存，仍需实际显存验证。显存不足时另开小一档 run-id，或在相同全局 batch 下调整 micro batch；不能把四卡断点当成两卡断点恢复。
 
-已准备的语料约56亿 token。C4 的预算需要跨两轮读取；新增 sampler 保留第一轮原顺序，之后 seed+epoch 重新打乱，每轮内部不重复，所有 rank 共享同一全局序列。与随机抽样不同，没有引入新数据或过滤数据。
+已准备的语料约56亿 token。C4 的预算需要跨三轮读取；新增 sampler 保留第一轮原顺序，之后 seed+epoch 重新打乱，每轮内部不重复，所有 rank 共享同一全局序列。与随机抽样不同，没有引入新数据或过滤数据。
 
 ## 入口与 CPU 检查
 
@@ -31,8 +31,8 @@
 source /data/quark-7db0d9a22ffb/activate-c1.sh
 cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109
 export PYTHONPATH="$PWD/runtime:$C1_MODEL_ROOT/compat-source"
-python prepare.py --run-id combined-v3
-CUDA_VISIBLE_DEVICES='' python preflight.py --run-id combined-v3 --level all
+python prepare.py --run-id combined-v4
+CUDA_VISIBLE_DEVICES='' python preflight.py --run-id combined-v4 --level all
 python test_campaign.py
 bash launch.sh status
 ```
@@ -45,16 +45,16 @@ bash launch.sh status
 
 ```bash
 tmux new-session -d -s br-yzk-c4 \
-  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh train --run-id combined-v3 --level c4 --owner yzk --gpus 0,1,2,3'
+  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh train --run-id combined-v4 --level c4 --owner yzk --gpus 0,1,2,3'
 ```
 
-日志：`/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v3/c4/training.log`。训练结束检查 `training-complete.json`，包含预算完成核对和 FP32 控制参数导出。`--wait`只在明确想等待指定GPU时使用，不会停止其他进程。失败后先读日志；自己的同版本断点可加 `--resume`，不得覆盖或拼接不同训练历史。
+日志：`/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v4/c4/training.log`。训练结束检查 `training-complete.json`，包含预算完成核对和 FP32 控制参数导出。`--wait`只在明确想等待指定GPU时使用，不会停止其他进程。失败后先读日志；自己的同版本断点可加 `--resume`，不得覆盖或拼接不同训练历史。
 
 完整训练后，单独认领完整 A 集评测，释放其余卡：
 
 ```bash
 tmux new-session -d -s br-yzk-c4-eval \
-  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh eval --run-id combined-v3 --level c4 --owner yzk --gpus 0'
+  'cd /data/quark-7db0d9a22ffb/team-repo/campaigns/b_round_20261109 && bash launch.sh eval --run-id combined-v4 --level c4 --owner yzk --gpus 0'
 ```
 
 评测结果位于 `.../c4/evaluations/raw-s10240-auto/`；包括 `result.json`、`run-metadata.json`、`campaign-result.json`和日志。只有完整120142976计分token结果才登记完成。重复评测使用新的 `--eval-tag`，保留原始输出。
@@ -62,7 +62,7 @@ tmux new-session -d -s br-yzk-c4-eval \
 随后分配 C2、C3。C1 可先复测已迁移的现有权重，避免无必要重训：
 
 ```bash
-bash launch.sh eval --run-id combined-v3 --level c1 --owner csy --gpus 4 \
+bash launch.sh eval --run-id combined-v4 --level c1 --owner csy --gpus 4 \
   --model "$C1_HF_MODEL" --eval-tag raw-baseline-s10240-auto
 ```
 
@@ -94,6 +94,8 @@ python score.py --suite /path/to/suite.json --output /path/to/score.json
 
 先读本文件、`AGENTS.md`、共享 `BOARD.md`和实时status；每个结果保留source/config哈希、完整命令、模型路径、GPU、原始日志和状态。仓库只同步代码/配置/摘要，不放密钥、权重、数据或环境。本目录导入代码的原始哈希见 `provenance/imported-source.json`，可移植性改动与训练流改动都在Git中可审查。
 
-当前已准备并核验的run-id为`combined-v3`；v1仅保留初次准备记录，不作为接手入口。
+当前已准备并核验的run-id为`combined-v4`；v1仅保留初次准备记录，不作为接手入口。
 
 2026-11-09启动修复：训练控制器的CPU预检在独立、隐藏GPU的Python进程中执行，避免依赖探测提前初始化CUDA。v2首次启动在预检阶段退出，没有开始训练。
+
+2026-11-09 GPU验证：v3的C4（h832/L16）第一次反向在95GiB卡上OOM，完整失败日志保留。v4将C4改为h768/L16，保留1024专家、top4、K2048与完整训练预算；token/学习率/核算随宽度重新生成。C1-C3 shape不变。

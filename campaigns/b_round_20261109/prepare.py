@@ -11,7 +11,7 @@ from common import HERE, DEFAULT_WORKSPACE, digest, read, source_hash, state_roo
 
 BUDGETS = {'c1': 3*10**17, 'c2': 10**18, 'c3': 3*10**18, 'c4': 10**19}
 # Memory-constrained starting grid; GPU fit and quality are explicitly unmeasured.
-SHAPES = {'c1': (512, 10), 'c2': (640, 12), 'c3': (768, 14), 'c4': (832, 16)}
+SHAPES = {'c1': (512, 10), 'c2': (640, 12), 'c3': (768, 14), 'c4': (768, 16)}
 WORLDS = {'c1': 2, 'c2': 2, 'c3': 4, 'c4': 4}
 
 
@@ -95,7 +95,7 @@ def build(level, workspace, run_id, experts=1024, taps=2048, world=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--workspace', type=Path, default=DEFAULT_WORKSPACE)
-    p.add_argument('--run-id', default='combined-v3')
+    p.add_argument('--run-id', default='combined-v4')
     p.add_argument('--experts', type=int, default=1024)
     p.add_argument('--taps', type=int, default=2048)
     p.add_argument('--world', type=int, help='Override all four native worlds before the first run')

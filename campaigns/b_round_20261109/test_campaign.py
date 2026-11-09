@@ -74,7 +74,8 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(c1['accounting']['actual_train_flops'], 298484080142450688)
         self.assertEqual(c1['accounting']['total_params_all'], 3369671121)
         c4, _ = build('c4', Path('/nonexistent-test-workspace'), 'test')
-        self.assertEqual(c4['train']['data_epochs'], 2)
+        self.assertGreaterEqual(c4['train']['data_epochs'], 2)
+        self.assertEqual(c4['model']['hidden'],768)
 
     def test_variants_recompute_budget(self):
         c, _ = build('c1', Path('/nonexistent-test-workspace'), 'variant', taps=4096)

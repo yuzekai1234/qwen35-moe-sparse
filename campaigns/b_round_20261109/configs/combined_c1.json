@@ -43,7 +43,7 @@
     "paper_dwa": 1
   },
   "train": {
-    "run_dir": "/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v3/c1/train",
+    "run_dir": "/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v4/c1/train",
     "data": "/data/quark-7db0d9a22ffb/c1-combined-papers-data-20261108/c1-pruned10k-v1/train.bin",
     "val_data": "/data/quark-7db0d9a22ffb/c1-combined-papers-data-20261108/c1-pruned10k-v1/valid.bin",
     "tokenizer": "/data/quark-7db0d9a22ffb/c1-combined-papers-data-20261108/c1-pruned10k-v1/tokenizer",
@@ -168,7 +168,7 @@
   "variant": {
     "paper_method": "combined-papers",
     "initialization": "fresh_seed0",
-    "source": "/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v3/source/runtime",
+    "source": "/data/quark-7db0d9a22ffb/b-round-20261109/runs/combined-v4/source/runtime",
     "common_schedule": {
       "start_step": 14719,
       "mode": "linear_zero",
@@ -177,7 +177,7 @@
     },
     "scaling_rule": "SHAPES in prepare.py; 2 LC blocks at floor(L/3), floor(2L/3); fixed E/topk/taps; Engram dim=h/4",
     "status": "prepared_unmeasured",
-    "run_id": "combined-v3",
+    "run_id": "combined-v4",
     "level": "c1"
   }
 }
