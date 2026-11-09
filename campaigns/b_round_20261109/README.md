@@ -101,3 +101,15 @@ python score.py --suite /path/to/suite.json --output /path/to/score.json
 2026-11-09 GPU验证：v3的C4（h832/L16）第一次反向在95GiB卡上OOM，完整失败日志保留。v4将C4改为h768/L16，保留1024专家、top4、K2048与完整训练预算；token/学习率/核算随宽度重新生成。C1-C3 shape不变。
 
 梯度显存修复（v5）：每次新建/恢复DDP后的第一个优化器步逐micro同步，以建立梯度桶view；之后恢复no_sync累积，并用zero_grad(set_to_none=False)保留view，避免一份参数梯度与通信桶重复常驻。没有增加模型前向、改变全局batch或预算。`ddp_bucket_probe.py`的两进程CPU对照覆盖首步与稳态步，梯度最大误差1.11e-16，view在清零后保留。原h768/v4首轮反向OOM日志保留。
+
+## 2026-11-09 C4八卡续训安排
+
+当前四卡主线combined-v5已训练两小时以上，另四卡空闲。此前4卡是沿用旧H100共享配额的假设；本次以用户不设额外限制、优先总分和时效的目标调整C4为8卡，C1/C2/C3仍按2/2/4卡准备。
+
+八卡目标run-id为`combined-v6`；模型、全局batch、训练数据流、LR、token/计算预算和runtime代码与当前四卡完全一致。不要直接启动一个新的八卡随机训练来覆盖已有进度。
+
+监督器`br-c4-expand-eight`先预约GPU4–7，等待四卡第2000步及九份原生checkpoint文件完成原子保存，再停止自己拥有的四卡控制器。保留原checkpoint硬链接快照，使用当前Torch的实际ZRO参数划分算法，将Adam/Muon动量重新分配到8个rank，将LongConv的FP32主权重和动量按lag拆为8份。权重/优化器/LC状态全部读回比较通过后，才启动原生8卡`--resume`。不声称跨world位级一致的数值轨迹；全局采样顺序和已训练状态保持，rank RNG走原生不同world回退。
+
+日志：`b-round-20261109/controller-logs/c4-expand-eight.log`；状态：`C4_EXPAND_TO_EIGHT.json`；目标会话：`br-codex-gzy-c4-w8`。实际八卡训练日志为`runs/combined-v6/c4/training.log`，转换回执为其`train/RESHARD_PROOF.json`。如果转换在八卡控制器启动前失败，会从保留的原生四卡断点恢复四卡。
+
+转换映射的两项CPU回归、原11项回归和四档原生CPU检查已通过；真实checkpoint的逐张量验证要等保存后执行。八卡是否赶上11月11日截止，必须看续训后的实测吞吐，不按线性翻倍承诺。迁移期间0–7由本任务使用/预约；其他agent先读共享看板和实时认领状态。

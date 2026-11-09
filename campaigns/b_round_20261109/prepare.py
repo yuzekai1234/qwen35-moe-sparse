@@ -12,7 +12,7 @@ from common import HERE, DEFAULT_WORKSPACE, digest, read, source_hash, state_roo
 BUDGETS = {'c1': 3*10**17, 'c2': 10**18, 'c3': 3*10**18, 'c4': 10**19}
 # Memory-constrained starting grid; GPU fit and quality are explicitly unmeasured.
 SHAPES = {'c1': (512, 10), 'c2': (640, 12), 'c3': (768, 14), 'c4': (768, 16)}
-WORLDS = {'c1': 2, 'c2': 2, 'c3': 4, 'c4': 4}
+WORLDS = {'c1': 2, 'c2': 2, 'c3': 4, 'c4': 8}
 
 
 def counter():
